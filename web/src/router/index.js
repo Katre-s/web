@@ -4,6 +4,8 @@ import { useUserStore } from '@/stores/user'
 const routes = [
   { path: '/login', name: 'Login', component: () => import('@/views/Login.vue') },
   { path: '/', name: 'Home', component: () => import('@/views/Home.vue'), meta: { auth: true } },
+  { path: '/trade', name: 'Trade', component: () => import('@/views/Trade.vue'), meta: { auth: true } },
+  { path: '/chat', name: 'Chat', component: () => import('@/views/Chat.vue'), meta: { auth: true } },
   { path: '/product/:id', name: 'ProductDetail', component: () => import('@/views/ProductDetail.vue'), meta: { auth: true } },
   { path: '/publish', name: 'Publish', component: () => import('@/views/Publish.vue'), meta: { auth: true } },
   { path: '/cart', name: 'Cart', component: () => import('@/views/Cart.vue'), meta: { auth: true } },
