@@ -1,8 +1,9 @@
 import request from './request'
 
 export const authApi = {
-  login: (studentId, password) => request.post('/auth/login', { studentId, password }),
-  register: (studentId, password, nickname) => request.post('/auth/register', { studentId, password, nickname })
+  login: (email, password) => request.post('/auth/login', { email, password }),
+  register: (nickname, realName, email, code, password) => request.post('/auth/register', { nickname, realName, email, code, password }),
+  sendCode: (email) => request.post('/auth/send-code', { email })
 }
 
 export const productApi = {

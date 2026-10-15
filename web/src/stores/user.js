@@ -22,14 +22,14 @@ export const useUserStore = defineStore('user', () => {
     localStorage.removeItem('userInfo')
   }
 
-  async function login(studentId, password) {
-    const res = await authApi.login(studentId, password)
+  async function login(email, password) {
+    const res = await authApi.login(email, password)
     setAuth(res.token, res.user)
     return res
   }
 
-  async function register(studentId, password, nickname) {
-    const res = await authApi.register(studentId, password, nickname)
+  async function register(nickname, realName, email, code, password) {
+    const res = await authApi.register(nickname, realName, email, code, password)
     setAuth(res.token, res.user)
     return res
   }

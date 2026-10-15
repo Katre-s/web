@@ -3,8 +3,9 @@ import { sequelize } from '../config/database.js'
 
 export const User = sequelize.define('User', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  studentId: { type: DataTypes.STRING(20), allowNull: false, unique: true, field: 'student_id' },
+  email: { type: DataTypes.STRING(100), allowNull: false, unique: true },
   nickname: { type: DataTypes.STRING(50), allowNull: false },
+  realName: { type: DataTypes.STRING(50), allowNull: false, field: 'real_name' },
   password: { type: DataTypes.STRING(255), allowNull: false },
   avatar: { type: DataTypes.STRING(255), defaultValue: '' },
   campus: { type: DataTypes.STRING(100), defaultValue: '' }

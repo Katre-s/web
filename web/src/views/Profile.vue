@@ -5,7 +5,7 @@
       <img :src="userStore.userInfo?.avatar || defaultAvatar" class="avatar" />
       <div class="profile-info">
         <h3>{{ userStore.userInfo?.nickname }}</h3>
-        <p>学号：{{ userStore.userInfo?.studentId }}</p>
+        <p>邮箱：{{ userStore.userInfo?.email }}</p>
       </div>
     </div>
 
