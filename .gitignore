@@ -1,0 +1,15 @@
+node_modules
+dist
+*.log
+*.zip
+.env
+.DS_Store
+uploads/*
+!uploads/.gitkeep
+start-dev.ps1
+do-build.ps1
+do-build2.ps1
+vite-stdout.log
+vite-stderr.log
+vite-out.log
+vite-err.log
