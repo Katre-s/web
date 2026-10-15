@@ -31,7 +31,11 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       assetsDir: 'assets',
       sourcemap: false,
-      chunkSizeWarningLimit: 1500
+      chunkSizeWarningLimit: 1500,
+      target: 'esnext'
+    },
+    optimizeDeps: {
+      esbuildOptions: { target: 'esnext' }
     }
   }
 })
