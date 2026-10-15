@@ -1,14 +1,19 @@
 <template>
   <div id="layout">
-    <main class="main-content">
+    <NavBar v-if="!isLoginPage" />
+    <main class="main-content" :class="{ 'no-nav': isLoginPage }">
       <router-view />
     </main>
-    <BottomNav />
   </div>
 </template>
 
 <script setup>
-import BottomNav from '@/components/BottomNav.vue'
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+import NavBar from '@/components/NavBar.vue'
+
+const route = useRoute()
+const isLoginPage = computed(() => route.path === '/login')
 </script>
 
 <style scoped>
@@ -23,6 +28,9 @@ import BottomNav from '@/components/BottomNav.vue'
   width: 100%;
   margin: 0 auto;
   padding: 20px;
-  padding-bottom: 84px;
+}
+.main-content.no-nav {
+  max-width: 100%;
+  padding: 0;
 }
 </style>
