@@ -1,14 +1,14 @@
 <template>
   <div id="layout">
-    <NavBar />
     <main class="main-content">
       <router-view />
     </main>
+    <BottomNav />
   </div>
 </template>
 
 <script setup>
-import NavBar from '@/components/NavBar.vue'
+import BottomNav from '@/components/BottomNav.vue'
 </script>
 
 <style scoped>
@@ -23,5 +23,6 @@ import NavBar from '@/components/NavBar.vue'
   width: 100%;
   margin: 0 auto;
   padding: 20px;
+  padding-bottom: 84px;
 }
 </style>
