@@ -80,6 +80,8 @@ export async function createBook(req, res, next) {
     })
 
     if (req.files && req.files.length) {
+      const coverPath = `/uploads/${req.files[0].filename}`
+      await product.update({ bookCover: coverPath })
       await ProductImage.bulkCreate(
         req.files.map((f, i) => ({
           productId: product.id,

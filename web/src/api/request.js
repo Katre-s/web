@@ -14,6 +14,8 @@ request.interceptors.request.use((config) => {
   return config
 })
 
+let isRedirecting = false
+
 request.interceptors.response.use(
   (response) => response.data,
   (error) => {
@@ -21,10 +23,15 @@ request.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
       localStorage.removeItem('userInfo')
-      ElMessage.error('登录已过期，请重新登录')
-      window.location.href = '/login'
+      if (!isRedirecting && window.location.pathname !== '/login') {
+        isRedirecting = true
+        ElMessage.error('登录已过期，请重新登录')
+        setTimeout(() => {
+          window.location.href = '/login'
+        }, 100)
+      }
     } else {
-      ElMessage.error(msg)
+      ElMessage.error({ message: msg, duration: 2000 })
     }
     return Promise.reject(error)
   }

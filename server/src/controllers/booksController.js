@@ -22,8 +22,26 @@ export async function listBooks(req, res, next) {
     })
 
     const bookMap = new Map()
+    const titleAuthorToKey = new Map()
+
     for (const p of products) {
-      const key = p.isbn || `${p.bookTitle || p.title}__${p.bookAuthor || ''}`
+      const titleAuthor = `${(p.bookTitle || p.title || '').trim()}__${(p.bookAuthor || '').trim()}`
+      if (p.isbn && !titleAuthorToKey.has(titleAuthor)) {
+        titleAuthorToKey.set(titleAuthor, `isbn:${p.isbn}`)
+      }
+    }
+
+    for (const p of products) {
+      const titleAuthor = `${(p.bookTitle || p.title || '').trim()}__${(p.bookAuthor || '').trim()}`
+      let key
+      if (p.isbn) {
+        key = `isbn:${p.isbn}`
+      } else if (titleAuthorToKey.has(titleAuthor)) {
+        key = titleAuthorToKey.get(titleAuthor)
+      } else {
+        key = `title:${titleAuthor}`
+      }
+
       const cover = p.bookCover || p.images?.[0]?.imagePath || ''
       if (!bookMap.has(key)) {
         bookMap.set(key, {
@@ -40,6 +58,7 @@ export async function listBooks(req, res, next) {
         const item = bookMap.get(key)
         item.minPrice = Math.min(item.minPrice, Number(p.price))
         item.sellerCount++
+        if (!item.isbn && p.isbn) item.isbn = p.isbn
         if (!item.edition && p.edition) item.edition = p.edition
         if (!item.bookCover && cover) item.bookCover = cover
         if (!item.bookPublisher && p.bookPublisher) item.bookPublisher = p.bookPublisher

@@ -73,6 +73,6 @@ export const adminApi = {
   stats: () => request.get('/admin/stats'),
   users: (params) => request.get('/admin/users', { params }),
   updateUser: (id, data) => request.put(`/admin/users/${id}`, data),
-  createBook: (formData) => request.post('/admin/products', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  createBook: (formData) => request.post('/admin/products', formData),
   deleteProduct: (id) => request.delete(`/admin/products/${id}`)
 }
