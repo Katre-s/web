@@ -28,6 +28,42 @@
       </nav>
 
       <div class="nav-right">
+        <router-link v-if="isAdmin" to="/admin" class="nav-item mini">
+          <el-icon><Setting /></el-icon>
+          <span>管理台</span>
+        </router-link>
+
+        <el-popover placement="bottom-end" :width="320" trigger="click" @show="loadNotifications">
+          <template #reference>
+            <div class="bell-box">
+              <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99">
+                <el-icon :size="20" class="bell-icon"><Bell /></el-icon>
+              </el-badge>
+            </div>
+          </template>
+
+          <div class="notif-panel">
+            <div class="notif-header">
+              <b>通知</b>
+              <el-button text size="small" @click="readAllNotifications">全部已读</el-button>
+            </div>
+            <div class="notif-list" v-if="notifications.length">
+              <div
+                v-for="n in notifications"
+                :key="n.id"
+                class="notif-item"
+                :class="{ unread: !n.isRead }"
+                @click="markRead(n)"
+              >
+                <div class="notif-dot" v-if="!n.isRead"></div>
+                <p class="notif-content">{{ n.content }}</p>
+                <span class="notif-time">{{ formatTime(n.time) }}</span>
+              </div>
+            </div>
+            <el-empty v-else description="暂无通知" :image-size="60" />
+          </div>
+        </el-popover>
+
         <el-button text @click="handleLogout" class="logout-btn">退出</el-button>
       </div>
     </div>
@@ -35,18 +71,57 @@
 </template>
 
 <script setup>
+import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
-import { HomeFilled, ShoppingBag, ChatDotRound, User } from '@element-plus/icons-vue'
+import { HomeFilled, ShoppingBag, ChatDotRound, User, Bell, Setting } from '@element-plus/icons-vue'
+import { notificationApi } from '@/api'
 
 const userStore = useUserStore()
 const router = useRouter()
 const defaultAvatar = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><circle cx="20" cy="20" r="20" fill="%2342a5f5"/><text x="50%" y="50%" fill="%23fff" text-anchor="middle" dy=".35em" font-size="16">文</text></svg>'
 
+const isAdmin = computed(() => userStore.userInfo?.role === 'admin')
+
+const notifications = ref([])
+const unreadCount = computed(() => notifications.value.filter((n) => !n.isRead).length)
+
+async function loadNotifications() {
+  try {
+    const res = await notificationApi.myList()
+    notifications.value = res.data?.list || []
+  } catch {}
+}
+
+async function markRead(n) {
+  if (n.isRead) return
+  n.isRead = true
+  try { await notificationApi.read(n.id) } catch {}
+}
+
+async function readAllNotifications() {
+  notifications.value.forEach((n) => (n.isRead = true))
+  try { await notificationApi.readAll() } catch {}
+}
+
+function formatTime(t) {
+  if (!t) return ''
+  const d = new Date(t)
+  const now = Date.now()
+  const diff = Math.floor((now - d.getTime()) / 1000)
+  if (diff < 60) return '刚刚'
+  if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getMonth() + 1}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 function handleLogout() {
   userStore.logout()
   router.push('/login')
 }
+
+onMounted(loadNotifications)
 </script>
 
 <style scoped>
@@ -138,9 +213,35 @@ function handleLogout() {
 .nav-item.router-link-active::after {
   width: 60%;
 }
+.nav-item.mini {
+  padding: 6px 12px;
+  font-size: 13px;
+  color: #a58a4b;
+}
 
 .nav-right {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.bell-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  color: #546e7a;
+}
+.bell-box:hover {
+  background: rgba(66, 165, 245, 0.08);
+  color: #42a5f5;
+}
+.bell-icon {
+  color: #546e7a;
 }
 .logout-btn {
   color: #90a4ae;
@@ -148,5 +249,62 @@ function handleLogout() {
 }
 .logout-btn:hover {
   color: #ef5350;
+}
+
+.notif-panel {
+  max-height: 420px;
+  display: flex;
+  flex-direction: column;
+}
+.notif-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 6px 10px;
+  border-bottom: 1px solid #f0ece2;
+}
+.notif-header b {
+  color: #3b3020;
+  letter-spacing: 2px;
+}
+.notif-list {
+  overflow-y: auto;
+  max-height: 340px;
+}
+.notif-item {
+  padding: 12px 6px;
+  border-bottom: 1px solid #f5f1e8;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s;
+}
+.notif-item:hover {
+  background: rgba(165, 138, 75, 0.06);
+}
+.notif-item.unread {
+  background: rgba(66, 165, 245, 0.04);
+}
+.notif-dot {
+  position: absolute;
+  left: 0;
+  top: 16px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #42a5f5;
+  box-shadow: 0 0 6px rgba(66, 165, 245, 0.6);
+}
+.notif-content {
+  font-size: 14px;
+  color: #4a4438;
+  line-height: 1.5;
+  padding-left: 14px;
+}
+.notif-time {
+  display: block;
+  font-size: 12px;
+  color: #b0a488;
+  margin-top: 4px;
+  padding-left: 14px;
 }
 </style>

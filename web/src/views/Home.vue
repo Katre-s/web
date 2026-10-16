@@ -40,7 +40,7 @@
           <p class="hotspot-desc">{{ item.description }}</p>
           <div class="hotspot-meta">
             <span>{{ item.author }}</span>
-            <span>{{ item.time }}</span>
+            <span>{{ formatTime(item.time) }}</span>
           </div>
         </div>
         <el-empty v-if="!hotspots.length" description="暂无热点，快来投稿吧" />
@@ -73,10 +73,11 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { hotspotApi } from '@/api'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -129,36 +130,49 @@ const colleges = [
   { name: '环境工程学院', icon: '🌿', color: 'linear-gradient(135deg, #4fc3f7, #29b6f6)' }
 ]
 
-const hotspots = ref([
-  { id: 1, tag: '活动', title: '校园读书节即将开幕', description: '一年一度的读书节活动将于下月举行，欢迎同学们踊跃参与...', author: '图书馆', time: '2小时前' },
-  { id: 2, tag: '分享', title: '期末复习资料整理分享', description: '整理了本学期各科复习重点，有需要的同学可以联系我...', author: '张同学', time: '5小时前' },
-  { id: 3, tag: '讨论', title: '考研经验交流会', description: '邀请了几位成功上岸的学长学姐分享考研经验...', author: '李同学', time: '1天前' }
-])
+const hotspots = ref([])
 
 const showPostDialog = ref(false)
 const postForm = ref({ title: '', tag: '', description: '' })
+
+async function loadHotspots() {
+  try {
+    const res = await hotspotApi.list()
+    hotspots.value = res.data || []
+  } catch {}
+}
+
+function formatTime(t) {
+  if (!t) return ''
+  const d = new Date(t)
+  const now = Date.now()
+  const diff = Math.floor((now - d.getTime()) / 1000)
+  if (diff < 60) return '刚刚'
+  if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getMonth() + 1}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
 
 function goTrade(collegeName) {
   router.push({ path: '/trade', query: { college: collegeName } })
 }
 
-function submitPost() {
+async function submitPost() {
   if (!postForm.value.title || !postForm.value.tag || !postForm.value.description) {
     ElMessage.warning('请填写完整信息')
     return
   }
-  hotspots.value.unshift({
-    id: Date.now(),
-    tag: postForm.value.tag,
-    title: postForm.value.title,
-    description: postForm.value.description,
-    author: userStore.userInfo?.nickname || '匿名',
-    time: '刚刚'
-  })
-  postForm.value = { title: '', tag: '', description: '' }
-  showPostDialog.value = false
-  ElMessage.success('投稿成功')
+  try {
+    await hotspotApi.create(postForm.value)
+    ElMessage.success('投稿成功')
+    postForm.value = { title: '', tag: '', description: '' }
+    showPostDialog.value = false
+    loadHotspots()
+  } catch {}
 }
+
+onMounted(loadHotspots)
 </script>
 
 <style scoped>

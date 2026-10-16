@@ -58,6 +58,11 @@
         <p>非志无以成学</p>
       </div>
 
+      <div class="admin-entry" @click="goAdmin">
+        <el-icon :size="14"><Setting /></el-icon>
+        <span>管理后台</span>
+      </div>
+
       <div class="auth-form-wrapper">
         <div class="form-header">
           <h2 class="form-title">{{ isLogin ? '欢迎归来' : '雅集新友' }}</h2>
@@ -154,6 +159,7 @@
 import { ref, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { Setting } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { authApi } from '@/api'
 
@@ -185,6 +191,14 @@ function rippleStyle(n) {
 
 function toggleMode() {
   isLogin.value = !isLogin.value
+}
+
+function goAdmin() {
+  if (userStore.isLoggedIn && userStore.userInfo?.role === 'admin') {
+    router.push('/admin')
+  } else {
+    router.push({ path: '/login', query: { redirect: '/admin' } })
+  }
 }
 
 async function sendCode() {
@@ -592,6 +606,32 @@ onUnmounted(() => {
   color: rgba(118, 100, 68, 0.55);
 }
 .right-poem p { margin: 0; }
+
+.admin-entry {
+  position: absolute;
+  right: 30px;
+  bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: rgba(118, 100, 68, 0.6);
+  cursor: pointer;
+  padding: 6px 12px;
+  border: 1px solid rgba(143, 124, 85, 0.25);
+  border-radius: 20px;
+  background: rgba(255, 252, 245, 0.5);
+  transition: all 0.3s;
+  z-index: 5;
+}
+.admin-entry:hover {
+  color: #7c6438;
+  border-color: #a58a4b;
+  background: rgba(255, 252, 245, 0.95);
+  box-shadow: 0 4px 14px rgba(120, 100, 60, 0.2);
+  transform: translateY(-2px);
+}
 
 .auth-form-wrapper {
   width: 430px;

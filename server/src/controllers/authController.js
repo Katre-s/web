@@ -15,6 +15,10 @@ export async function login(req, res, next) {
     const user = await User.findOne({ where: { email } })
     if (!user) return fail(res, '该邮箱未注册')
 
+    if (user.status === 'banned') {
+      return fail(res, '该账号已被封禁，请联系管理员')
+    }
+
     const valid = await bcrypt.compare(password, user.password)
     if (!valid) return fail(res, '密码错误')
 

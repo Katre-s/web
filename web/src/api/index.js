@@ -53,3 +53,26 @@ export const messageApi = {
   send: (productId, receiverId, content) => request.post('/messages', { productId, receiverId, content }),
   list: () => request.get('/messages')
 }
+export const hotspotApi = {
+  list: () => request.get('/hotspots'),
+  create: (data) => request.post('/hotspots', data),
+  adminList: () => request.get('/hotspots/admin/list'),
+  remove: (id) => request.delete(`/hotspots/${id}`),
+  move: (id, direction) => request.put(`/hotspots/${id}/sort`, { direction })
+}
+
+export const notificationApi = {
+  myList: () => request.get('/notifications'),
+  read: (id) => request.put(`/notifications/${id}/read`),
+  readAll: () => request.put('/notifications/read-all'),
+  broadcast: (content) => request.post('/notifications/admin/broadcast', { content }),
+  sendToOne: (userId, content) => request.post('/notifications/admin/send', { userId, content })
+}
+
+export const adminApi = {
+  stats: () => request.get('/admin/stats'),
+  users: (params) => request.get('/admin/users', { params }),
+  updateUser: (id, data) => request.put(`/admin/users/${id}`, data),
+  createBook: (formData) => request.post('/admin/products', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  deleteProduct: (id) => request.delete(`/admin/products/${id}`)
+}

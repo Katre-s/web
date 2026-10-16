@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken'
 
 export function generateToken(user) {
   return jwt.sign(
-    { id: user.id, email: user.email, nickname: user.nickname },
+    { id: user.id, email: user.email, nickname: user.nickname, role: user.role || 'user', campus: user.campus || '' },
     process.env.JWT_SECRET || 'wenheng_secret',
     { expiresIn: process.env.JWT_EXPIRES || '7d' }
   )

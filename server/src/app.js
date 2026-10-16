@@ -15,6 +15,9 @@ import orderRoutes from './routes/orders.js'
 import wishlistRoutes from './routes/wishlist.js'
 import favoriteRoutes from './routes/favorites.js'
 import messageRoutes from './routes/messages.js'
+import hotspotRoutes from './routes/hotspots.js'
+import notificationRoutes from './routes/notifications.js'
+import adminRoutes from './routes/admin.js'
 
 dotenv.config()
 
@@ -38,6 +41,9 @@ app.use('/api/orders', orderRoutes)
 app.use('/api/wishlist', wishlistRoutes)
 app.use('/api/favorites', favoriteRoutes)
 app.use('/api/messages', messageRoutes)
+app.use('/api/hotspots', hotspotRoutes)
+app.use('/api/notifications', notificationRoutes)
+app.use('/api/admin', adminRoutes)
 
 app.get('/api/health', (req, res) => res.json({ code: 0, message: 'ok' }))
 

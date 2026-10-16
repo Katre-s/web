@@ -8,8 +8,21 @@ export const User = sequelize.define('User', {
   realName: { type: DataTypes.STRING(50), allowNull: false, field: 'real_name' },
   password: { type: DataTypes.STRING(255), allowNull: false },
   avatar: { type: DataTypes.STRING(255), defaultValue: '' },
-  campus: { type: DataTypes.STRING(100), defaultValue: '' }
+  campus: { type: DataTypes.STRING(100), defaultValue: '' },
+  role: { type: DataTypes.STRING(20), defaultValue: 'user' },
+  status: { type: DataTypes.STRING(20), defaultValue: 'active' }
 }, { tableName: 'users' })
+
+export const Hotspot = sequelize.define('Hotspot', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  userId: { type: DataTypes.INTEGER, field: 'user_id' },
+  title: { type: DataTypes.STRING(200), allowNull: false },
+  tag: { type: DataTypes.STRING(50), defaultValue: '分享' },
+  description: { type: DataTypes.TEXT, defaultValue: '' },
+  author: { type: DataTypes.STRING(50), defaultValue: '' },
+  sortOrder: { type: DataTypes.INTEGER, defaultValue: 0, field: 'sort_order' },
+  status: { type: DataTypes.STRING(20), defaultValue: 'active' }
+}, { tableName: 'hotspots' })
 
 export const Category = sequelize.define('Category', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
@@ -119,5 +132,8 @@ Wishlist.belongsTo(User, { foreignKey: 'user_id', as: 'user' })
 User.hasMany(Message, { foreignKey: 'sender_id', as: 'sentMessages' })
 User.hasMany(Message, { foreignKey: 'receiver_id', as: 'receivedMessages' })
 Message.belongsTo(Product, { foreignKey: 'product_id', as: 'product' })
+
+User.hasMany(Hotspot, { foreignKey: 'user_id', as: 'hotspots' })
+Hotspot.belongsTo(User, { foreignKey: 'user_id', as: 'user' })
 
 export { sequelize }
