@@ -112,15 +112,21 @@ const greetingSub = computed(() => {
 
 const colleges = [
   { name: '机电工程学院', icon: '⚙', color: 'linear-gradient(135deg, #42a5f5, #1e88e5)' },
+  { name: '电气与控制工程学院', icon: '⚡', color: 'linear-gradient(135deg, #7c4dff, #536dfe)' },
   { name: '信息工程学院', icon: '💻', color: 'linear-gradient(135deg, #66bb6a, #43a047)' },
   { name: '土木工程学院', icon: '🏗', color: 'linear-gradient(135deg, #ffa726, #fb8c00)' },
-  { name: '化学化工学院', icon: '⚗', color: 'linear-gradient(135deg, #ab47bc, #8e24aa)' },
-  { name: '矿业工程学院', icon: '⛏', color: 'linear-gradient(135deg, #78909c, #546e7a)' },
-  { name: '管理学院', icon: '📊', color: 'linear-gradient(135deg, #ec407a, #d81b60)' },
+  { name: '化学与环境工程学院', icon: '⚗', color: 'linear-gradient(135deg, #ab47bc, #8e24aa)' },
+  { name: '矿业与安全工程学院', icon: '⛏', color: 'linear-gradient(135deg, #78909c, #546e7a)' },
+  { name: '管理工程学院', icon: '📊', color: 'linear-gradient(135deg, #ec407a, #d81b60)' },
   { name: '经济学院', icon: '💰', color: 'linear-gradient(135deg, #26a69a, #00897b)' },
   { name: '外国语学院', icon: '🌐', color: 'linear-gradient(135deg, #5c6bc0, #3949ab)' },
-  { name: '设计学院', icon: '🎨', color: 'linear-gradient(135deg, #ff7043, #f4511e)' },
-  { name: '马克思主义学院', icon: '📖', color: 'linear-gradient(135deg, #8d6e63, #6d4c41)' }
+  { name: '设计艺术学院', icon: '🎨', color: 'linear-gradient(135deg, #ff7043, #f4511e)' },
+  { name: '马克思主义学院', icon: '📖', color: 'linear-gradient(135deg, #8d6e63, #6d4c41)' },
+  { name: '人文学院', icon: '📚', color: 'linear-gradient(135deg, #ba68c8, #ab47bc)' },
+  { name: '数学与统计学院', icon: '🔢', color: 'linear-gradient(135deg, #4db6ac, #26a69a)' },
+  { name: '体育学院', icon: '🏃', color: 'linear-gradient(135deg, #ef5350, #e53935)' },
+  { name: '食品与生物工程学院', icon: '🧪', color: 'linear-gradient(135deg, #9ccc65, #7cb342)' },
+  { name: '环境工程学院', icon: '🌿', color: 'linear-gradient(135deg, #4fc3f7, #29b6f6)' }
 ]
 
 const hotspots = ref([
