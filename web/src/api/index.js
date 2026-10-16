@@ -2,8 +2,13 @@ import request from './request'
 
 export const authApi = {
   login: (email, password) => request.post('/auth/login', { email, password }),
-  register: (nickname, realName, email, code, password) => request.post('/auth/register', { nickname, realName, email, code, password }),
+  register: (nickname, realName, email, code, password, campus) => request.post('/auth/register', { nickname, realName, email, code, password, campus }),
   sendCode: (email) => request.post('/auth/send-code', { email })
+}
+
+export const booksApi = {
+  list: (params) => request.get('/books', { params }),
+  detail: (key) => request.get(`/books/${encodeURIComponent(key)}`)
 }
 
 export const productApi = {

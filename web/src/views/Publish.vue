@@ -24,6 +24,9 @@
       <el-form-item label="售价">
         <el-input-number v-model="form.price" :min="0" :precision="2" />
       </el-form-item>
+      <el-form-item label="版本号">
+        <el-input v-model="form.edition" placeholder="如：第3版" style="width: 240px" />
+      </el-form-item>
       <el-form-item label="成色">
         <el-select v-model="form.condition" style="width: 200px">
           <el-option label="全新" value="全新" />
@@ -40,6 +43,12 @@
           <el-option label="考研" value="考研" />
           <el-option label="其他" value="其他" />
         </el-select>
+      </el-form-item>
+      <el-form-item label="是否可配送">
+        <el-radio-group v-model="form.delivery">
+          <el-radio :value="true">可配送</el-radio>
+          <el-radio :value="false">仅自提</el-radio>
+        </el-radio-group>
       </el-form-item>
       <el-form-item label="描述">
         <el-input v-model="form.description" type="textarea" :rows="3" placeholder="补充书籍描述（可选）" />
@@ -71,8 +80,10 @@ const images = ref([])
 
 const form = ref({
   price: null,
+  edition: '',
   condition: '九成新',
   category: '教材',
+  delivery: true,
   description: ''
 })
 
@@ -110,6 +121,8 @@ async function handleSubmit() {
     fd.append('bookCover', bookInfo.value.cover || '')
     fd.append('originalPrice', bookInfo.value.originalPrice || '')
     fd.append('price', form.value.price)
+    fd.append('edition', form.value.edition)
+    fd.append('delivery', form.value.delivery)
     fd.append('condition', form.value.condition)
     fd.append('category', form.value.category)
     fd.append('description', form.value.description)

@@ -9,6 +9,7 @@ import { testConnection } from './config/database.js'
 import authRoutes from './routes/auth.js'
 import productRoutes from './routes/products.js'
 import bookRoutes from './routes/book.js'
+import booksRoutes from './routes/books.js'
 import cartRoutes from './routes/cart.js'
 import orderRoutes from './routes/orders.js'
 import wishlistRoutes from './routes/wishlist.js'
@@ -31,6 +32,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
 app.use('/api/auth', authRoutes)
 app.use('/api/products', productRoutes)
 app.use('/api/book', bookRoutes)
+app.use('/api/books', booksRoutes)
 app.use('/api/cart', cartRoutes)
 app.use('/api/orders', orderRoutes)
 app.use('/api/wishlist', wishlistRoutes)

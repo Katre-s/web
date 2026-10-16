@@ -47,11 +47,12 @@ export async function create(req, res, next) {
   try {
     const userId = req.user.id
     const { isbn, bookTitle, bookAuthor, bookPublisher, bookCover, originalPrice,
-            price, condition, category, description } = req.body
+            edition, delivery, price, condition, category, description } = req.body
     const title = bookTitle || req.body.title || '未命名书籍'
 
     const product = await Product.create({
       userId, title, isbn, bookTitle, bookAuthor, bookPublisher, bookCover,
+      edition: edition || '', delivery: delivery !== 'false' && delivery !== false,
       originalPrice: originalPrice || 0, price, condition, category, description,
       status: 'available'
     })

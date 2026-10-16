@@ -32,6 +32,8 @@ export const Product = sequelize.define('Product', {
   bookAuthor: { type: DataTypes.STRING(200), field: 'book_author', defaultValue: '' },
   bookPublisher: { type: DataTypes.STRING(200), field: 'book_publisher', defaultValue: '' },
   bookCover: { type: DataTypes.STRING(500), field: 'book_cover', defaultValue: '' },
+  edition: { type: DataTypes.STRING(50), defaultValue: '' },
+  delivery: { type: DataTypes.BOOLEAN, defaultValue: true },
   originalPrice: { type: DataTypes.DECIMAL(10, 2), field: 'original_price', defaultValue: 0 }
 }, { tableName: 'products' })
 

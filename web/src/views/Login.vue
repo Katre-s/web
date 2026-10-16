@@ -73,6 +73,14 @@
               <el-input v-model="regForm.realName" placeholder="姓名" size="large" prefix-icon="Postcard" />
             </el-form-item>
             <el-form-item>
+              <el-select v-model="regForm.campus" placeholder="所属校区" size="large" style="width: 100%">
+                <el-option label="中心校区" value="中心校区" />
+                <el-option label="城南校区" value="城南校区" />
+                <el-option label="东校区" value="东校区" />
+                <el-option label="西校区" value="西校区" />
+              </el-select>
+            </el-form-item>
+            <el-form-item>
               <el-input v-model="regForm.email" placeholder="邮箱地址" size="large" prefix-icon="Message" />
             </el-form-item>
             <el-form-item>
@@ -122,7 +130,7 @@ const codeCooldown = ref(0)
 let cooldownTimer = null
 
 const loginForm = ref({ email: '', password: '' })
-const regForm = ref({ nickname: '', realName: '', email: '', code: '', password: '', confirmPassword: '' })
+const regForm = ref({ nickname: '', realName: '', campus: '', email: '', code: '', password: '', confirmPassword: '' })
 
 function particleStyle(n) {
   const size = 3 + Math.random() * 5
@@ -183,7 +191,7 @@ async function handleRegister() {
   }
   loading.value = true
   try {
-    await userStore.register(f.nickname, f.realName, f.email, f.code, f.password)
+    await userStore.register(f.nickname, f.realName, f.email, f.code, f.password, f.campus)
     ElMessage.success('注册成功')
     router.push(route.query.redirect || '/')
   } catch {} finally {

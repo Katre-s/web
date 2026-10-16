@@ -28,8 +28,8 @@ export const useUserStore = defineStore('user', () => {
     return res
   }
 
-  async function register(nickname, realName, email, code, password) {
-    const res = await authApi.register(nickname, realName, email, code, password)
+  async function register(nickname, realName, email, code, password, campus) {
+    const res = await authApi.register(nickname, realName, email, code, password, campus)
     setAuth(res.data.token, res.data.user)
     return res
   }

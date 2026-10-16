@@ -36,7 +36,7 @@ export async function sendCode(req, res, next) {
 
 export async function register(req, res, next) {
   try {
-    const { nickname, realName, email, code, password } = req.body
+    const { nickname, realName, email, code, password, campus } = req.body
     if (!nickname || !realName || !email || !code || !password) {
       return fail(res, '请填写完整信息')
     }
@@ -48,7 +48,7 @@ export async function register(req, res, next) {
     if (!codeValid) return fail(res, '验证码错误或已过期')
 
     const hashed = await bcrypt.hash(password, 10)
-    const user = await User.create({ email, nickname, realName, password: hashed })
+    const user = await User.create({ email, nickname, realName, password: hashed, campus: campus || '' })
     const token = generateToken(user)
     const { password: _, ...userInfo } = user.toJSON()
     success(res, { token, user: userInfo }, '注册成功')
