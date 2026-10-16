@@ -89,14 +89,14 @@ const form = ref({
 
 async function handleIsbnLookup() {
   if (!isbn.value) {
-    ElMessage.warning('请输入 ISBN')
+    ElMessage.warning({ message: '请输入 ISBN', duration: 1200 })
     return
   }
   looking.value = true
   try {
     const res = await bookApi.isbnLookup(isbn.value)
     bookInfo.value = res.data || res
-    ElMessage.success('识别成功')
+    ElMessage.success({ message: '识别成功', duration: 1200 })
   } finally {
     looking.value = false
   }

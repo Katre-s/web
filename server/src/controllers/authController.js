@@ -4,6 +4,9 @@ import { generateToken } from '../middlewares/auth.js'
 import { success, fail } from '../utils/response.js'
 import { sendVerificationCode, verifyCode } from '../services/emailService.js'
 
+const emailRegex = /^[\w.+-]+@[\w-]+(\.[\w-]+)+$/
+const campusOptions = ['一期', '二期', '东校区']
+
 export async function login(req, res, next) {
   try {
     const { email, password } = req.body
@@ -25,6 +28,7 @@ export async function sendCode(req, res, next) {
   try {
     const { email } = req.body
     if (!email) return fail(res, '请输入邮箱地址')
+    if (!emailRegex.test(email)) return fail(res, '邮箱格式不正确')
 
     const exists = await User.findOne({ where: { email } })
     if (exists) return fail(res, '该邮箱已注册')
@@ -40,6 +44,11 @@ export async function register(req, res, next) {
     if (!nickname || !realName || !email || !code || !password) {
       return fail(res, '请填写完整信息')
     }
+    if (!emailRegex.test(email)) return fail(res, '邮箱格式不正确')
+    if (!campus || !campusOptions.includes(campus)) {
+      return fail(res, '请选择正确的所属校区')
+    }
+    if (password.length < 6) return fail(res, '密码至少6位')
 
     const exists = await User.findOne({ where: { email } })
     if (exists) return fail(res, '该邮箱已注册')
@@ -48,7 +57,7 @@ export async function register(req, res, next) {
     if (!codeValid) return fail(res, '验证码错误或已过期')
 
     const hashed = await bcrypt.hash(password, 10)
-    const user = await User.create({ email, nickname, realName, password: hashed, campus: campus || '' })
+    const user = await User.create({ email, nickname, realName, password: hashed, campus })
     const token = generateToken(user)
     const { password: _, ...userInfo } = user.toJSON()
     success(res, { token, user: userInfo }, '注册成功')
