@@ -11,7 +11,7 @@ export async function stats(req, res, next) {
       Hotspot.count({ where: { status: 'active' } }),
       User.count({ where: { status: 'banned' } })
     ])
-    const recentUsers = await User.findAll({ order: [['id', 'DESC']], limit: 5, attributes: ['id', 'email', 'nickname', 'campus', 'role', 'status', 'createdAt'] })
+    const recentUsers = await User.findAll({ order: [['id', 'DESC']], limit: 5, attributes: ['id', 'email', 'nickname', 'campus', 'role', 'status', ['created_at', 'created_at']] })
     success(res, { userCount, productCount, orderCount, hotspotCount, bannedCount, recentUsers })
   } catch (err) { next(err) }
 }
@@ -29,7 +29,7 @@ export async function users(req, res, next) {
     }
     const { rows, count } = await User.findAndCountAll({
       where,
-      attributes: ['id', 'email', 'nickname', 'realName', 'campus', 'role', 'status', 'createdAt'],
+      attributes: ['id', 'email', 'nickname', 'realName', 'campus', 'role', 'status', ['created_at', 'created_at']],
       order: [['id', 'DESC']],
       offset: (page - 1) * pageSize,
       limit: Number(pageSize)
