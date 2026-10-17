@@ -22,6 +22,9 @@
         <el-menu-item index="books" @click="activeSection = 'books'">
           <el-icon><Reading /></el-icon><span>新书上架</span>
         </el-menu-item>
+        <el-menu-item index="boards" @click="switchSection('boards')">
+          <el-icon><Files /></el-icon><span>板块管理</span>
+        </el-menu-item>
         <el-menu-item index="users" @click="switchSection('users')">
           <el-icon><User /></el-icon><span>用户管理</span>
         </el-menu-item>
@@ -145,6 +148,29 @@
             <h3 class="panel-title">操作日志提示</h3>
             <p class="muted-text">用户端的通知会显示在右上角铃铛中，点击可标记已读。</p>
           </div>
+
+          <div class="panel">
+            <div class="panel-toolbar">
+              <h3 class="panel-title">已发送通知</h3>
+              <el-button size="small" @click="loadNotifList">刷新</el-button>
+            </div>
+            <el-table :data="notifList" size="small">
+              <el-table-column label="类型" width="90">
+                <template #default="{ row }">
+                  <el-tag :type="row.type === 'broadcast' ? 'warning' : 'info'" size="small">
+                    {{ row.type === 'broadcast' ? '广播' : '单发' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="content" label="内容" min-width="250" show-overflow-tooltip />
+              <el-table-column prop="time" label="时间" width="160" />
+              <el-table-column label="操作" width="90" fixed="right">
+                <template #default="{ row }">
+                  <el-button size="small" text type="danger" @click="deleteNotif(row)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
         </template>
 
         <!-- ===== 新书上架 ===== -->
@@ -204,6 +230,43 @@
           </div>
         </template>
 
+        <!-- ===== 板块管理 ===== -->
+        <template v-if="activeSection === 'boards'">
+          <div class="panel">
+            <div class="panel-toolbar">
+              <h3 class="panel-title">书籍板块管理</h3>
+              <el-button size="small" @click="loadBoards">刷新</el-button>
+            </div>
+            <el-table :data="boardList" size="small">
+              <el-table-column prop="id" label="ID" width="60" />
+              <el-table-column label="封面" width="80">
+                <template #default="{ row }">
+                  <img v-if="row.bookCover" :src="row.bookCover" style="width:40px;height:55px;object-fit:cover;border-radius:4px" @error="$event.target.style.display='none'" />
+                </template>
+              </el-table-column>
+              <el-table-column prop="bookTitle" label="书名" min-width="150" />
+              <el-table-column prop="bookAuthor" label="作者" width="120" />
+              <el-table-column prop="isbn" label="ISBN" width="140" />
+              <el-table-column prop="edition" label="版本" width="80" />
+              <el-table-column prop="productCount" label="在售数" width="80" />
+              <el-table-column label="操作" width="280" fixed="right">
+                <template #default="{ row }">
+                  <el-button size="small" text type="primary" @click="openBoardEdit(row)">编辑信息</el-button>
+                  <el-upload
+                    :show-file-list="false"
+                    accept="image/*"
+                    :http-request="(opt) => uploadCover(row, opt)"
+                    style="display:inline-block;margin-right:8px"
+                  >
+                    <el-button size="small" text type="primary">上传封面</el-button>
+                  </el-upload>
+                  <el-button size="small" text type="danger" @click="deleteBoard(row)">删除板块</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </template>
+
         <!-- ===== 用户管理 ===== -->
         <template v-if="activeSection === 'users'">
           <div class="panel">
@@ -214,7 +277,12 @@
               </el-input>
             </div>
             <el-table :data="userList" size="small">
-              <el-table-column prop="id" label="ID" width="60" />
+              <el-table-column prop="id" label="序号" width="60" />
+              <el-table-column label="用户ID" width="100">
+                <template #default="{ row }">
+                  <span class="user-no-cell">{{ row.userNo || '未分配' }}</span>
+                </template>
+              </el-table-column>
               <el-table-column prop="email" label="邮箱" min-width="170" />
               <el-table-column prop="nickname" label="昵称" width="100" />
               <el-table-column prop="realName" label="姓名" width="90" />
@@ -229,8 +297,9 @@
                   <el-tag size="small" :type="row.status === 'banned' ? 'danger' : 'success'">{{ row.status === 'banned' ? '已封禁' : '正常' }}</el-tag>
                 </template>
               </el-table-column>
-              <el-table-column label="操作" width="220" fixed="right">
+              <el-table-column label="操作" width="280" fixed="right">
                 <template #default="{ row }">
+                  <el-button size="small" text type="primary" @click="openUserNoDialog(row)">更改ID</el-button>
                   <el-button size="small" text type="primary" @click="toggleRole(row)">{{ row.role === 'admin' ? '取消管理员' : '设为管理员' }}</el-button>
                   <el-button size="small" :type="row.status === 'banned' ? 'success' : 'danger'" plain @click="toggleBan(row)">
                     {{ row.status === 'banned' ? '解封' : '封号' }}
@@ -249,16 +318,58 @@
             </div>
           </div>
         </template>
-      </div>
-    </div>
-  </div>
+       </div>
+     </div>
+
+    <el-dialog v-model="showUserNoDialog" title="更改用户ID" width="440px">
+      <p class="user-no-tip">用户：{{ userNoForm.nickname }}（当前ID：{{ userNoForm.oldNo }}）</p>
+      <el-form label-position="top">
+        <el-form-item label="新ID（8位数字）">
+          <el-input v-model="userNoForm.newNo" placeholder="请输入8位数字ID" maxlength="8" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showUserNoDialog = false">取消</el-button>
+        <el-button type="primary" @click="submitUserNo">确认更改</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="showBoardEditDialog" title="编辑板块信息" width="520px">
+      <el-form :model="boardEditForm" label-position="top">
+        <div class="form-grid">
+          <el-form-item label="书名 *">
+            <el-input v-model="boardEditForm.bookTitle" placeholder="请输入书名" />
+          </el-form-item>
+          <el-form-item label="作者">
+            <el-input v-model="boardEditForm.bookAuthor" placeholder="请输入作者" />
+          </el-form-item>
+          <el-form-item label="出版社">
+            <el-input v-model="boardEditForm.bookPublisher" placeholder="请输入出版社" />
+          </el-form-item>
+          <el-form-item label="版本号">
+            <el-input v-model="boardEditForm.edition" placeholder="如：第3版" />
+          </el-form-item>
+          <el-form-item label="ISBN">
+            <el-input v-model="boardEditForm.isbn" placeholder="请输入ISBN" />
+          </el-form-item>
+          <el-form-item label="原价（元）">
+            <el-input-number v-model="boardEditForm.originalPrice" :min="0" :precision="2" style="width: 100%" />
+          </el-form-item>
+        </div>
+      </el-form>
+      <template #footer>
+        <el-button @click="showBoardEditDialog = false">取消</el-button>
+        <el-button type="primary" :loading="boardSaving" @click="submitBoardEdit">保存修改</el-button>
+      </template>
+    </el-dialog>
+   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  DataBoard, ChatDotRound, Bell, Reading, User, Back, Plus
+  DataBoard, ChatDotRound, Bell, Reading, User, Back, Plus, Files
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { hotspotApi, notificationApi, adminApi } from '@/api'
@@ -280,6 +391,7 @@ const sectionTitle = computed(() => ({
   posts: '帖子管理',
   notifications: '通知管理',
   books: '新书上架',
+  boards: '板块管理',
   users: '用户管理'
 }[activeSection.value]))
 
@@ -317,6 +429,37 @@ function switchSection(name) {
   activeSection.value = name
   if (name === 'posts') loadPosts()
   if (name === 'users') loadUsers()
+  if (name === 'boards') loadBoards()
+  if (name === 'notifications') loadNotifList()
+}
+
+/* ---- 板块管理 ---- */
+const boardList = ref([])
+async function loadBoards() {
+  try {
+    const res = await adminApi.listBoards()
+    boardList.value = res.data || []
+  } catch {}
+}
+async function deleteBoard(row) {
+  try {
+    await ElMessageBox.confirm(`确定删除板块「${row.bookTitle}」？将同时删除该板块下所有商品！`, '警告', { type: 'warning' })
+    await adminApi.deleteBoard(row.id)
+    ElMessage.success('板块已删除')
+    loadBoards()
+  } catch {}
+}
+
+async function uploadCover(row, opt) {
+  try {
+    const fd = new FormData()
+    fd.append('cover', opt.file)
+    const res = await adminApi.updateBoardCover(row.id, fd)
+    ElMessage.success('封面已更新')
+    loadBoards()
+  } catch {
+    ElMessage.error('上传失败')
+  }
 }
 
 /* ---- 通知管理 ---- */
@@ -351,6 +494,23 @@ async function sendSingle() {
     await notificationApi.sendToOne(singleUserId.value, singleContent.value)
     ElMessage.success('通知已发送')
     singleContent.value = ''
+    loadNotifList()
+  } catch {}
+}
+
+const notifList = ref([])
+async function loadNotifList() {
+  try {
+    const res = await adminApi.listNotifications()
+    notifList.value = res.data || []
+  } catch {}
+}
+async function deleteNotif(row) {
+  try {
+    await ElMessageBox.confirm('确定删除这条通知吗？将删除所有用户收到的该通知。', '警告', { type: 'warning' })
+    await adminApi.deleteNotification(row.id)
+    ElMessage.success('通知已删除')
+    loadNotifList()
   } catch {}
 }
 
@@ -421,6 +581,73 @@ async function toggleRole(row) {
     }
     loadUsers()
   } catch {}
+}
+
+const showUserNoDialog = ref(false)
+const userNoForm = ref({ id: null, nickname: '', oldNo: '', newNo: '' })
+
+function openUserNoDialog(row) {
+  userNoForm.value = { id: row.id, nickname: row.nickname, oldNo: row.userNo || '未分配', newNo: row.userNo || '' }
+  showUserNoDialog.value = true
+}
+
+async function submitUserNo() {
+  const { id, newNo, oldNo } = userNoForm.value
+  if (!newNo || !/^\d{8}$/.test(newNo)) {
+    ElMessage.warning('ID必须为8位数字')
+    return
+  }
+  if (newNo === oldNo) {
+    ElMessage.warning('新ID与原ID相同')
+    return
+  }
+  try {
+    await adminApi.updateUserNo(id, newNo)
+    ElMessage.success('ID修改成功，已通知用户')
+    showUserNoDialog.value = false
+    loadUsers()
+  } catch {}
+}
+
+const showBoardEditDialog = ref(false)
+const boardSaving = ref(false)
+const boardEditForm = ref({ id: null, bookTitle: '', bookAuthor: '', bookPublisher: '', edition: '', isbn: '', originalPrice: 0 })
+
+function openBoardEdit(row) {
+  boardEditForm.value = {
+    id: row.id,
+    bookTitle: row.bookTitle || '',
+    bookAuthor: row.bookAuthor || '',
+    bookPublisher: row.bookPublisher || '',
+    edition: row.edition || '',
+    isbn: row.isbn || '',
+    originalPrice: Number(row.originalPrice) || 0
+  }
+  showBoardEditDialog.value = true
+}
+
+async function submitBoardEdit() {
+  const f = boardEditForm.value
+  if (!f.bookTitle.trim()) {
+    ElMessage.warning('书名不能为空')
+    return
+  }
+  boardSaving.value = true
+  try {
+    await adminApi.updateBoard(f.id, {
+      bookTitle: f.bookTitle,
+      bookAuthor: f.bookAuthor,
+      bookPublisher: f.bookPublisher,
+      edition: f.edition,
+      isbn: f.isbn,
+      originalPrice: f.originalPrice
+    })
+    ElMessage.success('板块信息已更新')
+    showBoardEditDialog.value = false
+    loadBoards()
+  } catch {} finally {
+    boardSaving.value = false
+  }
 }
 
 onMounted(() => {
@@ -646,5 +873,15 @@ onMounted(() => {
   .admin-page { flex-direction: column; }
   .admin-sidebar { width: 100%; }
   .single-send-row { flex-direction: column; align-items: flex-start; }
+}
+.user-no-cell {
+  font-weight: 600;
+  color: #42a5f5;
+  letter-spacing: 1px;
+}
+.user-no-tip {
+  margin-bottom: 16px;
+  color: #607d8b;
+  font-size: 14px;
 }
 </style>

@@ -4,24 +4,33 @@
 
     <div class="isbn-section">
       <div class="isbn-row">
-        <el-input v-model="isbn" placeholder="输入 ISBN 号" style="width: 300px" @keyup.enter="handleIsbnLookup" />
+        <el-input v-model="isbn" placeholder="输入 ISBN 号（选填）" style="width: 300px" @keyup.enter="handleIsbnLookup" />
         <el-button type="primary" :loading="looking" @click="handleIsbnLookup">一键识别</el-button>
       </div>
-      <p class="isbn-tip" v-if="!bookInfo">输入 ISBN 后自动填充书籍信息，只需补充售价和实物图片</p>
+      <p class="isbn-tip" v-if="!bookInfo">输入 ISBN 后自动填充书籍信息，也可跳过直接手动填写</p>
     </div>
 
-    <el-form :model="form" label-position="top" v-if="bookInfo" class="publish-form">
-      <div class="book-preview">
-        <img :src="bookInfo.cover" v-if="bookInfo.cover" class="book-cover" />
+    <el-form :model="form" label-position="top" class="publish-form">
+      <div class="book-preview" v-if="bookInfo">
+        <img :src="bookInfo.cover" v-if="bookInfo.cover" class="book-cover" @error="bookInfo.cover = ''" />
         <div class="book-info-text">
-          <h3>{{ bookInfo.title }}</h3>
-          <p>作者：{{ bookInfo.author }}</p>
-          <p>出版社：{{ bookInfo.publisher }}</p>
-          <p>定价：¥{{ bookInfo.originalPrice }}</p>
+          <h3>{{ form.bookTitle }}</h3>
+          <p>作者：{{ form.bookAuthor }}</p>
+          <p>出版社：{{ form.bookPublisher }}</p>
+          <p>定价：¥{{ form.originalPrice }}</p>
         </div>
       </div>
 
-      <el-form-item label="售价">
+      <el-form-item label="书名 *">
+        <el-input v-model="form.bookTitle" placeholder="请输入书名" />
+      </el-form-item>
+      <el-form-item label="作者">
+        <el-input v-model="form.bookAuthor" placeholder="请输入作者" />
+      </el-form-item>
+      <el-form-item label="出版社">
+        <el-input v-model="form.bookPublisher" placeholder="请输入出版社" />
+      </el-form-item>
+      <el-form-item label="售价 *">
         <el-input-number v-model="form.price" :min="0" :precision="2" />
       </el-form-item>
       <el-form-item label="版本号">
@@ -64,7 +73,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
@@ -78,13 +87,17 @@ const submitting = ref(false)
 const fileList = ref([])
 const images = ref([])
 
-const form = ref({
+const form = reactive({
+  bookTitle: '',
+  bookAuthor: '',
+  bookPublisher: '',
   price: null,
   edition: '',
   condition: '九成新',
   category: '教材',
   delivery: true,
-  description: ''
+  description: '',
+  originalPrice: 0
 })
 
 async function handleIsbnLookup() {
@@ -95,8 +108,16 @@ async function handleIsbnLookup() {
   looking.value = true
   try {
     const res = await bookApi.isbnLookup(isbn.value)
-    bookInfo.value = res.data || res
+    const data = res.data || res
+    bookInfo.value = data
+    form.bookTitle = data.title || ''
+    form.bookAuthor = data.author || ''
+    form.bookPublisher = data.publisher || ''
+    form.originalPrice = data.originalPrice || 0
+    form.edition = data.edition || ''
     ElMessage.success({ message: '识别成功', duration: 1200 })
+  } catch (err) {
+    ElMessage.warning({ message: '未找到ISBN信息，请手动填写书籍信息', duration: 2000 })
   } finally {
     looking.value = false
   }
@@ -107,7 +128,11 @@ function onImagesChange(file, fileList) {
 }
 
 async function handleSubmit() {
-  if (!form.value.price) {
+  if (!form.bookTitle) {
+    ElMessage.warning('请填写书名')
+    return
+  }
+  if (!form.price) {
     ElMessage.warning('请填写售价')
     return
   }
@@ -115,22 +140,22 @@ async function handleSubmit() {
   try {
     const fd = new FormData()
     fd.append('isbn', isbn.value)
-    fd.append('bookTitle', bookInfo.value.title)
-    fd.append('bookAuthor', bookInfo.value.author)
-    fd.append('bookPublisher', bookInfo.value.publisher)
-    fd.append('bookCover', bookInfo.value.cover || '')
-    fd.append('originalPrice', bookInfo.value.originalPrice || '')
-    fd.append('price', form.value.price)
-    fd.append('edition', form.value.edition)
-    fd.append('delivery', form.value.delivery)
-    fd.append('condition', form.value.condition)
-    fd.append('category', form.value.category)
-    fd.append('description', form.value.description)
+    fd.append('bookTitle', form.bookTitle)
+    fd.append('bookAuthor', form.bookAuthor)
+    fd.append('bookPublisher', form.bookPublisher)
+    fd.append('bookCover', bookInfo.value?.cover || '')
+    fd.append('originalPrice', form.originalPrice || '')
+    fd.append('price', form.price)
+    fd.append('edition', form.edition)
+    fd.append('delivery', form.delivery)
+    fd.append('condition', form.condition)
+    fd.append('category', form.category)
+    fd.append('description', form.description)
     images.value.forEach((img) => fd.append('images', img))
 
     await productApi.create(fd)
     ElMessage.success('发布成功')
-    router.push('/')
+    router.push('/trade')
   } finally {
     submitting.value = false
   }
@@ -181,5 +206,22 @@ async function handleSubmit() {
   color: #666;
   font-size: 14px;
   margin-bottom: 4px;
+}
+
+@media (max-width: 768px) {
+  .publish-page {
+    padding-bottom: 16px;
+  }
+  .isbn-row {
+    flex-direction: column;
+  }
+  .book-preview {
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+  }
+  .book-preview .book-cover {
+    margin: 0 auto;
+  }
 }
 </style>

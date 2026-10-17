@@ -11,6 +11,7 @@ const routes = [
   { path: '/product/:id', name: 'ProductDetail', component: () => import('@/views/ProductDetail.vue'), meta: { auth: true } },
   { path: '/publish', name: 'Publish', component: () => import('@/views/Publish.vue'), meta: { auth: true } },
   { path: '/cart', name: 'Cart', component: () => import('@/views/Cart.vue'), meta: { auth: true } },
+  { path: '/booklist', name: 'BookListUpload', component: () => import('@/views/BookListUpload.vue'), meta: { auth: true } },
   { path: '/orders', name: 'Orders', component: () => import('@/views/Orders.vue'), meta: { auth: true } },
   { path: '/profile', name: 'Profile', component: () => import('@/views/Profile.vue'), meta: { auth: true } },
   { path: '/admin', name: 'Admin', component: () => import('@/views/Admin.vue'), meta: { auth: true, admin: true } }

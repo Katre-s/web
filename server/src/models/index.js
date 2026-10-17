@@ -4,6 +4,7 @@ import { sequelize } from '../config/database.js'
 export const User = sequelize.define('User', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   email: { type: DataTypes.STRING(100), allowNull: false, unique: true },
+  userNo: { type: DataTypes.STRING(20), field: 'user_no', defaultValue: '' },
   nickname: { type: DataTypes.STRING(50), allowNull: false },
   realName: { type: DataTypes.STRING(50), allowNull: false, field: 'real_name' },
   password: { type: DataTypes.STRING(255), allowNull: false },
@@ -135,5 +136,53 @@ Message.belongsTo(Product, { foreignKey: 'product_id', as: 'product' })
 
 User.hasMany(Hotspot, { foreignKey: 'user_id', as: 'hotspots' })
 Hotspot.belongsTo(User, { foreignKey: 'user_id', as: 'user' })
+
+export const Book = sequelize.define('Book', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  isbn: { type: DataTypes.STRING(20), defaultValue: '' },
+  bookTitle: { type: DataTypes.STRING(200), allowNull: false, field: 'book_title' },
+  bookAuthor: { type: DataTypes.STRING(200), field: 'book_author', defaultValue: '' },
+  bookPublisher: { type: DataTypes.STRING(200), field: 'book_publisher', defaultValue: '' },
+  bookCover: { type: DataTypes.STRING(500), field: 'book_cover', defaultValue: '' },
+  edition: { type: DataTypes.STRING(50), defaultValue: '' },
+  originalPrice: { type: DataTypes.DECIMAL(10, 2), field: 'original_price', defaultValue: 0 },
+  viewCount: { type: DataTypes.INTEGER, defaultValue: 0, field: 'view_count' },
+  createdBy: { type: DataTypes.INTEGER, field: 'created_by' }
+}, { tableName: 'books' })
+
+export const BookFavorite = sequelize.define('BookFavorite', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  userId: { type: DataTypes.INTEGER, allowNull: false, field: 'user_id' },
+  bookId: { type: DataTypes.INTEGER, allowNull: false, field: 'book_id' }
+}, { tableName: 'book_favorites' })
+
+export const Conversation = sequelize.define('Conversation', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  buyerId: { type: DataTypes.INTEGER, allowNull: false, field: 'buyer_id' },
+  sellerId: { type: DataTypes.INTEGER, allowNull: false, field: 'seller_id' },
+  productId: { type: DataTypes.INTEGER, field: 'product_id' },
+  lastMessageAt: { type: DataTypes.DATE, field: 'last_message_at' }
+}, { tableName: 'conversations' })
+
+export const ChatMessage = sequelize.define('ChatMessage', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  conversationId: { type: DataTypes.INTEGER, allowNull: false, field: 'conversation_id' },
+  senderId: { type: DataTypes.INTEGER, allowNull: false, field: 'sender_id' },
+  content: { type: DataTypes.TEXT, allowNull: false },
+  isRead: { type: DataTypes.BOOLEAN, defaultValue: false, field: 'is_read' }
+}, { tableName: 'chat_messages' })
+
+User.hasMany(Conversation, { foreignKey: 'buyer_id', as: 'buyerConversations' })
+User.hasMany(Conversation, { foreignKey: 'seller_id', as: 'sellerConversations' })
+Conversation.belongsTo(User, { foreignKey: 'buyer_id', as: 'buyer' })
+Conversation.belongsTo(User, { foreignKey: 'seller_id', as: 'seller' })
+Conversation.belongsTo(Product, { foreignKey: 'product_id', as: 'product' })
+Conversation.hasMany(ChatMessage, { foreignKey: 'conversation_id', as: 'messages' })
+ChatMessage.belongsTo(Conversation, { foreignKey: 'conversation_id', as: 'conversation' })
+ChatMessage.belongsTo(User, { foreignKey: 'sender_id', as: 'sender' })
+
+BookFavorite.belongsTo(Book, { foreignKey: 'book_id', as: 'book' })
+Book.hasMany(BookFavorite, { foreignKey: 'book_id', as: 'favorites' })
+User.hasMany(BookFavorite, { foreignKey: 'user_id', as: 'bookFavorites' })
 
 export { sequelize }

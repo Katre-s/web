@@ -1,11 +1,14 @@
-import { CartItem, Product } from '../models/index.js'
+import { CartItem, Product, User } from '../models/index.js'
 import { success, fail } from '../utils/response.js'
 
 export async function list(req, res, next) {
   try {
     const items = await CartItem.findAll({
       where: { userId: req.user.id },
-      include: [{ model: Product, as: 'product' }],
+      include: [{
+        model: Product, as: 'product',
+        include: [{ model: User, as: 'seller', attributes: ['id', 'userNo', 'nickname', 'avatar', 'campus'] }]
+      }],
       order: [['created_at', 'DESC']]
     })
     success(res, items)

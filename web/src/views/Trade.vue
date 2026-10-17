@@ -23,6 +23,10 @@
           <el-icon><UploadFilled /></el-icon>
           <span>上传书籍</span>
         </div>
+        <div class="add-menu" @click="goBookList">
+          <el-icon><Document /></el-icon>
+          <span>上传书单</span>
+        </div>
       </el-popover>
     </div>
 
@@ -30,12 +34,12 @@
       <div class="book-grid" v-if="books.length">
         <div
           v-for="book in books"
-          :key="book.isbn || book.bookTitle"
+          :key="book.id || book.isbn || book.bookTitle"
           class="book-card"
           @click="goDetail(book)"
         >
           <div class="book-cover-wrap">
-            <img v-if="book.bookCover" :src="book.bookCover" class="book-cover" />
+            <img v-if="book.bookCover" :src="book.bookCover" class="book-cover" @error="book.bookCover = ''" />
             <div v-else class="book-cover-placeholder">
               <el-icon><Notebook /></el-icon>
             </div>
@@ -59,7 +63,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, Plus, UploadFilled, Notebook } from '@element-plus/icons-vue'
+import { Search, Plus, UploadFilled, Notebook, Document } from '@element-plus/icons-vue'
 import { booksApi } from '@/api'
 
 const router = useRouter()
@@ -81,8 +85,12 @@ function goPublish() {
   router.push('/publish')
 }
 
+function goBookList() {
+  router.push('/booklist')
+}
+
 function goDetail(book) {
-  const key = book.isbn || book.bookTitle
+  const key = book.id || book.isbn || book.bookTitle
   router.push({ name: 'BookDetail', params: { key } })
 }
 
@@ -213,5 +221,46 @@ onMounted(loadBooks)
 .book-count {
   font-size: 12px;
   color: #90a4ae;
+}
+
+@media (max-width: 768px) {
+  .trade-page {
+    padding-bottom: 16px;
+  }
+  .search-row {
+    margin-bottom: 14px;
+    gap: 8px;
+  }
+  .search-input :deep(.el-input__wrapper) {
+    padding: 4px 10px;
+  }
+  .add-btn {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+  }
+  .book-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  .book-card {
+    border-radius: 10px;
+  }
+  .book-info {
+    padding: 8px 10px 10px;
+  }
+  .book-title {
+    font-size: 13px;
+  }
+  .book-author {
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+  .book-price {
+    font-size: 15px;
+  }
+  .book-count {
+    font-size: 11px;
+  }
 }
 </style>

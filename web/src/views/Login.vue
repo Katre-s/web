@@ -74,7 +74,7 @@
           <!-- 登录 -->
           <el-form :model="loginForm" v-if="isLogin" label-position="top" @submit.prevent="handleLogin" key="login">
             <el-form-item>
-              <el-input v-model="loginForm.email" placeholder="邮箱地址" size="large" prefix-icon="Message" />
+              <el-input v-model="loginForm.email" placeholder="邮箱或8位ID" size="large" prefix-icon="Message" />
             </el-form-item>
             <el-form-item>
               <el-input v-model="loginForm.password" type="password" placeholder="密码" show-password size="large" prefix-icon="Lock" />
@@ -217,7 +217,7 @@ async function sendCode() {
 
 async function handleLogin() {
   if (!loginForm.value.email || !loginForm.value.password) {
-    ElMessage.warning('请填写邮箱和密码')
+    ElMessage.warning('请填写账号和密码')
     return
   }
   loading.value = true
@@ -855,5 +855,23 @@ onUnmounted(() => {
   .auth-left { display: none; }
   .auth-page { flex-direction: column; }
   .auth-form-wrapper { width: 90%; margin: 30px auto; }
+}
+
+@media (max-width: 768px) {
+  .auth-right {
+    padding: 16px 0;
+    min-height: 100vh;
+    align-items: flex-start;
+    overflow-y: auto;
+  }
+  .auth-form-wrapper {
+    width: 92%;
+    margin: 14px auto;
+    padding: 30px 22px;
+    border-radius: 14px;
+  }
+  .corner-badge, .right-poem, .ink-splatter {
+    display: none;
+  }
 }
 </style>

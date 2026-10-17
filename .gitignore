@@ -2,8 +2,12 @@ node_modules
 dist
 *.log
 *.zip
+*.apk
+*.tar.gz
+*.err
 .env
 .DS_Store
+.idea/
 uploads/*
 !uploads/.gitkeep
 start-dev.ps1

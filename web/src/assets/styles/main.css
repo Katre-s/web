@@ -52,3 +52,34 @@ a {
   --el-button-active-bg-color: #43a047;
   --el-button-active-border-color: #43a047;
 }
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+@media (max-width: 768px) {
+  .page-title {
+    font-size: 19px;
+    margin-bottom: 14px;
+  }
+  .el-dialog {
+    width: 92vw !important;
+    max-width: 92vw !important;
+    margin-top: 8vh !important;
+  }
+  .el-message-box {
+    width: 86vw !important;
+    max-width: 86vw !important;
+  }
+  .el-message {
+    max-width: 88vw;
+    min-width: auto !important;
+  }
+  .el-popper {
+    max-width: 90vw;
+  }
+}

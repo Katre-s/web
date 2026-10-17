@@ -45,7 +45,7 @@ export async function remove(req, res, next) {
     const id = req.params.id
     const hotspot = await Hotspot.findByPk(id)
     if (!hotspot) return fail(res, '帖子不存在')
-    await hotspot.update({ status: 'deleted' })
+    await hotspot.destroy()
     success(res, null, '帖子已删除')
   } catch (err) { next(err) }
 }
@@ -75,6 +75,7 @@ export async function move(req, res, next) {
 export async function adminList(req, res, next) {
   try {
     const list = await Hotspot.findAll({
+      where: { status: 'active' },
       order: [['sort_order', 'ASC'], ['id', 'DESC']]
     })
     success(res, list)

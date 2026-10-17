@@ -34,9 +34,22 @@ export const useUserStore = defineStore('user', () => {
     return res
   }
 
+  function updateUserInfo(info) {
+    userInfo.value = info
+    localStorage.setItem('userInfo', JSON.stringify(info))
+  }
+
+  async function fetchProfile() {
+    if (!token.value) return
+    try {
+      const res = await authApi.me()
+      if (res.data?.user) updateUserInfo(res.data.user)
+    } catch {}
+  }
+
   function logout() {
     clearAuth()
   }
 
-  return { token, userInfo, isLoggedIn, login, register, logout, setAuth, clearAuth }
+  return { token, userInfo, isLoggedIn, login, register, logout, setAuth, clearAuth, updateUserInfo, fetchProfile }
 })

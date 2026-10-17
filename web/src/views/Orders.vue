@@ -14,7 +14,7 @@
           </div>
           <div class="order-items">
             <div v-for="item in order.items" :key="item.id" class="order-item">
-              <img :src="item.product.cover || item.product.images?.[0]" class="order-img" />
+              <img :src="item.product.cover || item.product.bookCover || item.product.images?.[0]?.imagePath" class="order-img" />
               <div class="order-item-info">
                 <span>{{ item.product.title || item.product.bookTitle }}</span>
                 <span class="order-item-price">¥{{ item.price }}</span>
@@ -127,5 +127,31 @@ onMounted(loadOrders)
 .order-actions {
   display: flex;
   gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .order-card {
+    padding: 14px;
+    border-radius: 12px;
+  }
+  .order-header {
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 13px;
+  }
+  .order-item {
+    gap: 10px;
+  }
+  .order-img {
+    width: 44px;
+    height: 60px;
+  }
+  .order-footer {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .order-total {
+    font-size: 15px;
+  }
 }
 </style>

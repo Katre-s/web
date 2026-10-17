@@ -21,6 +21,10 @@
           <el-icon><ChatDotRound /></el-icon>
           <span>对话</span>
         </router-link>
+        <router-link to="/cart" class="nav-item">
+          <el-icon><ShoppingCart /></el-icon>
+          <span>购物车</span>
+        </router-link>
         <router-link to="/profile" class="nav-item">
           <el-icon><User /></el-icon>
           <span>个人中心</span>
@@ -31,6 +35,14 @@
         <router-link v-if="isAdmin" to="/admin" class="nav-item mini">
           <el-icon><Setting /></el-icon>
           <span>管理台</span>
+        </router-link>
+
+        <router-link to="/cart" class="icon-btn mobile-only" title="购物车">
+          <el-icon :size="20"><ShoppingCart /></el-icon>
+        </router-link>
+
+        <router-link v-if="isAdmin" to="/admin" class="icon-btn mobile-only" title="管理台">
+          <el-icon :size="20"><Setting /></el-icon>
         </router-link>
 
         <el-popover placement="bottom-end" :width="320" trigger="click" @show="loadNotifications">
@@ -74,7 +86,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
-import { HomeFilled, ShoppingBag, ChatDotRound, User, Bell, Setting } from '@element-plus/icons-vue'
+import { HomeFilled, ShoppingBag, ChatDotRound, User, Bell, Setting, ShoppingCart } from '@element-plus/icons-vue'
 import { notificationApi } from '@/api'
 
 const userStore = useUserStore()
@@ -307,4 +319,59 @@ onMounted(loadNotifications)
   margin-top: 4px;
   padding-left: 14px;
 }
+
+.icon-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #546e7a;
+  transition: all 0.3s;
+}
+.icon-btn.router-link-active {
+  color: #42a5f5;
+  background: rgba(66, 165, 245, 0.1);
+}
+.mobile-only {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .nav-inner {
+    height: 54px;
+    padding: 0 12px;
+  }
+  .nav-links {
+    display: none;
+  }
+  .nav-item.mini {
+    display: none;
+  }
+  .username {
+    font-size: 14px;
+    max-width: 90px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .nav-right {
+    gap: 4px;
+  }
+  .mobile-only {
+    display: flex;
+  }
+  .logout-btn {
+    font-size: 13px;
+    padding: 6px 8px;
+  }
+  .notif-panel {
+    max-height: 60vh;
+  }
+  .notif-list {
+    max-height: 46vh;
+  }
+}
+
 </style>

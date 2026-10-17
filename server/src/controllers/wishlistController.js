@@ -1,4 +1,4 @@
-import { Wishlist } from '../models/index.js'
+import { Wishlist, Book, Product } from '../models/index.js'
 import { success, fail } from '../utils/response.js'
 
 export async function add(req, res, next) {
@@ -17,6 +17,39 @@ export async function list(req, res, next) {
       where: { userId: req.user.id },
       order: [['created_at', 'DESC']]
     })
-    success(res, items)
+
+    const result = []
+    for (const w of items) {
+      let book = null
+      let sellerCount = 0
+      if (w.isbn) {
+        book = await Book.findOne({ where: { isbn: w.isbn } })
+        if (book) {
+          sellerCount = await Product.count({ where: { isbn: w.isbn, status: 'available' } })
+        }
+      } else if (w.title) {
+        book = await Book.findOne({ where: { bookTitle: w.title } })
+        if (book) {
+          sellerCount = await Product.count({ where: { bookTitle: w.title, status: 'available' } })
+        }
+      }
+      result.push({
+        id: w.id,
+        title: w.title,
+        author: w.author,
+        isbn: w.isbn,
+        book: book ? {
+          id: book.id,
+          bookTitle: book.bookTitle,
+          bookAuthor: book.bookAuthor,
+          bookPublisher: book.bookPublisher,
+          edition: book.edition,
+          bookCover: book.bookCover,
+          isbn: book.isbn
+        } : null,
+        sellerCount
+      })
+    }
+    success(res, result)
   } catch (err) { next(err) }
 }

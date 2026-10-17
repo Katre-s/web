@@ -12,23 +12,6 @@
     </div>
 
     <div class="content-section">
-      <h2 class="section-title">学院分类</h2>
-      <div class="college-grid">
-        <div
-          v-for="college in colleges"
-          :key="college.name"
-          class="college-card"
-          @click="goTrade(college.name)"
-        >
-          <div class="college-icon" :style="{ background: college.color }">
-            <span>{{ college.icon }}</span>
-          </div>
-          <span class="college-name">{{ college.name }}</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="content-section">
       <div class="section-header">
         <h2 class="section-title">校园热点</h2>
         <el-button type="primary" round size="small" @click="showPostDialog = true">投稿</el-button>
@@ -44,6 +27,64 @@
           </div>
         </div>
         <el-empty v-if="!hotspots.length" description="暂无热点，快来投稿吧" />
+      </div>
+    </div>
+
+    <div class="content-section" v-if="stats">
+      <h2 class="section-title">当日最新</h2>
+      <div class="today-stats">
+        <div class="stat-card stat-boards">
+          <div class="stat-icon">📚</div>
+          <div class="stat-info">
+            <div class="stat-num">{{ stats.todayBoards }}</div>
+            <div class="stat-label">今日新上架板块</div>
+          </div>
+        </div>
+        <div class="stat-card stat-books">
+          <div class="stat-icon">📖</div>
+          <div class="stat-info">
+            <div class="stat-num">{{ stats.todayBooks }}</div>
+            <div class="stat-label">今日新上架书籍</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="content-section" v-if="stats && stats.chartData && stats.chartData.length">
+      <h2 class="section-title">近7天上架趋势</h2>
+      <div class="chart-container">
+        <div class="bar-chart">
+          <div v-for="d in stats.chartData" :key="d.date" class="bar-item">
+            <div class="bar-wrapper">
+              <div class="bar-fill" :style="{ height: barHeight(d.count) + '%' }">
+                <span class="bar-count" v-if="d.count > 0">{{ d.count }}</span>
+              </div>
+            </div>
+            <span class="bar-label">{{ d.date }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="content-section" v-if="stats && stats.hotBoards && stats.hotBoards.length">
+      <h2 class="section-title">当日热销</h2>
+      <div class="hot-board-grid">
+        <div
+          v-for="b in stats.hotBoards.slice(0, 10)"
+          :key="b.id"
+          class="hot-board-card"
+          @click="goDetail(b)"
+        >
+          <div class="hb-cover" :style="coverStyle(b.bookCover)"></div>
+          <div class="hb-info">
+            <h3 class="hb-title">{{ b.bookTitle }}</h3>
+            <p class="hb-author" v-if="b.bookAuthor">{{ b.bookAuthor }}</p>
+            <div class="hb-meta">
+              <span class="hb-sellers">🧑 {{ b.sellerCount }}卖家</span>
+              <span class="hb-views">👁 {{ b.viewCount }}浏览</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -77,7 +118,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
-import { hotspotApi } from '@/api'
+import { hotspotApi, booksApi } from '@/api'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -111,26 +152,8 @@ const greetingSub = computed(() => {
   return subs[timePeriod.value]
 })
 
-const colleges = [
-  { name: '机电工程学院', icon: '⚙', color: 'linear-gradient(135deg, #42a5f5, #1e88e5)' },
-  { name: '电气与控制工程学院', icon: '⚡', color: 'linear-gradient(135deg, #7c4dff, #536dfe)' },
-  { name: '信息工程学院', icon: '💻', color: 'linear-gradient(135deg, #66bb6a, #43a047)' },
-  { name: '土木工程学院', icon: '🏗', color: 'linear-gradient(135deg, #ffa726, #fb8c00)' },
-  { name: '化学与环境工程学院', icon: '⚗', color: 'linear-gradient(135deg, #ab47bc, #8e24aa)' },
-  { name: '矿业与安全工程学院', icon: '⛏', color: 'linear-gradient(135deg, #78909c, #546e7a)' },
-  { name: '管理工程学院', icon: '📊', color: 'linear-gradient(135deg, #ec407a, #d81b60)' },
-  { name: '经济学院', icon: '💰', color: 'linear-gradient(135deg, #26a69a, #00897b)' },
-  { name: '外国语学院', icon: '🌐', color: 'linear-gradient(135deg, #5c6bc0, #3949ab)' },
-  { name: '设计艺术学院', icon: '🎨', color: 'linear-gradient(135deg, #ff7043, #f4511e)' },
-  { name: '马克思主义学院', icon: '📖', color: 'linear-gradient(135deg, #8d6e63, #6d4c41)' },
-  { name: '人文学院', icon: '📚', color: 'linear-gradient(135deg, #ba68c8, #ab47bc)' },
-  { name: '数学与统计学院', icon: '🔢', color: 'linear-gradient(135deg, #4db6ac, #26a69a)' },
-  { name: '体育学院', icon: '🏃', color: 'linear-gradient(135deg, #ef5350, #e53935)' },
-  { name: '食品与生物工程学院', icon: '🧪', color: 'linear-gradient(135deg, #9ccc65, #7cb342)' },
-  { name: '环境工程学院', icon: '🌿', color: 'linear-gradient(135deg, #4fc3f7, #29b6f6)' }
-]
-
 const hotspots = ref([])
+const stats = ref(null)
 
 const showPostDialog = ref(false)
 const postForm = ref({ title: '', tag: '', description: '' })
@@ -139,6 +162,13 @@ async function loadHotspots() {
   try {
     const res = await hotspotApi.list()
     hotspots.value = res.data || []
+  } catch {}
+}
+
+async function loadStats() {
+  try {
+    const res = await booksApi.homeStats()
+    stats.value = res.data
   } catch {}
 }
 
@@ -154,8 +184,20 @@ function formatTime(t) {
   return `${d.getMonth() + 1}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-function goTrade(collegeName) {
-  router.push({ path: '/trade', query: { college: collegeName } })
+function barHeight(count) {
+  if (!stats.value || !stats.value.chartData) return 0
+  const max = Math.max(...stats.value.chartData.map(d => d.count), 1)
+  return Math.max((count / max) * 100, 4)
+}
+
+function coverStyle(cover) {
+  if (!cover) return {}
+  return { backgroundImage: `url(${cover})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+}
+
+function goDetail(b) {
+  const key = b.isbn || b.bookTitle
+  router.push(`/book/${encodeURIComponent(key)}`)
 }
 
 async function submitPost() {
@@ -172,7 +214,10 @@ async function submitPost() {
   } catch {}
 }
 
-onMounted(loadHotspots)
+onMounted(() => {
+  loadHotspots()
+  loadStats()
+})
 </script>
 
 <style scoped>
@@ -278,48 +323,6 @@ onMounted(loadHotspots)
   margin-bottom: 0;
 }
 
-.college-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 16px;
-}
-.college-card {
-  background: #fff;
-  border-radius: 14px;
-  padding: 20px 16px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 12px rgba(13, 40, 71, 0.06);
-}
-.college-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(66, 165, 245, 0.15);
-}
-.college-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  color: #fff;
-  transition: transform 0.3s;
-}
-.college-card:hover .college-icon {
-  transform: scale(1.1) rotate(5deg);
-}
-.college-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: #37474f;
-  text-align: center;
-}
-
 .hotspot-list {
   display: flex;
   flex-direction: column;
@@ -364,5 +367,241 @@ onMounted(loadHotspots)
   gap: 16px;
   font-size: 13px;
   color: #90a4ae;
+}
+
+.today-stats {
+  display: flex;
+  gap: 20px;
+}
+.stat-card {
+  flex: 1;
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px 32px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 2px 12px rgba(13, 40, 71, 0.06);
+  transition: all 0.3s ease;
+}
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(13, 40, 71, 0.12);
+}
+.stat-boards {
+  border-left: 4px solid #42a5f5;
+}
+.stat-books {
+  border-left: 4px solid #66bb6a;
+}
+.stat-icon {
+  font-size: 40px;
+}
+.stat-num {
+  font-size: 36px;
+  font-weight: 700;
+  color: #0d2847;
+  line-height: 1.2;
+}
+.stat-label {
+  font-size: 14px;
+  color: #78909c;
+  margin-top: 4px;
+}
+
+.chart-container {
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px 24px;
+  box-shadow: 0 2px 12px rgba(13, 40, 71, 0.06);
+}
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  height: 200px;
+  gap: 12px;
+}
+.bar-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+}
+.bar-wrapper {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.bar-fill {
+  width: 70%;
+  max-width: 48px;
+  background: linear-gradient(180deg, #42a5f5, #1e88e5);
+  border-radius: 8px 8px 0 0;
+  transition: all 0.5s ease;
+  position: relative;
+  min-height: 4px;
+}
+.bar-fill:hover {
+  background: linear-gradient(180deg, #64b5f6, #42a5f5);
+  transform: scaleY(1.05);
+}
+.bar-count {
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e88e5;
+}
+.bar-label {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #78909c;
+}
+
+.hot-board-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+.hot-board-card {
+  background: #fff;
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 12px rgba(13, 40, 71, 0.06);
+}
+.hot-board-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(66, 165, 245, 0.15);
+}
+.hb-cover {
+  height: 140px;
+  background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+  background-size: cover;
+  background-position: center;
+}
+.hb-info {
+  padding: 14px 16px;
+}
+.hb-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0d2847;
+  margin-bottom: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hb-author {
+  font-size: 13px;
+  color: #78909c;
+  margin-bottom: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hb-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: #90a4ae;
+}
+.hb-sellers {
+  color: #43a047;
+  font-weight: 600;
+}
+.hb-views {
+  color: #fb8c00;
+}
+
+@media (max-width: 768px) {
+  .hero-banner {
+    height: 190px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+  }
+  .sun-moon {
+    width: 42px;
+    height: 42px;
+    top: 18px;
+    right: 20px;
+  }
+  .hero-overlay {
+    padding: 18px;
+  }
+  .greeting-text {
+    font-size: 21px;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .greeting-sub {
+    font-size: 13px;
+  }
+  .content-section {
+    margin-bottom: 22px;
+  }
+  .section-title {
+    font-size: 18px;
+    margin-bottom: 14px;
+  }
+  .hotspot-card {
+    padding: 14px 16px;
+    border-radius: 12px;
+  }
+  .hotspot-title {
+    font-size: 15px;
+  }
+  .today-stats {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .stat-card {
+    padding: 16px 18px;
+    border-radius: 12px;
+    gap: 14px;
+  }
+  .stat-icon {
+    font-size: 30px;
+  }
+  .stat-num {
+    font-size: 26px;
+  }
+  .chart-container {
+    padding: 18px 10px;
+    border-radius: 12px;
+  }
+  .bar-chart {
+    height: 150px;
+    gap: 4px;
+  }
+  .bar-label {
+    font-size: 11px;
+  }
+  .bar-count {
+    font-size: 11px;
+  }
+  .hot-board-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .hot-board-card {
+    border-radius: 12px;
+  }
+  .hb-cover {
+    height: 105px;
+  }
+  .hb-info {
+    padding: 10px 12px;
+  }
+  .hb-title {
+    font-size: 14px;
+  }
 }
 </style>

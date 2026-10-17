@@ -1,0 +1,2 @@
+@echo off
+"C:\Users\20752\.workbuddy\binaries\node\versions\22.22.2-6\node.exe" "E:\python_learning\campus-trade\serve.js" > "E:\python_learning\campus-trade\serve.log" 2> "E:\python_learning\campus-trade\serve.err"

@@ -2,7 +2,7 @@
   <div class="detail-page" v-loading="loading">
     <div class="detail-content" v-if="product">
       <div class="detail-left">
-        <img :src="product.cover || product.images?.[0]" class="cover-img" />
+        <img :src="coverImg" class="cover-img" />
       </div>
       <div class="detail-right">
         <h1 class="detail-title">{{ product.title || product.bookTitle }}</h1>
@@ -30,7 +30,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { productApi, cartApi, messageApi } from '@/api'
@@ -41,6 +41,15 @@ const router = useRouter()
 const userStore = useUserStore()
 const product = ref(null)
 const loading = ref(false)
+
+// 后端返回的封面字段是 bookCover，images 数组元素是 { imagePath } 对象，需兼容取图
+const coverImg = computed(() => {
+  const p = product.value
+  if (!p) return ''
+  const first = p.images?.[0]
+  const firstPath = typeof first === 'string' ? first : first?.imagePath
+  return p.cover || p.bookCover || firstPath || ''
+})
 
 async function loadProduct() {
   loading.value = true
@@ -135,5 +144,27 @@ onMounted(loadProduct)
 .detail-actions {
   display: flex;
   gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .detail-content {
+    flex-direction: column;
+    gap: 20px;
+    padding: 18px;
+    border-radius: 12px;
+  }
+  .detail-left {
+    align-self: center;
+  }
+  .cover-img {
+    width: 170px;
+    height: 227px;
+  }
+  .detail-title {
+    font-size: 20px;
+  }
+  .detail-actions {
+    flex-wrap: wrap;
+  }
 }
 </style>

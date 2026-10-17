@@ -2,10 +2,10 @@
   <div class="book-detail-page" v-loading="loading">
     <template v-if="book">
       <div class="book-hero">
-        <img v-if="book.bookCover" :src="book.bookCover" class="hero-bg" />
+        <img v-if="book.bookCover" :src="book.bookCover" class="hero-bg" @error="book.bookCover = ''" />
         <div class="hero-overlay"></div>
         <div class="hero-content">
-          <img v-if="book.bookCover" :src="book.bookCover" class="hero-cover" />
+          <img v-if="book.bookCover" :src="book.bookCover" class="hero-cover" @error="book.bookCover = ''" />
           <div v-else class="hero-cover placeholder">
             <el-icon><Notebook /></el-icon>
           </div>
@@ -20,6 +20,11 @@
             <div class="hero-original" v-if="book.originalPrice">
               定价 ¥{{ book.originalPrice }}
             </div>
+            <div class="hero-actions">
+              <el-button :type="favorited ? 'warning' : 'default'" round size="small" @click="toggleFavorite">
+                {{ favorited ? '★ 已收藏' : '☆ 收藏板块' }}
+              </el-button>
+            </div>
           </div>
         </div>
       </div>
@@ -28,32 +33,20 @@
         <div class="sellers-header">
           <h2 class="sellers-title">在售 ({{ sellers.length }} 个卖家)</h2>
           <div class="sort-tabs">
-            <button
-              class="sort-tab"
-              :class="{ active: sortType === 'price' }"
-              @click="toggleSort('price')"
-            >
+            <button class="sort-tab" :class="{ active: sortType === 'price' }" @click="toggleSort('price')">
               价格 {{ sortType === 'price' ? (sortAsc ? '↑' : '↓') : '' }}
             </button>
-            <button
-              class="sort-tab"
-              :class="{ active: sortType === 'time' }"
-              @click="toggleSort('time')"
-            >
+            <button class="sort-tab" :class="{ active: sortType === 'time' }" @click="toggleSort('time')">
               上架时间 {{ sortType === 'time' ? (sortAsc ? '↑' : '↓') : '' }}
             </button>
-            <button
-              class="sort-tab"
-              :class="{ active: sortType === 'delivery' }"
-              @click="sortByDelivery"
-            >
+            <button class="sort-tab" :class="{ active: sortType === 'delivery' }" @click="sortByDelivery">
               可配送
             </button>
           </div>
         </div>
 
         <div class="seller-list" v-if="sortedSellers.length">
-          <div v-for="seller in sortedSellers" :key="seller.id" class="seller-row">
+          <div v-for="seller in sortedSellers" :key="seller.id" class="seller-row clickable" @click="goProduct(seller.id)">
             <div class="seller-main">
               <div class="seller-price">¥{{ seller.price }}</div>
               <div class="seller-tags">
@@ -71,7 +64,8 @@
               <div class="seller-time">{{ formatTime(seller.createdAt) }}</div>
             </div>
             <div class="seller-actions">
-              <el-button type="primary" size="small" round @click="contactSeller(seller)">联系卖家</el-button>
+              <el-button type="success" size="small" round @click.stop="addToCart(seller)">加入购物车</el-button>
+              <el-button v-if="seller.sellerId !== userStore.userInfo?.id" type="primary" size="small" round @click.stop="contactSeller(seller)">联系卖家</el-button>
             </div>
           </div>
         </div>
@@ -86,7 +80,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Notebook, Location } from '@element-plus/icons-vue'
-import { booksApi, messageApi } from '@/api'
+import { booksApi, conversationApi, cartApi, bookFavoriteApi } from '@/api'
 import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
@@ -98,6 +92,7 @@ const sellers = ref([])
 const loading = ref(false)
 const sortType = ref('time')
 const sortAsc = ref(false)
+const favorited = ref(false)
 
 const sortedSellers = computed(() => {
   const list = [...sellers.value]
@@ -122,9 +117,31 @@ async function loadDetail() {
     const data = res.data || res
     book.value = data.book
     sellers.value = data.sellers || []
+    if (book.value?.id) {
+      try {
+        const favRes = await bookFavoriteApi.check(book.value.id)
+        favorited.value = favRes.data.favorited
+      } catch {}
+    }
   } finally {
     loading.value = false
   }
+}
+
+async function toggleFavorite() {
+  if (!book.value?.id) return
+  try {
+    const res = await bookFavoriteApi.toggle(book.value.id)
+    favorited.value = res.data.favorited
+    ElMessage.success(res.message)
+  } catch {}
+}
+
+async function addToCart(seller) {
+  try {
+    await cartApi.add(seller.id)
+    ElMessage.success('已加入购物车')
+  } catch {}
 }
 
 function toggleSort(type) {
@@ -138,6 +155,10 @@ function toggleSort(type) {
 
 function sortByDelivery() {
   sortType.value = 'delivery'
+}
+
+function goProduct(id) {
+  router.push(`/product/${id}`)
 }
 
 function formatTime(time) {
@@ -155,9 +176,15 @@ async function contactSeller(seller) {
     router.push({ name: 'Login', query: { redirect: route.fullPath } })
     return
   }
-  await messageApi.send(seller.id, seller.sellerId, '我对这本书感兴趣，请问还在吗？')
-  ElMessage.success('已发送消息给卖家')
+  try {
+    const res = await conversationApi.start(seller.sellerId, seller.id)
+    ElMessage.success('已创建对话，请前往「对话」查看')
+    router.push('/chat')
+  } catch {
+    ElMessage.error('创建对话失败')
+  }
 }
+
 
 onMounted(loadDetail)
 </script>
@@ -209,9 +236,7 @@ onMounted(loadDetail)
   font-size: 56px;
   color: rgba(255, 255, 255, 0.5);
 }
-.hero-info {
-  color: #fff;
-}
+.hero-info { color: #fff; }
 .hero-title {
   font-size: 30px;
   font-weight: 700;
@@ -231,7 +256,9 @@ onMounted(loadDetail)
   color: rgba(255, 255, 255, 0.6);
   text-decoration: line-through;
 }
-
+.hero-actions {
+  margin-top: 18px;
+}
 .sellers-header {
   display: flex;
   justify-content: space-between;
@@ -240,15 +267,8 @@ onMounted(loadDetail)
   flex-wrap: wrap;
   gap: 12px;
 }
-.sellers-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: #0d2847;
-}
-.sort-tabs {
-  display: flex;
-  gap: 8px;
-}
+.sellers-title { font-size: 20px; font-weight: 700; color: #0d2847; }
+.sort-tabs { display: flex; gap: 8px; }
 .sort-tab {
   padding: 6px 14px;
   border-radius: 16px;
@@ -259,21 +279,9 @@ onMounted(loadDetail)
   cursor: pointer;
   transition: all 0.2s;
 }
-.sort-tab:hover {
-  border-color: #42a5f5;
-  color: #42a5f5;
-}
-.sort-tab.active {
-  background: #42a5f5;
-  border-color: #42a5f5;
-  color: #fff;
-}
-
-.seller-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
+.sort-tab:hover { border-color: #42a5f5; color: #42a5f5; }
+.sort-tab.active { background: #42a5f5; border-color: #42a5f5; color: #fff; }
+.seller-list { display: flex; flex-direction: column; gap: 12px; }
 .seller-row {
   display: flex;
   align-items: center;
@@ -284,68 +292,76 @@ onMounted(loadDetail)
   box-shadow: 0 2px 10px rgba(13, 40, 71, 0.05);
   transition: all 0.25s;
 }
-.seller-row:hover {
-  box-shadow: 0 6px 20px rgba(66, 165, 245, 0.12);
-  transform: translateY(-2px);
-}
-.seller-main {
-  min-width: 140px;
-}
-.seller-price {
-  font-size: 22px;
-  font-weight: 700;
-  color: #e53935;
-  margin-bottom: 6px;
-}
-.seller-tags {
-  display: flex;
-  gap: 6px;
-}
-.tag {
-  font-size: 12px;
-  padding: 2px 10px;
-  border-radius: 10px;
-}
-.tag.condition {
-  background: #f0f4f8;
-  color: #607d8b;
-}
-.tag.delivery-yes {
-  background: rgba(76, 175, 80, 0.12);
-  color: #43a047;
-}
-.tag.delivery-no {
-  background: rgba(158, 158, 158, 0.15);
-  color: #9e9e9e;
-}
-.seller-sub {
-  flex: 1;
-}
-.seller-campus {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 14px;
-  color: #37474f;
-  margin-bottom: 4px;
-}
-.seller-time {
-  font-size: 12px;
-  color: #90a4ae;
-}
-.seller-actions {
-  flex-shrink: 0;
-}
+.seller-row:hover { box-shadow: 0 6px 20px rgba(66, 165, 245, 0.12); transform: translateY(-2px); }
+.seller-row.clickable { cursor: pointer; }
+.seller-main { min-width: 140px; }
+.seller-price { font-size: 22px; font-weight: 700; color: #e53935; margin-bottom: 6px; }
+.seller-tags { display: flex; gap: 6px; }
+.tag { font-size: 12px; padding: 2px 10px; border-radius: 10px; }
+.tag.condition { background: #f0f4f8; color: #607d8b; }
+.tag.delivery-yes { background: rgba(76, 175, 80, 0.12); color: #43a047; }
+.tag.delivery-no { background: rgba(158, 158, 158, 0.15); color: #9e9e9e; }
+.seller-sub { flex: 1; }
+.seller-campus { display: flex; align-items: center; gap: 4px; font-size: 14px; color: #37474f; margin-bottom: 4px; }
+.seller-time { font-size: 12px; color: #90a4ae; }
+.seller-actions { flex-shrink: 0; display: flex; gap: 8px; }
 
-@media (max-width: 600px) {
+@media (max-width: 768px) {
+  .book-hero {
+    border-radius: 12px;
+    margin-bottom: 18px;
+    min-height: 0;
+  }
   .hero-content {
     flex-direction: column;
     align-items: flex-start;
+    gap: 16px;
+    padding: 18px;
+  }
+  .hero-cover {
+    width: 110px;
+    height: 150px;
+    border-radius: 8px;
+  }
+  .hero-title {
+    font-size: 20px;
+    margin-bottom: 10px;
+  }
+  .hero-meta {
+    font-size: 13px;
+    gap: 6px;
+  }
+  .hero-overlay {
+    background: linear-gradient(180deg, rgba(10, 25, 47, 0.85) 0%, rgba(10, 25, 47, 0.55) 100%);
+  }
+  .sellers-header {
+    margin-bottom: 12px;
+  }
+  .sellers-title {
+    font-size: 17px;
+  }
+  .sort-tab {
+    padding: 5px 10px;
+    font-size: 12px;
   }
   .seller-row {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 10px;
+    padding: 14px 16px;
+  }
+  .seller-main {
+    min-width: 0;
+  }
+  .seller-price {
+    font-size: 20px;
+    margin-bottom: 4px;
+  }
+  .seller-actions {
+    justify-content: flex-end;
+  }
+  .seller-actions .el-button + .el-button {
+    margin-left: 0;
   }
 }
 </style>

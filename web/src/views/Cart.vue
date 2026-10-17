@@ -5,16 +5,26 @@
       <div v-if="cartItems.length" class="cart-list">
         <div v-for="item in cartItems" :key="item.id" class="cart-item">
           <el-checkbox v-model="item.selected" />
-          <img :src="item.product.cover || item.product.images?.[0]" class="cart-img" />
+          <img :src="getCover(item)" class="cart-img" />
           <div class="cart-info">
             <h4>{{ item.product.title || item.product.bookTitle }}</h4>
             <p class="cart-author" v-if="item.product.bookAuthor">{{ item.product.bookAuthor }}</p>
+            <p class="cart-seller" v-if="item.product.seller">
+              卖家：{{ item.product.seller.nickname || item.product.seller.userNo }}
+              <span class="seller-no" v-if="item.product.seller.userNo">（ID: {{ item.product.seller.userNo }}）</span>
+            </p>
           </div>
           <span class="cart-price">¥{{ item.product.price }}</span>
-          <el-button text type="danger" @click="removeItem(item.product.id)">移除</el-button>
+          <div class="cart-item-actions">
+            <el-button size="small" round @click="contactSeller(item)" v-if="item.product.seller && item.product.seller.id !== userStore.userInfo?.id">联系卖家</el-button>
+            <el-button text type="danger" @click="removeItem(item.product.id)">移除</el-button>
+          </div>
         </div>
         <div class="cart-footer">
           <el-checkbox v-model="selectAll" @change="toggleSelectAll">全选</el-checkbox>
+          <el-button type="warning" round @click="contactAllSellers" :disabled="!cartItems.length" :loading="contactingAll">
+            一键联系全部卖家
+          </el-button>
           <span class="total-price">合计：¥{{ totalPrice }}</span>
           <el-button type="primary" :disabled="!selectedItems.length" @click="checkout">下单</el-button>
         </div>
@@ -28,15 +38,22 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { cartApi, orderApi } from '@/api'
+import { cartApi, orderApi, conversationApi } from '@/api'
+import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
+const userStore = useUserStore()
 const cartItems = ref([])
 const loading = ref(false)
+const contactingAll = ref(false)
 
 const selectedItems = computed(() => cartItems.value.filter((i) => i.selected))
 const totalPrice = computed(() => selectedItems.value.reduce((sum, i) => sum + Number(i.product.price), 0).toFixed(2))
 const selectAll = ref(false)
+
+function getCover(item) {
+  return item.product.cover || item.product.bookCover || item.product.images?.[0]?.imagePath || ''
+}
 
 async function loadCart() {
   loading.value = true
@@ -63,6 +80,45 @@ async function checkout() {
   await orderApi.create(ids)
   ElMessage.success('下单成功')
   router.push('/orders')
+}
+
+async function contactSeller(item) {
+  if (!item.product.seller) return
+  try {
+    await conversationApi.start(item.product.seller.id, item.product.id)
+    ElMessage.success('已创建对话，请前往「对话」查看')
+    router.push('/chat')
+  } catch {}
+}
+
+async function contactAllSellers() {
+  const sellerMap = new Map()
+  for (const item of cartItems.value) {
+    const s = item.product?.seller
+    if (!s || s.id === userStore.userInfo?.id) continue
+    if (!sellerMap.has(s.id)) {
+      sellerMap.set(s.id, { sellerId: s.id, productId: item.product.id, nickname: s.nickname || s.userNo })
+    }
+  }
+  if (!sellerMap.size) {
+    ElMessage.warning('没有可联系的卖家')
+    return
+  }
+  contactingAll.value = true
+  let success = 0
+  for (const [, info] of sellerMap) {
+    try {
+      await conversationApi.start(info.sellerId, info.productId)
+      success++
+    } catch {}
+  }
+  contactingAll.value = false
+  if (success) {
+    ElMessage.success(`已联系${success}位卖家，请前往「对话」查看`)
+    router.push('/chat')
+  } else {
+    ElMessage.warning('联系卖家失败')
+  }
 }
 
 onMounted(loadCart)
@@ -98,10 +154,24 @@ onMounted(loadCart)
   color: #999;
   font-size: 13px;
 }
+.cart-seller {
+  color: #666;
+  font-size: 13px;
+  margin-top: 4px;
+}
+.seller-no {
+  color: #999;
+  font-size: 12px;
+}
 .cart-price {
   color: #e53935;
   font-weight: 600;
   font-size: 18px;
+}
+.cart-item-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 .cart-footer {
   display: flex;
@@ -115,5 +185,45 @@ onMounted(loadCart)
   font-size: 18px;
   font-weight: 600;
   color: #e53935;
+}
+
+@media (max-width: 768px) {
+  .cart-list {
+    padding: 14px;
+    border-radius: 12px;
+  }
+  .cart-item {
+    gap: 10px;
+    padding: 12px 0;
+  }
+  .cart-img {
+    width: 52px;
+    height: 70px;
+  }
+  .cart-info h4 {
+    font-size: 14px;
+  }
+  .cart-price {
+    font-size: 16px;
+  }
+  .cart-item-actions {
+    flex-direction: column;
+    gap: 4px;
+    align-items: stretch;
+  }
+  .cart-item-actions .el-button + .el-button {
+    margin-left: 0;
+  }
+  .cart-footer {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-top: 14px;
+  }
+  .total-price {
+    flex: none;
+    width: 100%;
+    text-align: right;
+    font-size: 17px;
+  }
 }
 </style>

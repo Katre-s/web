@@ -4,6 +4,7 @@
     <main class="main-content" :class="{ 'no-nav': isLoginPage }">
       <router-view />
     </main>
+    <TabBar v-if="!isLoginPage" />
   </div>
 </template>
 
@@ -11,6 +12,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import NavBar from '@/components/NavBar.vue'
+import TabBar from '@/components/TabBar.vue'
 
 const route = useRoute()
 const isLoginPage = computed(() => route.path === '/login')
@@ -32,5 +34,13 @@ const isLoginPage = computed(() => route.path === '/login')
 .main-content.no-nav {
   max-width: 100%;
   padding: 0;
+}
+@media (max-width: 768px) {
+  .main-content {
+    padding: 12px 12px calc(72px + env(safe-area-inset-bottom));
+  }
+  .main-content.no-nav {
+    padding: 0;
+  }
 }
 </style>
