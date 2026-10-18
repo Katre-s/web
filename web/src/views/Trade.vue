@@ -1,13 +1,23 @@
 <template>
   <div class="trade-page">
+    <div class="trade-tabs">
+      <div class="trade-tab" :class="{ active: tab === 'sell' }" @click="switchTab('sell')">
+        <el-icon><UploadFilled /></el-icon>
+        <span>{{ $t('trade.tabSell') }}</span>
+      </div>
+      <div class="trade-tab" :class="{ active: tab === 'buy' }" @click="switchTab('buy')">
+        <el-icon><ShoppingCart /></el-icon>
+        <span>{{ $t('trade.tabBuy') }}</span>
+      </div>
+    </div>
     <div class="search-row">
       <el-input
         v-model="keyword"
-        :placeholder="$t('trade.searchPlaceholder')"
+        :placeholder="tab === 'sell' ? $t('trade.searchPlaceholder') : $t('trade.searchWishPlaceholder')"
         clearable
         size="large"
         class="search-input"
-        @keyup.enter="loadBooks"
+        @keyup.enter="tab === 'sell' ? loadBooks() : loadWishlist()"
       >
         <template #prefix>
           <el-icon><Search /></el-icon>
@@ -53,7 +63,8 @@
     </el-dialog>
 
     <div v-loading="loading">
-      <div class="book-grid" v-if="books.length">
+      <!-- 在售(卖)：卖家想卖的东西 -->
+      <div class="book-grid" v-if="tab === 'sell' && books.length">
         <div
           v-for="book in books"
           :key="book.id || book.isbn || book.bookTitle"
@@ -77,7 +88,36 @@
           </div>
         </div>
       </div>
-      <el-empty v-else-if="!loading" :description="$t('trade.empty')" />
+      <el-empty v-else-if="tab === 'sell' && !loading" :description="$t('trade.empty')" />
+
+      <!-- 求购(买)：买家想求购的东西 -->
+      <div class="wish-grid" v-if="tab === 'buy' && wishes.length">
+        <div v-for="w in wishes" :key="w.id" class="wish-card" @click="goWish(w)">
+          <div class="wish-cover-wrap">
+            <img v-if="w.book?.bookCover" :src="w.book.bookCover" class="wish-cover" @error="w.book.bookCover = ''" />
+            <div v-else class="wish-cover-placeholder">
+              <el-icon><Notebook /></el-icon>
+            </div>
+          </div>
+          <div class="wish-info">
+            <h3 class="wish-title">{{ w.book?.bookTitle || w.title || t('common.unknownBook') }}</h3>
+            <p class="wish-meta" v-if="w.book?.bookAuthor || w.author">{{ $t('common.authorPrefix') }}{{ w.book?.bookAuthor || w.author }}</p>
+            <p class="wish-meta" v-if="w.isbn">ISBN {{ w.isbn }}</p>
+            <div class="wish-bottom">
+              <span class="wish-user">{{ $t('trade.wishBy') }} {{ w.user?.nickname || '—' }}<span v-if="w.user?.userNo">（{{ w.user.userNo }}）</span></span>
+              <span class="wish-time">{{ formatTime(w.createdAt) }}</span>
+            </div>
+            <div class="wish-actions">
+              <span v-if="w.sellerCount" class="wish-sellers">{{ w.sellerCount }}{{ $t('trade.sellers') }}</span>
+              <el-button size="small" type="primary" round @click.stop="contactWisher(w)">
+                <el-icon style="margin-right: 3px"><ChatDotRound /></el-icon>
+                {{ $t('trade.contactWisher') }}
+              </el-button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <el-empty v-else-if="tab === 'buy' && !loading" :description="$t('trade.emptyWish')" />
     </div>
   </div>
 </template>
@@ -88,18 +128,26 @@ const { t } = useI18n()
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Search, Plus, UploadFilled, Notebook, Document, Camera, Loading } from '@element-plus/icons-vue'
-import { booksApi, bookApi, wishlistApi } from '@/api'
+import { Search, Plus, UploadFilled, Notebook, Document, Camera, Loading, ShoppingCart, ChatDotRound } from '@element-plus/icons-vue'
+import { booksApi, bookApi, wishlistApi, conversationApi } from '@/api'
 
 const router = useRouter()
+const tab = ref('sell')
 const keyword = ref('')
 const books = ref([])
+const wishes = ref([])
 const loading = ref(false)
 const scanning = ref(false)
 const scanInput = ref(null)
 const scanBook = ref(null)
 const scanDialogVisible = ref(false)
 const wishlistAdding = ref(false)
+
+function switchTab(t) {
+  tab.value = t
+  if (t === 'buy' && !wishes.value.length) loadWishlist()
+  if (t === 'sell' && !books.value.length) loadBooks()
+}
 
 async function loadBooks() {
   loading.value = true
@@ -108,6 +156,39 @@ async function loadBooks() {
     books.value = res.data || res || []
   } finally {
     loading.value = false
+  }
+}
+
+async function loadWishlist() {
+  loading.value = true
+  try {
+    const res = await wishlistApi.publicList({ keyword: keyword.value })
+    wishes.value = res.data || res || []
+  } finally {
+    loading.value = false
+  }
+}
+
+function formatTime(ts) {
+  if (!ts) return ''
+  const d = new Date(ts)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function goWish(w) {
+  if (w.book?.id) {
+    router.push({ name: 'BookDetail', params: { key: w.book.id } })
+  }
+}
+
+async function contactWisher(w) {
+  try {
+    await conversationApi.start(w.user.id, w.book?.id || null)
+    ElMessage.success({ message: t('trade.contactStarted'), duration: 2000 })
+    router.push('/chat')
+  } catch (err) {
+    ElMessage.warning(err?.response?.data?.message || t('trade.contactFail'))
   }
 }
 
@@ -174,6 +255,145 @@ onMounted(loadBooks)
 <style scoped>
 .trade-page {
   padding-bottom: 40px;
+}
+.trade-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 18px;
+  background: #f1f5f9;
+  border-radius: 14px;
+  padding: 5px;
+  border: 1px solid #e3eaf2;
+}
+.trade-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 0;
+  border-radius: 11px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  user-select: none;
+}
+.trade-tab:hover {
+  color: #0d2847;
+}
+.trade-tab.active {
+  background: linear-gradient(135deg, #42a5f5, #1e88e5);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(66, 165, 245, 0.35);
+}
+.wish-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.wish-card {
+  display: flex;
+  gap: 14px;
+  background: #fff;
+  border-radius: 14px;
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 12px rgba(13, 40, 71, 0.06);
+  border: 1px solid #ecf2f8;
+}
+.wish-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 28px rgba(66, 165, 245, 0.16);
+}
+.wish-cover-wrap {
+  width: 76px;
+  height: 104px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f0f4f8;
+  flex-shrink: 0;
+}
+.wish-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.wish-cover-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  color: #b0bec5;
+}
+.wish-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.wish-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0d2847;
+  line-height: 1.4;
+  margin: 0 0 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.wish-meta {
+  font-size: 13px;
+  color: #607d8b;
+  margin: 1px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wish-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 6px;
+}
+.wish-user {
+  font-size: 12px;
+  color: #78909c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wish-time {
+  font-size: 11px;
+  color: #b0bec5;
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+.wish-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+.wish-sellers {
+  font-size: 12px;
+  color: #42a5f5;
+  font-weight: 600;
+}
+.wish-actions :deep(.el-button) {
+  border: none;
+  background: linear-gradient(135deg, #66bb6a, #43a047);
+  font-size: 12px;
+}
+.wish-actions :deep(.el-button:hover) {
+  opacity: 0.9;
 }
 .search-row {
   display: flex;
@@ -397,6 +617,32 @@ onMounted(loadBooks)
   }
   .book-count {
     font-size: 11px;
+  }
+  .trade-tabs {
+    margin-bottom: 12px;
+    gap: 8px;
+  }
+  .trade-tab {
+    font-size: 13px;
+    padding: 8px 0;
+  }
+  .wish-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .wish-card {
+    padding: 10px;
+    gap: 10px;
+  }
+  .wish-cover-wrap {
+    width: 64px;
+    height: 88px;
+  }
+  .wish-title {
+    font-size: 14px;
+  }
+  .wish-meta {
+    font-size: 12px;
   }
 }
 </style>

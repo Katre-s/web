@@ -55,7 +55,8 @@ export const orderApi = {
 
 export const wishlistApi = {
   add: (data) => request.post('/wishlist/add', data),
-  list: () => request.get('/wishlist')
+  list: () => request.get('/wishlist'),
+  publicList: (params) => request.get('/wishlist/public', { params })
 }
 
 export const favoriteApi = {
