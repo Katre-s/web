@@ -4,7 +4,7 @@ import { success, fail } from '../utils/response.js'
 
 export async function listBooks(req, res, next) {
   try {
-    const { keyword } = req.query
+    const { keyword, isbn } = req.query
     const bookWhere = {}
     if (keyword) {
       bookWhere[Op.or] = [
@@ -14,7 +14,33 @@ export async function listBooks(req, res, next) {
       ]
     }
 
-    const books = await Book.findAll({ where: bookWhere, order: [['id', 'DESC']] })
+    let books = []
+    if (isbn) {
+      // 精确 ISBN 筛选: 优先查 Book 表, 无记录时从在售商品聚合
+      const cleanIsbn = String(isbn).replace(/[-\s]/g, '')
+      books = await Book.findAll({ where: { isbn: cleanIsbn } })
+      if (books.length === 0) {
+        const prods = await Product.findAll({
+          where: { isbn: cleanIsbn, status: 'available' },
+          order: [['created_at', 'DESC']]
+        })
+        if (prods.length > 0) {
+          const p0 = prods[0]
+          books = [{
+            id: null,
+            isbn: p0.isbn || cleanIsbn,
+            bookTitle: p0.bookTitle || p0.title || '未知书目',
+            bookAuthor: p0.bookAuthor || '',
+            bookPublisher: p0.bookPublisher || '',
+            edition: p0.edition || '',
+            bookCover: p0.bookCover || '',
+            __prods: prods
+          }]
+        }
+      }
+    } else {
+      books = await Book.findAll({ where: bookWhere, order: [['id', 'DESC']] })
+    }
 
     const result = []
     for (const b of books) {
@@ -28,7 +54,7 @@ export async function listBooks(req, res, next) {
         ]
       }
 
-      const products = await Product.findAll({
+      const products = b.__prods || await Product.findAll({
         where: prodWhere,
         attributes: ['id', 'price', 'bookCover'],
         order: [['created_at', 'DESC']]

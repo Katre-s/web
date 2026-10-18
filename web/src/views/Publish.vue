@@ -12,6 +12,52 @@
       <p class="isbn-tip" v-if="!bookInfo">{{ $t('publish.isbnTip') }}</p>
     </div>
 
+    <!-- 两步识别: 第一步/第二步拍摄引导 -->
+    <el-dialog v-model="scanGuideVisible" :title="$t('common.scanGuideTitle')" width="400px" :close-on-click-modal="false">
+      <div class="scan-guide">
+        <div class="guide-step">{{ scanPhase === 'front' ? $t('common.scanStepFront') : $t('common.scanStepBack') }}</div>
+        <div v-if="frontInfo?.cover" class="guide-front">
+          <img :src="frontInfo.cover" class="guide-cover" @error="frontInfo.cover = ''" />
+          <p class="guide-ok">{{ $t('common.scanFrontOk') }}</p>
+        </div>
+        <p class="guide-tip" v-if="scanPhase === 'back'">{{ $t('common.scanBackTip') }}</p>
+      </div>
+      <template #footer>
+        <el-button @click="cancelScan">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="scanning" @click="scanInput?.click()">
+          {{ scanPhase === 'front' ? $t('common.scanChooseFront') : $t('common.scanChooseBack') }}
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 核对书籍信息(正面+背面合并, 识别照片作封面可更换) -->
+    <el-dialog v-model="confirmVisible" :title="$t('common.confirmTitle')" width="470px" :close-on-click-modal="false">
+      <div class="confirm-preview">
+        <div class="cover-box">
+          <img v-if="scanBook?.cover" :src="scanBook.cover" class="scan-cover" @error="scanBook.cover = ''" />
+          <div v-else class="cover-empty"><el-icon><Notebook /></el-icon></div>
+          <el-button size="small" class="change-cover-btn" @click="coverInput?.click()">{{ $t('common.changeCover') }}</el-button>
+          <input ref="coverInput" type="file" accept="image/*" style="display: none" @change="onCoverFile" />
+        </div>
+        <div class="scan-edit">
+          <p><span class="lbl">{{ $t('common.bookName') }}</span><el-input v-model="scanBook.title" size="small" /></p>
+          <p><span class="lbl">{{ $t('common.authorPrefix') }}</span><el-input v-model="scanBook.author" size="small" /></p>
+          <p><span class="lbl">{{ $t('common.publisher') }}</span><el-input v-model="scanBook.publisher" size="small" /></p>
+          <p><span class="lbl">{{ $t('common.edition') }}</span><el-input v-model="scanBook.edition" size="small" /></p>
+          <p><span class="lbl">ISBN</span><el-input v-model="scanBook.isbn" size="small" /></p>
+        </div>
+      </div>
+      <div class="market-match" v-if="marketMatches.sellingCount > 0 || marketMatches.wishCount > 0">
+        <p v-if="marketMatches.sellingCount > 0">📦 {{ $t('common.marketHas') }} <b>{{ marketMatches.sellingCount }}</b>{{ $t('trade.sellers') }}</p>
+        <p v-if="marketMatches.wishCount > 0">🔍 {{ $t('common.marketWish') }} <b>{{ marketMatches.wishCount }}</b>{{ $t('trade.wishes') }}</p>
+      </div>
+      <p class="confirm-tip">{{ $t('common.confirmTip') }}</p>
+      <template #footer>
+        <el-button @click="cancelScan">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="confirmScan">{{ $t('common.confirm') }}</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 识别后设置价格弹窗 -->
     <el-dialog v-model="priceDialogVisible" :title="$t('publish.priceDialogTitle')" width="440px" :close-on-click-modal="false">
       <div class="scan-book-preview" v-if="scanBook">
@@ -120,7 +166,7 @@ const { t } = useI18n()
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Notebook } from '@element-plus/icons-vue'
 import { bookApi, productApi } from '@/api'
 
 const router = useRouter()
@@ -128,12 +174,21 @@ const isbn = ref('')
 const looking = ref(false)
 const scanning = ref(false)
 const scanInput = ref(null)
+const coverInput = ref(null)
 const scanBook = ref(null)
 const priceDialogVisible = ref(false)
 const bookInfo = ref(null)
 const submitting = ref(false)
 const fileList = ref([])
 const images = ref([])
+
+// 两步识别状态
+const scanPhase = ref('')
+const scanGuideVisible = ref(false)
+const confirmVisible = ref(false)
+const frontInfo = ref(null)
+const coverFile = ref(null)
+const marketMatches = ref({ sellingCount: 0, wishCount: 0 })
 
 const form = reactive({
   bookTitle: '',
@@ -176,7 +231,35 @@ function onImagesChange(file, fileList) {
 }
 
 function openScan() {
-  scanInput.value?.click()
+  // 两步识别: 从第一步(封面正面)开始
+  scanPhase.value = 'front'
+  frontInfo.value = null
+  scanBook.value = null
+  coverFile.value = null
+  marketMatches.value = { sellingCount: 0, wishCount: 0 }
+  scanGuideVisible.value = true
+}
+
+function cancelScan() {
+  scanPhase.value = ''
+  scanGuideVisible.value = false
+  confirmVisible.value = false
+  priceDialogVisible.value = false
+  frontInfo.value = null
+  scanBook.value = null
+  coverFile.value = null
+}
+
+// 更换封面: 用户另选一张图作为封面
+function onCoverFile(e) {
+  const f = e.target.files?.[0]
+  e.target.value = ''
+  if (!f || !scanBook.value) return
+  coverFile.value = f
+  scanBook.value.cover = URL.createObjectURL(f)
+  // 置为商品图片列表第一张 → 提交后作为封面
+  images.value = [f, ...images.value.filter((i) => i !== f)]
+  ElMessage.success({ message: t('common.coverChanged'), duration: 1500 })
 }
 
 async function onScanFile(e) {
@@ -187,26 +270,67 @@ async function onScanFile(e) {
   try {
     const fd = new FormData()
     fd.append('image', file)
+    fd.append('mode', scanPhase.value === 'back' ? 'back' : 'front')
     const res = await bookApi.scanBook(fd)
     const data = res.data || res
     const book = data.book || {}
-    scanBook.value = book
-    bookInfo.value = book
-    isbn.value = book.isbn || ''
-    form.bookTitle = book.title || ''
-    form.bookAuthor = book.author || ''
-    form.bookPublisher = book.publisher || ''
-    form.originalPrice = book.originalPrice || 0
-    form.edition = book.edition || ''
-    form.price = null
-    form.description = ''
-    priceDialogVisible.value = true
+    const mm = data.marketMatches || { sellingCount: 0, wishCount: 0 }
+
+    if (scanPhase.value === 'back') {
+      // 第二步(背面ISBN)完成 → 合并两次识别 → 核对弹窗
+      const merged = {
+        title: frontInfo.value?.title || book.title || '',
+        author: frontInfo.value?.author || book.author || '',
+        publisher: frontInfo.value?.publisher || book.publisher || '',
+        edition: frontInfo.value?.edition || book.edition || '',
+        isbn: book.isbn || frontInfo.value?.isbn || '',
+        cover: frontInfo.value?.cover || book.cover || '',
+        originalPrice: frontInfo.value?.originalPrice || book.originalPrice || 0
+      }
+      scanBook.value = merged
+      // 市场匹配取两步中较大值(正面按书名/背面按ISBN)
+      const fmm = frontInfo.value?.matches || { sellingCount: 0, wishCount: 0 }
+      marketMatches.value = {
+        sellingCount: Math.max(fmm.sellingCount || 0, mm.sellingCount || 0),
+        wishCount: Math.max(fmm.wishCount || 0, mm.wishCount || 0)
+      }
+      // 识别照片自动作为封面(需求: 可更换)
+      if (!coverFile.value) {
+        const coverFileObj = new File([file], 'cover-' + file.name, { type: file.type })
+        coverFile.value = coverFileObj
+        images.value = [coverFileObj, ...images.value]
+      }
+      scanGuideVisible.value = false
+      scanPhase.value = ''
+      confirmVisible.value = true
+    } else {
+      // 第一步(封面)完成 → 进入第二步
+      frontInfo.value = { ...book, matches: mm }
+      scanPhase.value = 'back'
+      ElMessage.success({ message: t('common.scanFrontOk'), duration: 2500 })
+    }
   } catch (err) {
     const msg = err?.response?.data?.message || t('publish.scanFail')
-    ElMessage.warning({ message: msg, duration: 2500 })
+    ElMessage.warning({ message: msg, duration: 3000 })
   } finally {
     scanning.value = false
   }
+}
+
+function confirmScan() {
+  // 核对通过 → 填充表单并进入价格设置
+  const book = scanBook.value || {}
+  bookInfo.value = book
+  isbn.value = book.isbn || ''
+  form.bookTitle = book.title || ''
+  form.bookAuthor = book.author || ''
+  form.bookPublisher = book.publisher || ''
+  form.originalPrice = book.originalPrice || 0
+  form.edition = book.edition || ''
+  form.price = null
+  form.description = ''
+  confirmVisible.value = false
+  priceDialogVisible.value = true
 }
 
 async function handleSubmitFromDialog() {
@@ -317,6 +441,101 @@ async function handleSubmit() {
   color: #666;
   font-size: 14px;
   margin-bottom: 4px;
+}
+.scan-guide {
+  text-align: center;
+}
+.guide-step {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0d2847;
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+.guide-front {
+  margin-bottom: 8px;
+}
+.guide-cover {
+  width: 96px;
+  height: 128px;
+  object-fit: cover;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(13, 40, 71, 0.18);
+}
+.guide-ok {
+  color: #22a55e;
+  font-size: 12px;
+  margin-top: 6px;
+}
+.guide-tip {
+  color: #f5a623;
+  font-size: 12px;
+  margin-top: 4px;
+}
+.confirm-preview {
+  display: flex;
+  gap: 14px;
+}
+.cover-box {
+  width: 110px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.cover-box .scan-cover {
+  width: 100%;
+  height: 146px;
+}
+.cover-empty {
+  width: 110px;
+  height: 146px;
+  border-radius: 8px;
+  background: #f0f4f8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+  color: #b0bec5;
+}
+.change-cover-btn {
+  width: 100%;
+}
+.scan-edit {
+  flex: 1;
+  min-width: 0;
+}
+.scan-edit p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0;
+}
+.scan-edit .lbl {
+  width: 62px;
+  flex-shrink: 0;
+  text-align: right;
+  color: #64748b;
+  font-size: 13px;
+}
+.market-match {
+  background: #f0f7ff;
+  border: 1px dashed #90caf9;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: #0d47a1;
+}
+.market-match p {
+  margin: 2px 0;
+}
+.confirm-tip {
+  color: #f5a623;
+  font-size: 12px;
+  margin-top: 10px;
+  text-align: center;
 }
 
 @media (max-width: 768px) {

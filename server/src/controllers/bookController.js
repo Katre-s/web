@@ -49,11 +49,20 @@ async function enrichBookInfo(cleanIsbn) {
 export async function scanBook(req, res, next) {
   try {
     if (!req.file) return fail(res, '请上传书籍图片')
+    const mode = req.body.mode === 'front' ? 'front' : req.body.mode === 'back' ? 'back' : ''
 
     let info = null
-    try { info = await scanBookImage(req.file.path) } catch (err) { console.error(err) }
-    // 有书名或 ISBN 任一即可继续（拍封底条形码时通常只有 ISBN）
-    if (!info || (!info.title && !info.isbn)) return fail(res, '未识别到有效的书籍信息，请对准封面或 ISBN 条形码重新拍摄', 422)
+    try { info = await scanBookImage(req.file.path, mode) } catch (err) { console.error(err) }
+
+    // 分模式判定: 正面必须有书名, 背面必须有ISBN, 通用模式有其一即可
+    if (mode === 'front') {
+      if (!info || !info.title) return fail(res, '未识别到封面书名，请对准书籍封面（正面）拍摄', 422)
+    } else if (mode === 'back') {
+      const isbnOnly = String(info?.isbn || '').replace(/[-\s]/g, '')
+      if (!isbnOnly) return fail(res, '未识别到 ISBN，请对准封底条形码拍摄', 422)
+    } else {
+      if (!info || (!info.title && !info.isbn)) return fail(res, '未识别到有效的书籍信息，请对准封面或 ISBN 条形码重新拍摄', 422)
+    }
 
     const isbn = String(info.isbn || '').replace(/[-\s]/g, '')
     let enriched = null
@@ -61,18 +70,31 @@ export async function scanBook(req, res, next) {
       try { enriched = await enrichBookInfo(isbn) } catch (err) { console.error('ISBN补全失败:', err.message) }
     }
 
+    // 市场匹配: 同 ISBN/书名的在售商品数与求购数
+    let sellingCount = 0
+    let wishCount = 0
+    try {
+      if (isbn) {
+        sellingCount = await Product.count({ where: { isbn, status: 'available' } })
+        wishCount = await Wishlist.count({ where: { isbn } })
+      } else if (info.title) {
+        sellingCount = await Product.count({ where: { bookTitle: info.title, status: 'available' } })
+        wishCount = await Wishlist.count({ where: { title: info.title } })
+      }
+    } catch (err) { console.error('市场匹配统计失败:', err.message) }
+
     const book = {
       title: enriched?.title || info.title || (isbn ? `ISBN ${isbn}` : ''),
       author: enriched?.author || info.author || '',
       publisher: enriched?.publisher || info.publisher || '',
       edition: enriched?.edition || info.edition || '',
       isbn: enriched?.isbn || isbn,
-      cover: enriched?.cover || '',
+      cover: `/uploads/${req.file.filename}`, // 识别照片作为封面(需求:可提示更换)
       originalPrice: enriched?.originalPrice || 0,
       source: enriched?.source || 'ai'
     }
 
-    success(res, { book }, '识别成功')
+    success(res, { book, marketMatches: { sellingCount, wishCount } }, '识别成功')
   } catch (err) { next(err) }
 }
 

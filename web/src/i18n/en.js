@@ -166,7 +166,24 @@ export default {
     actions: 'Actions',
     total: 'Total: ',
     desc: 'Description',
-    msgSentToSeller: 'Message sent to seller'
+    msgSentToSeller: 'Message sent to seller',
+    bookName: 'Title',
+    publisher: 'Publisher',
+    edition: 'Edition',
+    scanGuideTitle: 'Scan to Identify',
+    scanStepFront: 'Step 1: Take a photo of the book cover (front)',
+    scanStepBack: 'Step 2: Take a photo of the back ISBN barcode',
+    scanChooseFront: 'Choose cover photo',
+    scanChooseBack: 'Choose back photo',
+    scanFrontOk: 'Cover identified, now take the back ISBN barcode',
+    scanBackTip: 'Point the camera at the barcode and keep it fully visible',
+    confirmTitle: 'Confirm Book Info',
+    confirmTip: 'Please verify the info above; you can edit any field',
+    marketHas: 'Same book on sale in market:',
+    marketWish: 'Same book wanted in market:',
+    seeMarket: 'View',
+    changeCover: 'Change cover',
+    coverChanged: 'Cover updated'
   },
   home: {
     student: 'Student',
@@ -223,7 +240,10 @@ export default {
     scanAsk: 'Add to wishlist (price negotiable)?',
     scanAgree: 'Yes, add to wishlist',
     wishlistAdded: 'Added to wishlist',
-    scanFail: 'Recognition failed, please use a clearer cover photo'
+    scanFail: 'Recognition failed, please use a clearer cover photo',
+    filterIsbn: 'Filter same book (ISBN)',
+    filterHint: 'Click × at top right to clear filter',
+    wishes: ' wishes'
   },
   profile: {
     title: 'Profile',

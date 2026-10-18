@@ -34,14 +34,13 @@ ${text}`
   }
 }
 
-export async function scanBookImage(imagePath) {
+export async function scanBookImage(imagePath, mode = '') {
   const apiKey = process.env.AI_API_KEY
   const apiUrl = process.env.AI_API_URL
   if (!apiKey || !apiUrl) return null
 
   try {
     // 1. 图片预处理: 自动旋转 + 压缩到最长边1280 + 转JPEG(质量82)
-    //    解决: 超大分辨率照片被模型拒绝 / iPhone HEIC 格式 / 模糊大图
     let buf
     try {
       buf = await sharp(imagePath, { failOn: 'none' })
@@ -56,8 +55,15 @@ export async function scanBookImage(imagePath) {
     const base64 = buf.toString('base64')
     const mime = 'image/jpeg'
 
-    // 2. 识别提示词: 封面/封底/条形码都识别, ISBN优先提取
-    const prompt = `你是图书信息提取助手。这张图片可能是书籍封面、封底或 ISBN 条形码区域。请识别图片中的书籍信息，输出 JSON，格式：{"title":"书名(尽力识别,没有则为空字符串)","author":"作者(没有则为空字符串)","publisher":"出版社(没有则为空字符串)","edition":"版次(没有则为空字符串)","isbn":"ISBN号(优先从条形码数字提取,没有则为空字符串)"}。只返回 JSON，不要加其他文字。`
+    // 2. 识别提示词: front=封面正面 / back=背面条形码 / 空=通用
+    let prompt
+    if (mode === 'front') {
+      prompt = `你是图书信息提取助手。这张图片是书籍封面（正面）。请识别书籍信息，输出 JSON：{"title":"书名(必填,识别不到则为空字符串)","author":"作者(没有则为空字符串)","publisher":"出版社(没有则为空字符串)","edition":"版次(没有则为空字符串)","isbn":"不要编造,没有则为空字符串"}。只返回 JSON，不要加其他文字。`
+    } else if (mode === 'back') {
+      prompt = `你是图书信息提取助手。这张图片是书籍背面或 ISBN 条形码区域。请识别书籍信息，输出 JSON：{"title":"不要编造,没有则为空字符串","author":"不要编造,没有则为空字符串","publisher":"不要编造,没有则为空字符串","edition":"版次(没有则为空字符串)","isbn":"ISBN号(必填,优先从条形码下方数字提取,去掉连字符和空格)"}。只返回 JSON，不要加其他文字。`
+    } else {
+      prompt = `你是图书信息提取助手。这张图片可能是书籍封面、封底或 ISBN 条形码区域。请识别图片中的书籍信息，输出 JSON，格式：{"title":"书名(尽力识别,没有则为空字符串)","author":"作者(没有则为空字符串)","publisher":"出版社(没有则为空字符串)","edition":"版次(没有则为空字符串)","isbn":"ISBN号(优先从条形码数字提取,没有则为空字符串)"}。只返回 JSON，不要加其他文字。`
+    }
 
     // 3. 调用视觉模型, 失败自动重试1次
     let content = ''

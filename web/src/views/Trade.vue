@@ -45,6 +45,59 @@
       <input ref="scanInput" type="file" accept="image/*" style="display: none" @change="onScanFile" />
     </div>
 
+    <!-- ISBN 筛选: 拍照识别后罗列市场同书 -->
+    <div class="filter-bar" v-if="isbnFilter">
+      <span class="filter-chip">
+        <el-icon style="margin-right: 4px"><Filter /></el-icon>
+        {{ $t('trade.filterIsbn') }} <b>{{ isbnFilter }}</b>
+        <el-icon class="chip-clear" @click="clearIsbnFilter"><Close /></el-icon>
+      </span>
+      <span class="filter-hint">{{ $t('trade.filterHint') }}</span>
+    </div>
+
+    <!-- 两步识别: 第一步/第二步拍摄引导 -->
+    <el-dialog v-model="scanGuideVisible" :title="$t('common.scanGuideTitle')" width="400px" :close-on-click-modal="false">
+      <div class="scan-guide">
+        <div class="guide-step">{{ scanPhase === 'front' ? $t('common.scanStepFront') : $t('common.scanStepBack') }}</div>
+        <div v-if="frontInfo?.cover" class="guide-front">
+          <img :src="frontInfo.cover" class="guide-cover" @error="frontInfo.cover = ''" />
+          <p class="guide-ok">{{ $t('common.scanFrontOk') }}</p>
+        </div>
+        <p class="guide-tip" v-if="scanPhase === 'back'">{{ $t('common.scanBackTip') }}</p>
+      </div>
+      <template #footer>
+        <el-button @click="cancelScan">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="scanning" @click="scanInput?.click()">
+          {{ scanPhase === 'front' ? $t('common.scanChooseFront') : $t('common.scanChooseBack') }}
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 核对书籍信息(正面+背面两次识别合并后) -->
+    <el-dialog v-model="confirmVisible" :title="$t('common.confirmTitle')" width="460px" :close-on-click-modal="false">
+      <div class="scan-preview" v-if="scanBook">
+        <img v-if="scanBook.cover" :src="scanBook.cover" class="scan-cover" @error="scanBook.cover = ''" />
+        <div class="scan-text scan-edit">
+          <p><span class="lbl">{{ $t('common.bookName') }}</span><el-input v-model="scanBook.title" size="small" /></p>
+          <p><span class="lbl">{{ $t('common.authorPrefix') }}</span><el-input v-model="scanBook.author" size="small" /></p>
+          <p><span class="lbl">{{ $t('common.publisher') }}</span><el-input v-model="scanBook.publisher" size="small" /></p>
+          <p><span class="lbl">{{ $t('common.edition') }}</span><el-input v-model="scanBook.edition" size="small" /></p>
+          <p><span class="lbl">ISBN</span><el-input v-model="scanBook.isbn" size="small" /></p>
+        </div>
+      </div>
+      <div class="market-match" v-if="marketMatches.sellingCount > 0 || marketMatches.wishCount > 0">
+        <p v-if="marketMatches.sellingCount > 0">📦 {{ $t('common.marketHas') }} <b>{{ marketMatches.sellingCount }}</b>{{ $t('trade.sellers') }}
+          <el-button size="small" link type="primary" @click="goMarketFilter">{{ $t('common.seeMarket') }} →</el-button>
+        </p>
+        <p v-if="marketMatches.wishCount > 0">🔍 {{ $t('common.marketWish') }} <b>{{ marketMatches.wishCount }}</b>{{ $t('trade.wishes') }}</p>
+      </div>
+      <p class="confirm-tip">{{ $t('common.confirmTip') }}</p>
+      <template #footer>
+        <el-button @click="cancelScan">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="confirmScan">{{ $t('common.confirm') }}</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 扫码识别结果：询问是否加入求购 -->
     <el-dialog v-model="scanDialogVisible" :title="$t('trade.scanResultTitle')" width="420px" :close-on-click-modal="false">
       <div class="scan-preview" v-if="scanBook">
@@ -126,12 +179,13 @@
 const { t } = useI18n()
 
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Search, Plus, UploadFilled, Notebook, Document, Camera, Loading, ShoppingCart, ChatDotRound } from '@element-plus/icons-vue'
+import { Search, Plus, UploadFilled, Notebook, Document, Camera, Loading, ShoppingCart, ChatDotRound, Filter, Close } from '@element-plus/icons-vue'
 import { booksApi, bookApi, wishlistApi, conversationApi } from '@/api'
 
 const router = useRouter()
+const route = useRoute()
 const tab = ref('sell')
 const keyword = ref('')
 const books = ref([])
@@ -143,6 +197,15 @@ const scanBook = ref(null)
 const scanDialogVisible = ref(false)
 const wishlistAdding = ref(false)
 
+// 两步识别状态: '' → front(封面) → back(ISBN) → confirm(核对)
+const scanPhase = ref('')
+const scanGuideVisible = ref(false)
+const confirmVisible = ref(false)
+const frontInfo = ref(null)
+const marketMatches = ref({ sellingCount: 0, wishCount: 0 })
+// ISBN 筛选(市场同书罗列)
+const isbnFilter = ref('')
+
 function switchTab(t) {
   tab.value = t
   if (t === 'buy' && !wishes.value.length) loadWishlist()
@@ -152,7 +215,9 @@ function switchTab(t) {
 async function loadBooks() {
   loading.value = true
   try {
-    const res = await booksApi.list({ keyword: keyword.value })
+    const params = { keyword: keyword.value }
+    if (isbnFilter.value) params.isbn = isbnFilter.value
+    const res = await booksApi.list(params)
     books.value = res.data || res || []
   } finally {
     loading.value = false
@@ -206,7 +271,21 @@ function goDetail(book) {
 }
 
 function openScan() {
-  scanInput.value?.click()
+  // 两步识别: 从第一步(封面正面)开始
+  scanPhase.value = 'front'
+  frontInfo.value = null
+  scanBook.value = null
+  marketMatches.value = { sellingCount: 0, wishCount: 0 }
+  scanGuideVisible.value = true
+}
+
+function cancelScan() {
+  scanPhase.value = ''
+  scanGuideVisible.value = false
+  confirmVisible.value = false
+  scanDialogVisible.value = false
+  frontInfo.value = null
+  scanBook.value = null
 }
 
 async function onScanFile(e) {
@@ -217,17 +296,68 @@ async function onScanFile(e) {
   try {
     const fd = new FormData()
     fd.append('image', file)
+    fd.append('mode', scanPhase.value === 'back' ? 'back' : 'front')
     const res = await bookApi.scanBook(fd)
     const data = res.data || res
     const book = data.book || {}
-    scanBook.value = book
-    scanDialogVisible.value = true
+    const mm = data.marketMatches || { sellingCount: 0, wishCount: 0 }
+
+    if (scanPhase.value === 'back') {
+      // 第二步(背面ISBN)完成 → 合并两次识别结果 → 弹核对框
+      const merged = {
+        title: frontInfo.value?.title || book.title || '',
+        author: frontInfo.value?.author || book.author || '',
+        publisher: frontInfo.value?.publisher || book.publisher || '',
+        edition: frontInfo.value?.edition || book.edition || '',
+        isbn: book.isbn || frontInfo.value?.isbn || '',
+        cover: frontInfo.value?.cover || book.cover || ''
+      }
+      scanBook.value = merged
+      // 市场匹配取两步中较大值(正面按书名/背面按ISBN)
+      const fmm = frontInfo.value?.matches || { sellingCount: 0, wishCount: 0 }
+      marketMatches.value = {
+        sellingCount: Math.max(fmm.sellingCount || 0, mm.sellingCount || 0),
+        wishCount: Math.max(fmm.wishCount || 0, mm.wishCount || 0)
+      }
+      scanGuideVisible.value = false
+      scanPhase.value = ''
+      confirmVisible.value = true
+    } else {
+      // 第一步(封面)完成 → 提示进入第二步
+      frontInfo.value = { ...book, matches: mm }
+      scanPhase.value = 'back'
+      ElMessage.success({ message: t('common.scanFrontOk'), duration: 2500 })
+    }
   } catch (err) {
     const msg = err?.response?.data?.message || t('trade.scanFail')
-    ElMessage.warning({ message: msg, duration: 2500 })
+    ElMessage.warning({ message: msg, duration: 3000 })
+    // 第二步失败: 停留在当前引导步, 让用户重拍
   } finally {
     scanning.value = false
   }
+}
+
+function confirmScan() {
+  confirmVisible.value = false
+  // 进入求购询问
+  scanDialogVisible.value = true
+}
+
+function goMarketFilter() {
+  // 跳转交易页并带上 ISBN 筛选 → 罗列市场同书
+  const isbn = (scanBook.value?.isbn || '').replace(/[-\s]/g, '')
+  confirmVisible.value = false
+  scanDialogVisible.value = false
+  scanPhase.value = ''
+  if (isbn) {
+    router.push({ path: '/trade', query: { isbn } })
+  }
+}
+
+function clearIsbnFilter() {
+  isbnFilter.value = ''
+  keyword.value = ''
+  loadBooks()
 }
 
 async function agreeWishlist() {
@@ -249,7 +379,16 @@ async function agreeWishlist() {
   }
 }
 
-onMounted(loadBooks)
+onMounted(() => {
+  // 支持 /trade?isbn=xxx 跳转筛选(拍照识别罗列市场同书)
+  const qIsbn = route.query.isbn
+  if (qIsbn) {
+    isbnFilter.value = String(qIsbn).replace(/[-\s]/g, '')
+    loadBooks()
+  } else {
+    loadBooks()
+  }
+})
 </script>
 
 <style scoped>
@@ -644,5 +783,103 @@ onMounted(loadBooks)
   .wish-meta {
     font-size: 12px;
   }
+}
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #42a5f5, #1e88e5);
+  color: #fff;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 13px;
+  box-shadow: 0 4px 12px rgba(66, 165, 245, 0.3);
+}
+.filter-chip b {
+  font-weight: 700;
+}
+.chip-clear {
+  cursor: pointer;
+  margin-left: 4px;
+  opacity: 0.85;
+}
+.chip-clear:hover {
+  opacity: 1;
+}
+.filter-hint {
+  color: #94a3b8;
+  font-size: 12px;
+}
+.scan-guide {
+  text-align: center;
+}
+.guide-step {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0d2847;
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+.guide-front {
+  margin-bottom: 8px;
+}
+.guide-cover {
+  width: 96px;
+  height: 128px;
+  object-fit: cover;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(13, 40, 71, 0.18);
+}
+.guide-ok {
+  color: #22a55e;
+  font-size: 12px;
+  margin-top: 6px;
+}
+.guide-tip {
+  color: #f5a623;
+  font-size: 12px;
+  margin-top: 4px;
+}
+.scan-edit p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0;
+}
+.scan-edit .lbl {
+  width: 62px;
+  flex-shrink: 0;
+  text-align: right;
+  color: #64748b;
+  font-size: 13px;
+}
+.market-match {
+  background: #f0f7ff;
+  border: 1px dashed #90caf9;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: #0d47a1;
+}
+.market-match p {
+  margin: 2px 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.confirm-tip {
+  color: #f5a623;
+  font-size: 12px;
+  margin-top: 10px;
+  text-align: center;
 }
 </style>
