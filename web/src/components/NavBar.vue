@@ -21,6 +21,10 @@
           <el-icon><ChatDotRound /></el-icon>
           <span>对话</span>
         </router-link>
+        <router-link to="/ai-chat" class="nav-item">
+          <el-icon><MagicStick /></el-icon>
+          <span>AI助手</span>
+        </router-link>
         <router-link to="/cart" class="nav-item">
           <el-icon><ShoppingCart /></el-icon>
           <span>购物车</span>
@@ -86,7 +90,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
-import { HomeFilled, ShoppingBag, ChatDotRound, User, Bell, Setting, ShoppingCart } from '@element-plus/icons-vue'
+import { HomeFilled, ShoppingBag, ChatDotRound, User, Bell, Setting, ShoppingCart, MagicStick } from '@element-plus/icons-vue'
 import { notificationApi } from '@/api'
 
 const userStore = useUserStore()
