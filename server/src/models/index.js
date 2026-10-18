@@ -99,7 +99,8 @@ export const Wishlist = sequelize.define('Wishlist', {
   userId: { type: DataTypes.INTEGER, allowNull: false, field: 'user_id' },
   title: { type: DataTypes.STRING(200), defaultValue: '' },
   author: { type: DataTypes.STRING(200), defaultValue: '' },
-  isbn: { type: DataTypes.STRING(20), defaultValue: '' }
+  isbn: { type: DataTypes.STRING(20), defaultValue: '' },
+  cover: { type: DataTypes.STRING(500), defaultValue: '' }
 }, { tableName: 'wishlists' })
 
 export const Notification = sequelize.define('Notification', {

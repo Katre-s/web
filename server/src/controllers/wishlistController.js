@@ -4,10 +4,10 @@ import { success, fail } from '../utils/response.js'
 
 export async function add(req, res, next) {
   try {
-    const { title, author, isbn } = req.body
+    const { title, author, isbn, cover } = req.body
     if (!title && !isbn) return fail(res, '请填写书名或ISBN')
 
-    const item = await Wishlist.create({ userId: req.user.id, title, author, isbn })
+    const item = await Wishlist.create({ userId: req.user.id, title, author, isbn, cover: cover || '' })
     success(res, item, '已加入求购清单')
   } catch (err) { next(err) }
 }
@@ -39,6 +39,7 @@ export async function list(req, res, next) {
         title: w.title,
         author: w.author,
         isbn: w.isbn,
+        cover: w.cover || '',
         book: book ? {
           id: book.id,
           bookTitle: book.bookTitle,
@@ -58,14 +59,22 @@ export async function list(req, res, next) {
 // 公共求购广场：展示全站买家求购（含关联书籍信息与求购者信息）
 export async function listPublic(req, res, next) {
   try {
-    const { keyword } = req.query
+    const { keyword, field, isbn } = req.query
     const where = {}
-    if (keyword) {
-      where[Op.or] = [
-        { title: { [Op.like]: `%${keyword}%` } },
-        { author: { [Op.like]: `%${keyword}%` } },
-        { isbn: { [Op.like]: `%${keyword}%` } }
-      ]
+    if (isbn) {
+      where.isbn = String(isbn).replace(/[-\s]/g, '')
+    } else if (keyword) {
+      if (field === 'author') {
+        where.author = { [Op.like]: `%${keyword}%` }
+      } else if (field === 'isbn') {
+        where.isbn = { [Op.like]: `%${keyword}%` }
+      } else {
+        where[Op.or] = [
+          { title: { [Op.like]: `%${keyword}%` } },
+          { author: { [Op.like]: `%${keyword}%` } },
+          { isbn: { [Op.like]: `%${keyword}%` } }
+        ]
+      }
     }
     const items = await Wishlist.findAll({
       where,
@@ -97,6 +106,7 @@ export async function listPublic(req, res, next) {
         title: w.title,
         author: w.author,
         isbn: w.isbn,
+        cover: w.cover || '',
         createdAt: w.created_at,
         book: book ? {
           id: book.id,

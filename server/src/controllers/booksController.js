@@ -4,14 +4,20 @@ import { success, fail } from '../utils/response.js'
 
 export async function listBooks(req, res, next) {
   try {
-    const { keyword, isbn } = req.query
+    const { keyword, isbn, field, minPrice, maxPrice } = req.query
     const bookWhere = {}
     if (keyword) {
-      bookWhere[Op.or] = [
-        { bookTitle: { [Op.like]: `%${keyword}%` } },
-        { bookAuthor: { [Op.like]: `%${keyword}%` } },
-        { isbn: { [Op.like]: `%${keyword}%` } }
-      ]
+      if (field === 'author') {
+        bookWhere.bookAuthor = { [Op.like]: `%${keyword}%` }
+      } else if (field === 'isbn') {
+        bookWhere.isbn = { [Op.like]: `%${keyword}%` }
+      } else {
+        bookWhere[Op.or] = [
+          { bookTitle: { [Op.like]: `%${keyword}%` } },
+          { bookAuthor: { [Op.like]: `%${keyword}%` } },
+          { isbn: { [Op.like]: `%${keyword}%` } }
+        ]
+      }
     }
 
     let books = []
@@ -42,7 +48,7 @@ export async function listBooks(req, res, next) {
       books = await Book.findAll({ where: bookWhere, order: [['id', 'DESC']] })
     }
 
-    const result = []
+    let result = []
     for (const b of books) {
       const prodWhere = { status: 'available' }
       if (b.isbn) {
@@ -85,6 +91,18 @@ export async function listBooks(req, res, next) {
           sellerCount: products.length
         })
       }
+    }
+
+    // 价格区间过滤(基于最低售价)
+    const lo = minPrice !== undefined && minPrice !== '' ? Number(minPrice) : NaN
+    const hi = maxPrice !== undefined && maxPrice !== '' ? Number(maxPrice) : NaN
+    if (!isNaN(lo) || !isNaN(hi)) {
+      result = result.filter((r) => {
+        const p = Number(r.minPrice) || 0
+        if (!isNaN(lo) && p < lo) return false
+        if (!isNaN(hi) && p > hi) return false
+        return true
+      })
     }
 
     success(res, result)

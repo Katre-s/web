@@ -38,6 +38,33 @@
           <span>{{ $t('booklist.title') }}</span>
         </div>
       </el-popover>
+      <!-- 筛选按钮 -->
+      <el-popover placement="bottom-end" :width="280" trigger="click">
+        <template #reference>
+          <button class="filter-btn" :title="$t('trade.filterBtn')">
+            <el-icon><Filter /></el-icon>
+          </button>
+        </template>
+        <div class="filter-panel">
+          <p class="filter-label">{{ $t('trade.filterField') }}</p>
+          <el-radio-group v-model="filterField" size="small">
+            <el-radio-button value="all">{{ $t('trade.fieldAll') }}</el-radio-button>
+            <el-radio-button value="title">{{ $t('common.bookName') }}</el-radio-button>
+            <el-radio-button value="author">{{ $t('common.author') }}</el-radio-button>
+            <el-radio-button value="isbn">ISBN</el-radio-button>
+          </el-radio-group>
+          <p class="filter-label">{{ $t('trade.filterPrice') }}</p>
+          <div class="filter-price">
+            <el-input v-model="filterMin" type="number" size="small" :placeholder="$t('trade.priceMin')" />
+            <span class="price-sep">-</span>
+            <el-input v-model="filterMax" type="number" size="small" :placeholder="$t('trade.priceMax')" />
+          </div>
+          <div class="filter-actions">
+            <el-button size="small" @click="resetFilter">{{ $t('common.reset') }}</el-button>
+            <el-button size="small" type="primary" @click="applyFilter">{{ $t('common.confirm') }}</el-button>
+          </div>
+        </div>
+      </el-popover>
       <button class="scan-btn" :title="$t('trade.scanBook')" :disabled="scanning" @click="openScan">
         <el-icon v-if="!scanning"><Camera /></el-icon>
         <el-icon v-else class="scan-spin"><Loading /></el-icon>
@@ -46,13 +73,31 @@
     </div>
 
     <!-- ISBN 筛选: 拍照识别后罗列市场同书 -->
-    <div class="filter-bar" v-if="isbnFilter">
+    <div class="filter-bar" v-if="isbnFilter && !scanView">
       <span class="filter-chip">
         <el-icon style="margin-right: 4px"><Filter /></el-icon>
         {{ $t('trade.filterIsbn') }} <b>{{ isbnFilter }}</b>
         <el-icon class="chip-clear" @click="clearIsbnFilter"><Close /></el-icon>
       </span>
       <span class="filter-hint">{{ $t('trade.filterHint') }}</span>
+    </div>
+
+    <!-- 识别筛选视图: 从扫码"去看看"跳入, 基于识别结果的简略筛选 -->
+    <div class="scan-result-view" v-if="scanView">
+      <div class="scan-result-head">
+        <img v-if="scanView.cover" :src="scanView.cover" class="scan-result-cover" @error="scanView.cover = ''" />
+        <div v-else class="scan-result-cover-empty"><el-icon><Notebook /></el-icon></div>
+        <div class="scan-result-info">
+          <h3>{{ scanView.title || t('common.unknownBook') }}</h3>
+          <p v-if="scanView.isbn">ISBN {{ scanView.isbn }}</p>
+          <p class="scan-result-match">📦 {{ $t('trade.scanViewSell') }} {{ books.length }} &nbsp;·&nbsp; 🔍 {{ $t('trade.scanViewWish') }} {{ wishes.length }}</p>
+        </div>
+        <el-button class="scan-result-exit" size="small" @click="exitScanView">{{ $t('trade.scanViewExit') }}</el-button>
+      </div>
+      <div class="scan-result-tabs">
+        <div class="scan-result-tab" :class="{ active: tab === 'sell' }" @click="switchTab('sell')">{{ $t('trade.tabSell') }} ({{ books.length }})</div>
+        <div class="scan-result-tab" :class="{ active: tab === 'buy' }" @click="switchTab('buy')">{{ $t('trade.tabBuy') }} ({{ wishes.length }})</div>
+      </div>
     </div>
 
     <!-- 两步识别: 第一步/第二步拍摄引导 -->
@@ -147,7 +192,7 @@
       <div class="wish-grid" v-if="tab === 'buy' && wishes.length">
         <div v-for="w in wishes" :key="w.id" class="wish-card" @click="goWish(w)">
           <div class="wish-cover-wrap">
-            <img v-if="w.book?.bookCover" :src="w.book.bookCover" class="wish-cover" @error="w.book.bookCover = ''" />
+            <img v-if="w.book?.bookCover || w.cover" :src="w.book?.bookCover || w.cover" class="wish-cover" @error="w.book && (w.book.bookCover = ''); w.cover = ''" />
             <div v-else class="wish-cover-placeholder">
               <el-icon><Notebook /></el-icon>
             </div>
@@ -205,6 +250,12 @@ const frontInfo = ref(null)
 const marketMatches = ref({ sellingCount: 0, wishCount: 0 })
 // ISBN 筛选(市场同书罗列)
 const isbnFilter = ref('')
+// 识别筛选视图(从扫码"去看看"跳入, 基于识别结果的简略筛选)
+const scanView = ref(null)
+// 完整筛选面板: 搜索类型 + 价格区间
+const filterField = ref('all')
+const filterMin = ref(null)
+const filterMax = ref(null)
 
 function switchTab(t) {
   tab.value = t
@@ -217,8 +268,13 @@ async function loadBooks() {
   try {
     const params = { keyword: keyword.value }
     if (isbnFilter.value) params.isbn = isbnFilter.value
+    if (filterField.value && filterField.value !== 'all') params.field = filterField.value
+    if (filterMin.value !== null && filterMin.value !== '') params.minPrice = filterMin.value
+    if (filterMax.value !== null && filterMax.value !== '') params.maxPrice = filterMax.value
     const res = await booksApi.list(params)
     books.value = res.data || res || []
+    // 识别视图: 回填封面
+    if (scanView.value && books.value[0]?.bookCover) scanView.value.cover = books.value[0].bookCover
   } finally {
     loading.value = false
   }
@@ -227,11 +283,42 @@ async function loadBooks() {
 async function loadWishlist() {
   loading.value = true
   try {
-    const res = await wishlistApi.publicList({ keyword: keyword.value })
+    const params = { keyword: keyword.value }
+    if (isbnFilter.value) params.isbn = isbnFilter.value
+    if (filterField.value && filterField.value !== 'all') params.field = filterField.value
+    const res = await wishlistApi.publicList(params)
     wishes.value = res.data || res || []
   } finally {
     loading.value = false
   }
+}
+
+// 筛选面板
+function applyFilter() {
+  if (tab.value === 'sell') loadBooks()
+  else loadWishlist()
+}
+
+function resetFilter() {
+  filterField.value = 'all'
+  filterMin.value = null
+  filterMax.value = null
+  keyword.value = ''
+  if (tab.value === 'sell') loadBooks()
+  else loadWishlist()
+}
+
+// 退出识别筛选视图, 回到正常交易市场
+function exitScanView() {
+  scanView.value = null
+  isbnFilter.value = ''
+  keyword.value = ''
+  filterField.value = 'all'
+  filterMin.value = null
+  filterMax.value = null
+  router.replace('/trade')
+  loadBooks()
+  if (tab.value === 'buy') loadWishlist()
 }
 
 function formatTime(ts) {
@@ -344,13 +431,16 @@ function confirmScan() {
 }
 
 function goMarketFilter() {
-  // 跳转交易页并带上 ISBN 筛选 → 罗列市场同书
-  const isbn = (scanBook.value?.isbn || '').replace(/[-\s]/g, '')
+  // 跳转到"识别筛选视图"(基于识别结果的简略筛选, 不进完整交易界面)
+  const book = scanBook.value || {}
+  const isbn = (book.isbn || '').replace(/[-\s]/g, '')
   confirmVisible.value = false
   scanDialogVisible.value = false
   scanPhase.value = ''
   if (isbn) {
-    router.push({ path: '/trade', query: { isbn } })
+    router.push({ path: '/trade', query: { isbn, title: encodeURIComponent(book.title || ''), from: 'scan' } })
+  } else if (book.title) {
+    router.push({ path: '/trade', query: { keyword: encodeURIComponent(book.title), field: 'title', title: encodeURIComponent(book.title), from: 'scan' } })
   }
 }
 
@@ -367,7 +457,8 @@ async function agreeWishlist() {
     await wishlistApi.add({
       title: book.title || '',
       author: book.author || '',
-      isbn: book.isbn || ''
+      isbn: book.isbn || '',
+      cover: book.cover || ''   // 识别照片作为求购初始图片
     })
     ElMessage.success({ message: t('trade.wishlistAdded'), duration: 2000 })
     scanDialogVisible.value = false
@@ -380,9 +471,19 @@ async function agreeWishlist() {
 }
 
 onMounted(() => {
-  // 支持 /trade?isbn=xxx 跳转筛选(拍照识别罗列市场同书)
+  // 识别筛选视图: /trade?isbn=xxx&title=xxx&from=scan 或 keyword+field
   const qIsbn = route.query.isbn
-  if (qIsbn) {
+  const qTitle = route.query.title ? decodeURIComponent(route.query.title) : ''
+  const qKeyword = route.query.keyword ? decodeURIComponent(route.query.keyword) : ''
+  const qField = route.query.field || ''
+  const fromScan = route.query.from === 'scan'
+  if (fromScan) {
+    scanView.value = { isbn: qIsbn ? String(qIsbn).replace(/[-\s]/g, '') : '', title: qTitle || qKeyword || '', cover: '' }
+    if (qIsbn) isbnFilter.value = scanView.value.isbn
+    if (qKeyword) { keyword.value = qKeyword; if (qField) filterField.value = qField }
+    loadBooks()
+    if (scanView.value.isbn || qKeyword) loadWishlist()
+  } else if (qIsbn) {
     isbnFilter.value = String(qIsbn).replace(/[-\s]/g, '')
     loadBooks()
   } else {
@@ -881,5 +982,130 @@ onMounted(() => {
   font-size: 12px;
   margin-top: 10px;
   text-align: center;
+}
+.filter-btn {
+  width: 50px;
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid #e3eaf2;
+  background: #fff;
+  color: #0d2847;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: all 0.2s;
+}
+.filter-btn:hover {
+  background: #f0f7ff;
+  border-color: #90caf9;
+}
+.filter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.filter-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0d2847;
+  margin: 0;
+}
+.filter-price {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.price-sep {
+  color: #94a3b8;
+}
+.filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+.scan-result-view {
+  background: linear-gradient(135deg, #f0f7ff, #fff);
+  border: 1px solid #d6e9ff;
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 18px;
+}
+.scan-result-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.scan-result-cover,
+.scan-result-cover-empty {
+  width: 72px;
+  height: 96px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  object-fit: cover;
+  box-shadow: 0 4px 14px rgba(13, 40, 71, 0.15);
+}
+.scan-result-cover-empty {
+  background: #e8f1fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  color: #b0bec5;
+}
+.scan-result-info {
+  flex: 1;
+  min-width: 0;
+}
+.scan-result-info h3 {
+  font-size: 18px;
+  color: #0d2847;
+  margin: 0 0 4px;
+}
+.scan-result-info p {
+  color: #64748b;
+  font-size: 13px;
+  margin: 2px 0;
+}
+.scan-result-match {
+  color: #0d47a1 !important;
+  font-weight: 600;
+}
+.scan-result-exit {
+  flex-shrink: 0;
+}
+.scan-result-tabs {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+  background: #eaf2fa;
+  border-radius: 10px;
+  padding: 4px;
+}
+.scan-result-tab {
+  flex: 1;
+  text-align: center;
+  padding: 8px 0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.scan-result-tab.active {
+  background: linear-gradient(135deg, #42a5f5, #1e88e5);
+  color: #fff;
+}
+@media (max-width: 768px) {
+  .scan-result-head {
+    flex-direction: column;
+    text-align: center;
+  }
+  .scan-result-exit {
+    width: 100%;
+  }
 }
 </style>
