@@ -22,6 +22,10 @@
       </div>
       <span>对话</span>
     </router-link>
+    <router-link to="/ai-chat" class="tab-item">
+      <el-icon><MagicStick /></el-icon>
+      <span>AI助手</span>
+    </router-link>
     <router-link to="/profile" class="tab-item">
       <el-icon><User /></el-icon>
       <span>我的</span>
@@ -32,7 +36,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { HomeFilled, ShoppingBag, ChatDotRound, User, Plus } from '@element-plus/icons-vue'
+import { HomeFilled, ShoppingBag, ChatDotRound, User, Plus, MagicStick } from '@element-plus/icons-vue'
 import { conversationApi } from '@/api'
 
 const router = useRouter()
