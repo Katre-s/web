@@ -28,7 +28,7 @@ export async function chatWithAgent(userMessage, history = []) {
 
   try {
     const res = await axios.post(apiUrl, {
-      model: 'glm-4-flash',
+      model: process.env.AI_MODEL || 'zai-org/GLM-5.3-Flash',
       messages,
       temperature: 0.7
     }, {
