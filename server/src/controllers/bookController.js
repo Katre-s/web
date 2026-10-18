@@ -52,7 +52,8 @@ export async function scanBook(req, res, next) {
 
     let info = null
     try { info = await scanBookImage(req.file.path) } catch (err) { console.error(err) }
-    if (!info || !info.title) return fail(res, '图片识别失败，请换一张更清晰的封面图，或手动填写书籍信息', 422)
+    // 有书名或 ISBN 任一即可继续（拍封底条形码时通常只有 ISBN）
+    if (!info || (!info.title && !info.isbn)) return fail(res, '未识别到有效的书籍信息，请对准封面或 ISBN 条形码重新拍摄', 422)
 
     const isbn = String(info.isbn || '').replace(/[-\s]/g, '')
     let enriched = null
@@ -61,7 +62,7 @@ export async function scanBook(req, res, next) {
     }
 
     const book = {
-      title: enriched?.title || info.title || '',
+      title: enriched?.title || info.title || (isbn ? `ISBN ${isbn}` : ''),
       author: enriched?.author || info.author || '',
       publisher: enriched?.publisher || info.publisher || '',
       edition: enriched?.edition || info.edition || '',

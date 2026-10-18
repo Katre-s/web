@@ -23,12 +23,12 @@ const storage = multer.diskStorage({
 
 export const upload = multer({
   storage,
-  limits: { fileSize: Number(process.env.MAX_FILE_SIZE) || 5242880 },
+  limits: { fileSize: Number(process.env.MAX_FILE_SIZE) || 15728640 },
   fileFilter: (req, file, cb) => {
-    const allowed = /jpeg|jpg|png|gif|webp/
-    const ext = allowed.test(path.extname(file.originalname).toLowerCase())
-    const mime = allowed.test(file.mimetype)
-    if (ext && mime) cb(null, true)
+    // 放宽限制: 接受所有图片格式(含 HEIC/HEIF/BMP/TIFF)，由 sharp 预处理兜底转 JPEG
+    const allowed = /\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?)$/i.test(path.extname(file.originalname))
+    const isImage = file.mimetype && file.mimetype.startsWith('image/')
+    if (isImage || allowed) cb(null, true)
     else cb(new Error('仅支持图片文件'))
   }
 })

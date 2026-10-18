@@ -1,4 +1,5 @@
 import axios from 'axios'
+import sharp from 'sharp'
 
 export async function parseBookList(text) {
   const apiKey = process.env.AI_API_KEY
@@ -16,7 +17,7 @@ export async function parseBookList(text) {
 ${text}`
 
     const res = await axios.post(apiUrl, {
-      model: 'glm-4-flash',
+      model: process.env.AI_MODEL || 'zai-org/GLM-5.3-Flash',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.1
     }, {
@@ -39,28 +40,51 @@ export async function scanBookImage(imagePath) {
   if (!apiKey || !apiUrl) return null
 
   try {
-    const fs = await import('fs')
-    const base64 = fs.readFileSync(imagePath).toString('base64')
-    const mime = /\.png$/i.test(imagePath) ? 'image/png' : 'image/jpeg'
+    // 1. 图片预处理: 自动旋转 + 压缩到最长边1280 + 转JPEG(质量82)
+    //    解决: 超大分辨率照片被模型拒绝 / iPhone HEIC 格式 / 模糊大图
+    let buf
+    try {
+      buf = await sharp(imagePath, { failOn: 'none' })
+        .rotate()
+        .resize({ width: 1280, height: 1280, fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 82 })
+        .toBuffer()
+    } catch (err) {
+      console.error('图片预处理失败:', err.message)
+      return null
+    }
+    const base64 = buf.toString('base64')
+    const mime = 'image/jpeg'
 
-    const prompt = `你是图书信息提取助手。请识别这张书籍封面图片，输出 JSON，格式：{"title":"书名","author":"作者","publisher":"出版社","edition":"版次(没有则为空)","isbn":"ISBN号(没有则为空)"}。只返回 JSON，不要加其他文字。`
+    // 2. 识别提示词: 封面/封底/条形码都识别, ISBN优先提取
+    const prompt = `你是图书信息提取助手。这张图片可能是书籍封面、封底或 ISBN 条形码区域。请识别图片中的书籍信息，输出 JSON，格式：{"title":"书名(尽力识别,没有则为空字符串)","author":"作者(没有则为空字符串)","publisher":"出版社(没有则为空字符串)","edition":"版次(没有则为空字符串)","isbn":"ISBN号(优先从条形码数字提取,没有则为空字符串)"}。只返回 JSON，不要加其他文字。`
 
-    const res = await axios.post(apiUrl, {
-      model: 'Qwen/Qwen3-VL-8B-Instruct',
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'text', text: prompt },
-          { type: 'image_url', image_url: { url: `data:${mime};base64,${base64}` } }
-        ]
-      }],
-      temperature: 0.1
-    }, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-      timeout: 30000
-    })
+    // 3. 调用视觉模型, 失败自动重试1次
+    let content = ''
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const res = await axios.post(apiUrl, {
+          model: 'Qwen/Qwen3-VL-8B-Instruct',
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              { type: 'image_url', image_url: { url: `data:${mime};base64,${base64}` } }
+            ]
+          }],
+          temperature: 0.1
+        }, {
+          headers: { Authorization: `Bearer ${apiKey}` },
+          timeout: 45000
+        })
+        content = res.data.choices?.[0]?.message?.content || ''
+        if (content) break
+      } catch (err) {
+        console.error(`视觉识别第${attempt}次失败:`, err.message)
+        if (attempt === 2) return null
+      }
+    }
 
-    const content = res.data.choices?.[0]?.message?.content || ''
     const jsonStr = content.replace(/```json|```/g, '').trim()
     return JSON.parse(jsonStr)
   } catch (err) {
