@@ -101,3 +101,7 @@ export const conversationApi = {
   getMessages: (id) => request.get(`/conversations/${id}/messages`),
   sendMessage: (id, content) => request.post(`/conversations/${id}/messages`, { content })
 }
+
+export const agentApi = {
+  chat: (message, history) => request.post('/agent/chat', { message, history })
+}
