@@ -5,6 +5,7 @@
       <router-view />
     </main>
     <TabBar v-if="!isLoginPage" />
+    <AiFloat v-if="!isLoginPage" />
   </div>
 </template>
 
@@ -13,6 +14,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import NavBar from '@/components/NavBar.vue'
 import TabBar from '@/components/TabBar.vue'
+import AiFloat from '@/components/AiFloat.vue'
 
 const route = useRoute()
 const isLoginPage = computed(() => route.path === '/login')

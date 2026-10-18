@@ -21,7 +21,7 @@
           <el-icon><ChatDotRound /></el-icon>
           <span>对话</span>
         </router-link>
-        <router-link to="/ai-chat" class="nav-item">
+        <router-link to="/ai-chat" class="nav-item" @click="restoreFloat">
           <el-icon><MagicStick /></el-icon>
           <span>AI助手</span>
         </router-link>
@@ -135,6 +135,12 @@ function formatTime(t) {
 function handleLogout() {
   userStore.logout()
   router.push('/login')
+}
+
+// 点击「AI助手」时恢复被隐藏的悬浮窗
+function restoreFloat() {
+  localStorage.removeItem('ai_float_hidden')
+  window.dispatchEvent(new Event('ai-float-restore'))
 }
 
 onMounted(loadNotifications)
