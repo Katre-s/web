@@ -61,26 +61,26 @@
 
       <div class="auth-form-wrapper">
         <div class="form-header">
-          <h2 class="form-title">{{ isLogin ? '欢迎归来' : '雅集新友' }}</h2>
+          <h2 class="form-title">{{ isLogin ? $t('login.title') : $t('login.titleReg') }}</h2>
           <div class="title-ornament">
             <span class="to-line"></span>
             <span class="to-dot"></span>
             <span class="to-line"></span>
           </div>
-          <p class="form-subtitle">{{ isLogin ? '登录以续写你的藏书雅集' : '加入文衡，开启你的笔墨与书缘' }}</p>
+          <p class="form-subtitle">{{ isLogin ? $t('login.subtitle') : $t('login.subtitleReg') }}</p>
         </div>
 
         <transition name="form-fade" mode="out-in">
           <!-- 登录 -->
           <el-form :model="loginForm" v-if="isLogin" label-position="top" @submit.prevent="handleLogin" key="login">
             <el-form-item>
-              <el-input v-model="loginForm.email" placeholder="邮箱或8位ID" size="large" prefix-icon="Message" />
+              <el-input v-model="loginForm.email" :placeholder="$t('login.email')" size="large" prefix-icon="Message" />
             </el-form-item>
             <el-form-item>
-              <el-input v-model="loginForm.password" type="password" placeholder="密码" show-password size="large" prefix-icon="Lock" />
+              <el-input v-model="loginForm.password" type="password" :placeholder="$t('login.password')" show-password size="large" prefix-icon="Lock" />
             </el-form-item>
             <el-button type="primary" round :loading="loading" @click="handleLogin" class="submit-btn">
-              <span>登 录</span>
+              <span>{{ $t('login.submit') }}</span>
             </el-button>
           </el-form>
 
@@ -130,20 +130,20 @@
               </div>
             </el-form-item>
             <el-form-item>
-              <el-input v-model="regForm.password" type="password" placeholder="密码（至少6位）" show-password size="large" prefix-icon="Lock" />
+              <el-input v-model="regForm.password" type="password" :placeholder="$t('login.passwordReg')" show-password size="large" prefix-icon="Lock" />
             </el-form-item>
             <el-form-item>
-              <el-input v-model="regForm.confirmPassword" type="password" placeholder="确认密码" show-password size="large" prefix-icon="Lock" />
+              <el-input v-model="regForm.confirmPassword" type="password" :placeholder="$t('login.confirm')" show-password size="large" prefix-icon="Lock" />
             </el-form-item>
             <el-button type="primary" round :loading="loading" @click="handleRegister" class="submit-btn">
-              <span>注 册</span>
+              <span>{{ $t('login.submitReg') }}</span>
             </el-button>
           </el-form>
         </transition>
 
         <div class="toggle-area">
           <span class="toggle-text" @click="toggleMode">
-            {{ isLogin ? '尚未入会？前往注册' : '已是雅士？直接登录' }}
+            {{ isLogin ? $t('login.toggleReg') : $t('login.toggleLogin') }}
           </span>
         </div>
       </div>

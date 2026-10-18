@@ -2,17 +2,17 @@
   <nav class="tabbar">
     <router-link to="/" class="tab-item">
       <el-icon><HomeFilled /></el-icon>
-      <span>首页</span>
+      <span>{{ $t('tabbar.home') }}</span>
     </router-link>
     <router-link to="/trade" class="tab-item">
       <el-icon><ShoppingBag /></el-icon>
-      <span>交易</span>
+      <span>{{ $t('tabbar.trade') }}</span>
     </router-link>
     <div class="tab-item tab-publish" @click="goPublish">
       <div class="publish-btn">
         <el-icon><Plus /></el-icon>
       </div>
-      <span>发布</span>
+      <span>{{ $t('tabbar.publish') }}</span>
     </div>
     <router-link to="/chat" class="tab-item">
       <div class="tab-icon-wrap">
@@ -20,15 +20,15 @@
           <el-icon><ChatDotRound /></el-icon>
         </el-badge>
       </div>
-      <span>对话</span>
+      <span>{{ $t('tabbar.chat') }}</span>
     </router-link>
     <router-link to="/ai-chat" class="tab-item">
       <el-icon><MagicStick /></el-icon>
-      <span>AI助手</span>
+      <span>{{ $t('tabbar.ai') }}</span>
     </router-link>
     <router-link to="/profile" class="tab-item">
       <el-icon><User /></el-icon>
-      <span>我的</span>
+      <span>{{ $t('tabbar.mine') }}</span>
     </router-link>
   </nav>
 </template>

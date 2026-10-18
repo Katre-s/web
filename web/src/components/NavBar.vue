@@ -11,34 +11,47 @@
       <nav class="nav-links">
         <router-link to="/" class="nav-item">
           <el-icon><HomeFilled /></el-icon>
-          <span>首页</span>
+          <span>{{ $t('nav.home') }}</span>
         </router-link>
         <router-link to="/trade" class="nav-item">
           <el-icon><ShoppingBag /></el-icon>
-          <span>交易</span>
+          <span>{{ $t('nav.trade') }}</span>
         </router-link>
         <router-link to="/chat" class="nav-item">
           <el-icon><ChatDotRound /></el-icon>
-          <span>对话</span>
+          <span>{{ $t('nav.chat') }}</span>
         </router-link>
         <router-link to="/ai-chat" class="nav-item" @click="restoreFloat">
           <el-icon><MagicStick /></el-icon>
-          <span>AI助手</span>
+          <span>{{ $t('nav.ai') }}</span>
         </router-link>
         <router-link to="/cart" class="nav-item">
           <el-icon><ShoppingCart /></el-icon>
-          <span>购物车</span>
+          <span>{{ $t('nav.cart') }}</span>
         </router-link>
         <router-link to="/profile" class="nav-item">
           <el-icon><User /></el-icon>
-          <span>个人中心</span>
+          <span>{{ $t('nav.profile') }}</span>
         </router-link>
       </nav>
 
       <div class="nav-right">
+        <el-dropdown trigger="click" @command="handleLang" class="lang-drop">
+          <span class="lang-btn">
+            <el-icon :size="16"><CaretBottom /></el-icon>
+            {{ currentLang() === 'en' ? 'English' : '中文' }}
+          </span>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="zh" :disabled="currentLang() === 'zh'">中文</el-dropdown-item>
+              <el-dropdown-item command="en" :disabled="currentLang() === 'en'">English</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+
         <router-link v-if="isAdmin" to="/admin" class="nav-item mini">
           <el-icon><Setting /></el-icon>
-          <span>管理台</span>
+          <span>{{ $t('nav.admin') }}</span>
         </router-link>
 
         <router-link to="/cart" class="icon-btn mobile-only" title="购物车">
@@ -80,7 +93,7 @@
           </div>
         </el-popover>
 
-        <el-button text @click="handleLogout" class="logout-btn">退出</el-button>
+        <el-button text @click="handleLogout" class="logout-btn">{{ $t('nav.logout') }}</el-button>
       </div>
     </div>
   </header>
@@ -90,8 +103,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
-import { HomeFilled, ShoppingBag, ChatDotRound, User, Bell, Setting, ShoppingCart, MagicStick } from '@element-plus/icons-vue'
+import { HomeFilled, ShoppingBag, ChatDotRound, User, Bell, Setting, ShoppingCart, MagicStick, CaretBottom } from '@element-plus/icons-vue'
 import { notificationApi } from '@/api'
+import { setLang, currentLang } from '@/i18n'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -135,6 +149,11 @@ function formatTime(t) {
 function handleLogout() {
   userStore.logout()
   router.push('/login')
+}
+
+// 语言切换
+function handleLang(lang) {
+  setLang(lang)
 }
 
 // 点击「AI助手」时恢复被隐藏的悬浮窗
@@ -268,6 +287,26 @@ onMounted(loadNotifications)
 .logout-btn {
   color: #90a4ae;
   font-size: 14px;
+}
+.lang-drop {
+  cursor: pointer;
+  outline: none;
+}
+.lang-btn {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 13px;
+  color: #546e7a;
+  padding: 5px 10px;
+  border-radius: 10px;
+  border: 1px solid #e3f2fd;
+  transition: all 0.2s;
+}
+.lang-btn:hover {
+  color: #1e88e5;
+  border-color: #42a5f5;
+  background: rgba(66, 165, 245, 0.06);
 }
 .logout-btn:hover {
   color: #ef5350;

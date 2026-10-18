@@ -1,16 +1,16 @@
 <template>
   <!-- 悬浮按钮 -->
-  <div v-if="isLoggedIn && !hidden && !opened" class="ai-float-btn" @click="opened = true" title="文衡AI助手">
+  <div v-if="isLoggedIn && !hidden && !opened" class="ai-float-btn" @click="opened = true" :title="$t('ai.floatTitle')">
     <el-icon :size="26"><MagicStick /></el-icon>
   </div>
 
   <!-- 悬浮聊天窗 -->
   <div v-if="isLoggedIn && !hidden && opened" class="ai-float-window">
     <div class="ai-float-header">
-      <span class="ai-float-title">🤖 文衡智能助手</span>
+      <span class="ai-float-title">{{ $t('ai.pageTitle') }}</span>
       <div class="ai-float-ops">
-        <span class="ai-op" title="收起" @click="opened = false"><el-icon><Minus /></el-icon></span>
-        <span class="ai-op" title="隐藏悬浮窗" @click="hideFloat"><el-icon><Close /></el-icon></span>
+        <span class="ai-op" :title="$t('ai.collapse')" @click="opened = false"><el-icon><Minus /></el-icon></span>
+        <span class="ai-op" :title="$t('ai.hideFloat')" @click="hideFloat"><el-icon><Close /></el-icon></span>
       </div>
     </div>
     <div class="ai-float-messages" ref="msgBox">
@@ -18,26 +18,35 @@
         <div class="ai-bubble">
           <div v-if="m.intent && m.role === 'assistant'" class="ai-intent">{{ intentText(m.intent) }}</div>
           <div class="ai-content">{{ m.content }}</div>
+          <div v-if="m.intent && m.role === 'assistant' && actionFor(m.intent)" class="ai-actions">
+            <el-button size="small" type="primary" plain round @click="go(actionFor(m.intent))">
+              {{ actionText(m.intent) }}
+            </el-button>
+          </div>
         </div>
       </div>
       <div v-if="loading" class="ai-msg">
-        <div class="ai-bubble typing">正在思考…</div>
+        <div class="ai-bubble typing">{{ $t('ai.typing') }}</div>
       </div>
     </div>
     <div class="ai-float-input">
-      <el-input v-model="text" placeholder="问我：怎么买书？有什么编程书？" @keyup.enter="send" :disabled="loading" />
-      <el-button type="primary" :loading="loading" @click="send">发送</el-button>
+      <el-input v-model="text" :placeholder="$t('ai.placeholder')" @keyup.enter="send" :disabled="loading" />
+      <el-button type="primary" :loading="loading" @click="send">{{ $t('ai.send') }}</el-button>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@/stores/user'
 import { agentApi } from '@/api'
 import { ElMessage } from 'element-plus'
 import { MagicStick, Minus, Close } from '@element-plus/icons-vue'
 
+const router = useRouter()
+const { t } = useI18n()
 const userStore = useUserStore()
 const isLoggedIn = computed(() => userStore.isLoggedIn)
 
@@ -48,16 +57,25 @@ const msgBox = ref(null)
 const opened = ref(false)
 const hidden = ref(localStorage.getItem('ai_float_hidden') === '1')
 
-const INTENTS = {
-  buy: '🛒 想买书',
-  sell: '📤 想卖书',
-  search: '🔍 找书',
-  order: '📦 订单',
-  help: '💡 平台咨询',
-  chat: '💬 闲聊'
-}
 function intentText(i) {
-  return INTENTS[i] || ''
+  return t(`ai.intent.${i}`) || ''
+}
+
+const ACTIONS = {
+  buy: '/trade',
+  sell: '/publish',
+  search: '/trade',
+  order: '/profile'
+}
+function actionFor(i) {
+  return ACTIONS[i] || ''
+}
+function actionText(i) {
+  return t(`ai.action.${i}`) || ''
+}
+function go(to) {
+  opened.value = false
+  router.push(to)
 }
 
 function scrollBottom() {
@@ -76,6 +94,7 @@ async function send() {
 
   const history = messages.value
     .slice(0, -1)
+    .filter(m => !m.welcome)
     .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content }))
 
   try {
@@ -83,7 +102,7 @@ async function send() {
     const data = res.data || res
     messages.value.push({ role: 'assistant', content: data.reply, intent: data.intent })
   } catch {
-    ElMessage.error('AI 服务暂时不可用，请稍后再试')
+    ElMessage.error(t('ai.error'))
   } finally {
     loading.value = false
     scrollBottom()
@@ -94,7 +113,7 @@ function hideFloat() {
   hidden.value = true
   opened.value = false
   localStorage.setItem('ai_float_hidden', '1')
-  ElMessage.info('悬浮窗已隐藏，可在顶部导航「AI助手」恢复')
+  ElMessage.info(t('ai.hideTip'))
 }
 
 function restore() {
@@ -108,8 +127,9 @@ window.addEventListener('ai-float-restore', restore)
 onMounted(() => {
   messages.value.push({
     role: 'assistant',
-    content: '你好呀！我是文衡智能助手，可以帮你找书、指导卖书、查订单，也可以陪你聊天～',
-    intent: 'chat'
+    content: t('ai.welcome'),
+    intent: 'chat',
+    welcome: true
   })
 })
 
@@ -222,6 +242,11 @@ onUnmounted(() => {
   margin-bottom: 6px;
 }
 .ai-content { white-space: pre-wrap; }
+.ai-actions { margin-top: 8px; }
+.ai-actions .el-button {
+  margin-right: 6px;
+  font-size: 12px;
+}
 .typing { color: #90a4ae; }
 .ai-float-input {
   padding: 12px 14px;
