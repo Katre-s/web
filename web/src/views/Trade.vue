@@ -28,7 +28,29 @@
           <span>{{ $t('booklist.title') }}</span>
         </div>
       </el-popover>
+      <button class="scan-btn" :title="$t('trade.scanBook')" :disabled="scanning" @click="openScan">
+        <el-icon v-if="!scanning"><Camera /></el-icon>
+        <el-icon v-else class="scan-spin"><Loading /></el-icon>
+      </button>
+      <input ref="scanInput" type="file" accept="image/*" style="display: none" @change="onScanFile" />
     </div>
+
+    <!-- 扫码识别结果：询问是否加入求购 -->
+    <el-dialog v-model="scanDialogVisible" :title="$t('trade.scanResultTitle')" width="420px" :close-on-click-modal="false">
+      <div class="scan-preview" v-if="scanBook">
+        <img v-if="scanBook.cover" :src="scanBook.cover" class="scan-cover" @error="scanBook.cover = ''" />
+        <div class="scan-text">
+          <h3>{{ scanBook.title }}</h3>
+          <p v-if="scanBook.author">{{ $t('common.authorPrefix') }}{{ scanBook.author }}</p>
+          <p v-if="scanBook.isbn">ISBN {{ scanBook.isbn }}</p>
+        </div>
+      </div>
+      <p class="scan-ask">{{ $t('trade.scanAsk') }}</p>
+      <template #footer>
+        <el-button @click="scanDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="wishlistAdding" @click="agreeWishlist">{{ $t('trade.scanAgree') }}</el-button>
+      </template>
+    </el-dialog>
 
     <div v-loading="loading">
       <div class="book-grid" v-if="books.length">
@@ -65,13 +87,19 @@ const { t } = useI18n()
 
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, Plus, UploadFilled, Notebook, Document } from '@element-plus/icons-vue'
-import { booksApi } from '@/api'
+import { ElMessage } from 'element-plus'
+import { Search, Plus, UploadFilled, Notebook, Document, Camera, Loading } from '@element-plus/icons-vue'
+import { booksApi, bookApi, wishlistApi } from '@/api'
 
 const router = useRouter()
 const keyword = ref('')
 const books = ref([])
 const loading = ref(false)
+const scanning = ref(false)
+const scanInput = ref(null)
+const scanBook = ref(null)
+const scanDialogVisible = ref(false)
+const wishlistAdding = ref(false)
 
 async function loadBooks() {
   loading.value = true
@@ -94,6 +122,50 @@ function goBookList() {
 function goDetail(book) {
   const key = book.id || book.isbn || book.bookTitle
   router.push({ name: 'BookDetail', params: { key } })
+}
+
+function openScan() {
+  scanInput.value?.click()
+}
+
+async function onScanFile(e) {
+  const file = e.target.files?.[0]
+  e.target.value = ''
+  if (!file) return
+  scanning.value = true
+  try {
+    const fd = new FormData()
+    fd.append('image', file)
+    const res = await bookApi.scanBook(fd)
+    const data = res.data || res
+    const book = data.book || {}
+    scanBook.value = book
+    scanDialogVisible.value = true
+  } catch (err) {
+    const msg = err?.response?.data?.message || t('trade.scanFail')
+    ElMessage.warning({ message: msg, duration: 2500 })
+  } finally {
+    scanning.value = false
+  }
+}
+
+async function agreeWishlist() {
+  wishlistAdding.value = true
+  try {
+    const book = scanBook.value || {}
+    await wishlistApi.add({
+      title: book.title || '',
+      author: book.author || '',
+      isbn: book.isbn || ''
+    })
+    ElMessage.success({ message: t('trade.wishlistAdded'), duration: 2000 })
+    scanDialogVisible.value = false
+  } catch (err) {
+    const msg = err?.response?.data?.message || t('trade.scanFail')
+    ElMessage.warning({ message: msg, duration: 2500 })
+  } finally {
+    wishlistAdding.value = false
+  }
 }
 
 onMounted(loadBooks)
@@ -130,6 +202,68 @@ onMounted(loadBooks)
 .add-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(66, 165, 245, 0.5);
+}
+.scan-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, #66bb6a, #43a047);
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 14px rgba(67, 160, 71, 0.35);
+  flex-shrink: 0;
+}
+.scan-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(67, 160, 71, 0.5);
+}
+.scan-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.scan-spin {
+  animation: scan-rotate 1s linear infinite;
+}
+@keyframes scan-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.scan-preview {
+  display: flex;
+  gap: 14px;
+  padding: 14px;
+  background: #f9f9f9;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+.scan-cover {
+  width: 72px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.scan-text h3 {
+  font-size: 16px;
+  margin: 0 0 6px;
+}
+.scan-text p {
+  color: #666;
+  font-size: 13px;
+  margin: 2px 0;
+}
+.scan-ask {
+  color: #555;
+  font-size: 15px;
+  text-align: center;
+  margin: 6px 0 0;
+  line-height: 1.6;
 }
 .add-menu {
   display: flex;

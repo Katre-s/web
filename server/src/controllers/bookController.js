@@ -2,9 +2,78 @@ import { Op } from 'sequelize'
 import { Product, Book, CartItem, Wishlist } from '../models/index.js'
 import { lookupISBN } from '../services/isbnService.js'
 import { recognizeImage } from '../services/ocrService.js'
-import { parseBookList } from '../services/aiService.js'
+import { parseBookList, scanBookImage } from '../services/aiService.js'
 import { downloadImage } from '../utils/imageDownload.js'
 import { success, fail } from '../utils/response.js'
+
+async function enrichBookInfo(cleanIsbn) {
+  const bookRecord = await Book.findOne({ where: { isbn: cleanIsbn } })
+  if (bookRecord) {
+    return {
+      isbn: cleanIsbn,
+      title: bookRecord.bookTitle,
+      author: bookRecord.bookAuthor || '',
+      publisher: bookRecord.bookPublisher || '',
+      cover: bookRecord.bookCover || '',
+      edition: bookRecord.edition || '',
+      originalPrice: Number(bookRecord.originalPrice) || 0,
+      source: 'local'
+    }
+  }
+
+  const local = await Product.findOne({
+    where: { isbn: cleanIsbn },
+    order: [['created_at', 'DESC']]
+  })
+  if (local && local.bookTitle) {
+    return {
+      isbn: cleanIsbn,
+      title: local.bookTitle,
+      author: local.bookAuthor || '',
+      publisher: local.bookPublisher || '',
+      cover: local.bookCover || '',
+      edition: local.edition || '',
+      originalPrice: local.originalPrice || 0,
+      source: 'local'
+    }
+  }
+
+  const result = await lookupISBN(cleanIsbn)
+  if (!result) return null
+  if (result.cover) {
+    result.cover = await downloadImage(result.cover)
+  }
+  return { ...result, isbn: cleanIsbn }
+}
+
+export async function scanBook(req, res, next) {
+  try {
+    if (!req.file) return fail(res, '请上传书籍图片')
+
+    let info = null
+    try { info = await scanBookImage(req.file.path) } catch (err) { console.error(err) }
+    if (!info || !info.title) return fail(res, '图片识别失败，请换一张更清晰的封面图，或手动填写书籍信息', 422)
+
+    const isbn = String(info.isbn || '').replace(/[-\s]/g, '')
+    let enriched = null
+    if (/^\d{10,14}$/.test(isbn)) {
+      try { enriched = await enrichBookInfo(isbn) } catch (err) { console.error('ISBN补全失败:', err.message) }
+    }
+
+    const book = {
+      title: enriched?.title || info.title || '',
+      author: enriched?.author || info.author || '',
+      publisher: enriched?.publisher || info.publisher || '',
+      edition: enriched?.edition || info.edition || '',
+      isbn: enriched?.isbn || isbn,
+      cover: enriched?.cover || '',
+      originalPrice: enriched?.originalPrice || 0,
+      source: enriched?.source || 'ai'
+    }
+
+    success(res, { book }, '识别成功')
+  } catch (err) { next(err) }
+}
 
 export async function isbnLookup(req, res, next) {
   try {

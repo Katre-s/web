@@ -145,6 +145,7 @@
           <span class="toggle-text" @click="toggleMode">
             {{ isLogin ? $t('login.toggleReg') : $t('login.toggleLogin') }}
           </span>
+          <span v-if="isLogin" class="forgot-link" @click="goForgot">{{ $t('login.forgot') }}</span>
         </div>
       </div>
     </div>
@@ -187,6 +188,10 @@ function rippleStyle(n) {
 
 function toggleMode() {
   isLogin.value = !isLogin.value
+}
+
+function goForgot() {
+  router.push('/forgot-password')
 }
 
 
@@ -801,6 +806,19 @@ onUnmounted(() => {
 }
 .toggle-text:hover::after {
   width: 100%;
+}
+.forgot-link {
+  display: block;
+  margin-top: 12px;
+  color: #8b7b58;
+  cursor: pointer;
+  font-size: 13px;
+  letter-spacing: 1px;
+  transition: all 0.3s;
+}
+.forgot-link:hover {
+  color: #b5442f;
+  text-decoration: underline;
 }
 
 /* ---- 表单控件 ---- */

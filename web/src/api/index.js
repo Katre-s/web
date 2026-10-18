@@ -4,6 +4,8 @@ export const authApi = {
   login: (email, password) => request.post('/auth/login', { email, password }),
   register: (nickname, realName, email, code, password, campus) => request.post('/auth/register', { nickname, realName, email, code, password, campus }),
   sendCode: (email) => request.post('/auth/send-code', { email }),
+  sendResetCode: (email) => request.post('/auth/send-reset-code', { email }),
+  resetPassword: (email, code, password) => request.post('/auth/reset-password', { email, code, password }),
   sendChangeEmailCode: (email) => request.post('/auth/send-change-email-code', { email }),
   changeEmail: (email, code) => request.post('/auth/change-email', { email, code }),
   me: () => request.get('/auth/me')
@@ -26,6 +28,7 @@ export const productApi = {
 
 export const bookApi = {
   isbnLookup: (isbn) => request.post('/book/isbn-lookup', { isbn }),
+  scanBook: (formData) => request.post('/book/scan-book', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   parseList: (formData) => request.post('/book/parse-list', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   match: (bookList) => request.post('/book/match', { bookList }),
   processBookList: (isbns) => request.post('/book/process-booklist', { isbns })

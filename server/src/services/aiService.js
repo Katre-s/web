@@ -33,6 +33,42 @@ ${text}`
   }
 }
 
+export async function scanBookImage(imagePath) {
+  const apiKey = process.env.AI_API_KEY
+  const apiUrl = process.env.AI_API_URL
+  if (!apiKey || !apiUrl) return null
+
+  try {
+    const fs = await import('fs')
+    const base64 = fs.readFileSync(imagePath).toString('base64')
+    const mime = /\.png$/i.test(imagePath) ? 'image/png' : 'image/jpeg'
+
+    const prompt = `你是图书信息提取助手。请识别这张书籍封面图片，输出 JSON，格式：{"title":"书名","author":"作者","publisher":"出版社","edition":"版次(没有则为空)","isbn":"ISBN号(没有则为空)"}。只返回 JSON，不要加其他文字。`
+
+    const res = await axios.post(apiUrl, {
+      model: 'Qwen/Qwen3-VL-8B-Instruct',
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'text', text: prompt },
+          { type: 'image_url', image_url: { url: `data:${mime};base64,${base64}` } }
+        ]
+      }],
+      temperature: 0.1
+    }, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      timeout: 30000
+    })
+
+    const content = res.data.choices?.[0]?.message?.content || ''
+    const jsonStr = content.replace(/```json|```/g, '').trim()
+    return JSON.parse(jsonStr)
+  } catch (err) {
+    console.error('视觉识别失败:', err.message)
+    return null
+  }
+}
+
 function parseBookListFallback(text) {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
   return lines.map(line => {

@@ -83,6 +83,39 @@ export async function nextUserNo() {
   return String(num + 1).padStart(8, '0')
 }
 
+export async function sendResetCode(req, res, next) {
+  try {
+    const { email } = req.body
+    if (!email) return fail(res, '请输入邮箱地址')
+    if (!emailRegex.test(email)) return fail(res, '邮箱格式不正确')
+
+    const user = await User.findOne({ where: { email } })
+    if (!user) return fail(res, '该邮箱未注册')
+
+    await sendVerificationCode(email)
+    success(res, null, '验证码已发送至邮箱')
+  } catch (err) { next(err) }
+}
+
+export async function resetPassword(req, res, next) {
+  try {
+    const { email, code, password } = req.body
+    if (!email || !code || !password) return fail(res, '请填写邮箱、验证码和新密码')
+    if (!emailRegex.test(email)) return fail(res, '邮箱格式不正确')
+    if (password.length < 6) return fail(res, '密码至少6位')
+
+    const user = await User.findOne({ where: { email } })
+    if (!user) return fail(res, '该邮箱未注册')
+
+    const codeValid = verifyCode(email, code)
+    if (!codeValid) return fail(res, '验证码错误或已过期')
+
+    const hashed = await bcrypt.hash(password, 10)
+    await User.update({ password: hashed }, { where: { id: user.id } })
+    success(res, null, '密码重置成功，请使用新密码登录')
+  } catch (err) { next(err) }
+}
+
 export async function sendChangeEmailCode(req, res, next) {
   try {
     const { email } = req.body
