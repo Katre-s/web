@@ -33,18 +33,21 @@
 </template>
 
 <script setup>
-import { ref, nextTick, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { agentApi } from '@/api'
 import { ElMessage } from 'element-plus'
+import { useAgentStore } from '@/stores/agent'
 
 const router = useRouter()
 const { t } = useI18n()
-const messages = ref([])
+const agentStore = useAgentStore()
 const text = ref('')
 const loading = ref(false)
 const msgBox = ref(null)
+// messages 来自全局 store（localStorage 持久化），切换页面/刷新后仍保留
+const messages = computed(() => agentStore.messages)
 
 function intentText(i) {
   return t(`ai.intent.${i}`) || ''
@@ -76,11 +79,11 @@ async function send() {
   const content = text.value.trim()
   if (!content || loading.value) return
   text.value = ''
-  messages.value.push({ role: 'user', content })
+  agentStore.addMessage({ role: 'user', content })
   loading.value = true
   scrollBottom()
 
-  const history = messages.value
+  const history = agentStore.messages
     .slice(0, -1)
     .filter(m => !m.welcome)
     .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content }))
@@ -88,7 +91,7 @@ async function send() {
   try {
     const res = await agentApi.chat(content, history)
     const data = res.data || res
-    messages.value.push({ role: 'assistant', content: data.reply, intent: data.intent })
+    agentStore.addMessage({ role: 'assistant', content: data.reply, intent: data.intent })
   } catch {
     ElMessage.error(t('ai.error'))
   } finally {
@@ -98,12 +101,15 @@ async function send() {
 }
 
 onMounted(() => {
-  messages.value.push({
-    role: 'assistant',
-    content: t('ai.welcome'),
-    intent: 'chat',
-    welcome: true
-  })
+  // 仅当没有任何历史记录时，才插入欢迎语
+  if (agentStore.messages.length === 0) {
+    agentStore.addMessage({
+      role: 'assistant',
+      content: t('ai.welcome'),
+      intent: 'chat',
+      welcome: true
+    })
+  }
 })
 </script>
 

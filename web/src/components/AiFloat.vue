@@ -41,6 +41,7 @@ import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@/stores/user'
+import { useAgentStore } from '@/stores/agent'
 import { agentApi } from '@/api'
 import { ElMessage } from 'element-plus'
 import { MagicStick, Minus, Close } from '@element-plus/icons-vue'
@@ -48,14 +49,16 @@ import { MagicStick, Minus, Close } from '@element-plus/icons-vue'
 const router = useRouter()
 const { t } = useI18n()
 const userStore = useUserStore()
+const agentStore = useAgentStore()
 const isLoggedIn = computed(() => userStore.isLoggedIn)
 
-const messages = ref([])
 const text = ref('')
 const loading = ref(false)
 const msgBox = ref(null)
 const opened = ref(false)
 const hidden = ref(localStorage.getItem('ai_float_hidden') === '1')
+// messages 来自全局 store（localStorage 持久化），切换页面/刷新后仍保留
+const messages = computed(() => agentStore.messages)
 
 function intentText(i) {
   return t(`ai.intent.${i}`) || ''
@@ -88,11 +91,11 @@ async function send() {
   const content = text.value.trim()
   if (!content || loading.value) return
   text.value = ''
-  messages.value.push({ role: 'user', content })
+  agentStore.addMessage({ role: 'user', content })
   loading.value = true
   scrollBottom()
 
-  const history = messages.value
+  const history = agentStore.messages
     .slice(0, -1)
     .filter(m => !m.welcome)
     .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content }))
@@ -100,7 +103,7 @@ async function send() {
   try {
     const res = await agentApi.chat(content, history)
     const data = res.data || res
-    messages.value.push({ role: 'assistant', content: data.reply, intent: data.intent })
+    agentStore.addMessage({ role: 'assistant', content: data.reply, intent: data.intent })
   } catch {
     ElMessage.error(t('ai.error'))
   } finally {
@@ -125,12 +128,15 @@ function restore() {
 window.addEventListener('ai-float-restore', restore)
 
 onMounted(() => {
-  messages.value.push({
-    role: 'assistant',
-    content: t('ai.welcome'),
-    intent: 'chat',
-    welcome: true
-  })
+  // 仅当没有任何历史记录时，才插入欢迎语
+  if (agentStore.messages.length === 0) {
+    agentStore.addMessage({
+      role: 'assistant',
+      content: t('ai.welcome'),
+      intent: 'chat',
+      welcome: true
+    })
+  }
 })
 
 onUnmounted(() => {
