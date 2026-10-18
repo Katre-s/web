@@ -2,7 +2,7 @@
   <div class="product-card" @click="goDetail">
     <div class="card-image">
       <img :src="coverImg" :alt="product.title" />
-      <span class="status-tag" v-if="product.status === 'sold'">已售</span>
+      <span class="status-tag" v-if="product.status === 'sold'">{{ $t('common.sold') }}</span>
     </div>
     <div class="card-body">
       <h3 class="card-title">{{ product.title || product.bookTitle }}</h3>

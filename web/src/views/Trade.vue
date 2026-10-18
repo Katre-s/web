@@ -3,7 +3,7 @@
     <div class="search-row">
       <el-input
         v-model="keyword"
-        placeholder="搜索书名、作者或 ISBN 码"
+        :placeholder="$t('trade.searchPlaceholder')"
         clearable
         size="large"
         class="search-input"
@@ -15,17 +15,17 @@
       </el-input>
       <el-popover placement="bottom-end" :width="160" trigger="click">
         <template #reference>
-          <button class="add-btn" title="上传书籍">
+          <button class="add-btn" :title="$t('trade.uploadBook')">
             <el-icon><Plus /></el-icon>
           </button>
         </template>
         <div class="add-menu" @click="goPublish">
           <el-icon><UploadFilled /></el-icon>
-          <span>上传书籍</span>
+          <span>{{ $t('trade.uploadBook') }}</span>
         </div>
         <div class="add-menu" @click="goBookList">
           <el-icon><Document /></el-icon>
-          <span>上传书单</span>
+          <span>{{ $t('booklist.title') }}</span>
         </div>
       </el-popover>
     </div>
@@ -47,20 +47,22 @@
           <div class="book-info">
             <h3 class="book-title">{{ book.bookTitle }}</h3>
             <p class="book-edition" v-if="book.edition">{{ book.edition }}</p>
-            <p class="book-author">{{ book.bookAuthor || '未知作者' }}</p>
+            <p class="book-author">{{ book.bookAuthor || t('common.unknownAuthor') }}</p>
             <div class="book-bottom">
               <span class="book-price">¥{{ book.minPrice }}</span>
-              <span class="book-count">{{ book.sellerCount }} 个卖家</span>
+              <span class="book-count">{{ book.sellerCount }}{{ $t('trade.sellers') }}</span>
             </div>
           </div>
         </div>
       </div>
-      <el-empty v-else-if="!loading" description="暂无书籍，点击右上角 + 上传" />
+      <el-empty v-else-if="!loading" :description="$t('trade.empty')" />
     </div>
   </div>
 </template>
 
-<script setup>
+<script setup>import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
+
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search, Plus, UploadFilled, Notebook, Document } from '@element-plus/icons-vue'

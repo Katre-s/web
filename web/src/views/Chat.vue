@@ -1,6 +1,6 @@
 <template>
   <div class="chat-page">
-    <h2 class="page-title">我的对话</h2>
+    <h2 class="page-title">{{ $t('chat.title') }}</h2>
     <div v-loading="loading">
       <div class="chat-layout" v-if="conversations.length">
         <div class="conv-list" v-show="!isMobile || !mobileShowChat">
@@ -16,11 +16,11 @@
             </div>
             <div class="conv-info">
               <div class="conv-top">
-                <span class="conv-name">{{ getOtherUser(conv)?.nickname || '未知' }}</span>
+                <span class="conv-name">{{ getOtherUser(conv)?.nickname || t('common.unknown') }}</span>
                 <span class="conv-time">{{ formatTime(conv.lastMessageAt) }}</span>
               </div>
               <div class="conv-bottom">
-                <span class="conv-last">{{ conv.lastMessage || '开始对话...' }}</span>
+                <span class="conv-last">{{ conv.lastMessage || t('common.startConv') }}</span>
                 <el-badge v-if="conv.unreadCount" :value="conv.unreadCount" class="conv-badge" />
               </div>
             </div>
@@ -32,7 +32,7 @@
             <button v-if="isMobile" class="chat-back" @click="backToList">
               <el-icon><ArrowLeft /></el-icon>
             </button>
-            <span>{{ getOtherUser(activeConv)?.nickname || '对话' }}</span>
+            <span>{{ getOtherUser(activeConv)?.nickname || t('chat.title') }}</span>
             <span class="chat-product" v-if="activeConv.product?.bookTitle">
               {{ activeConv.product.bookTitle }}
             </span>
@@ -47,24 +47,26 @@
               <div class="msg-bubble">{{ msg.content }}</div>
               <div class="msg-time">{{ formatTime(msg.created_at) }}</div>
             </div>
-            <el-empty v-if="!messages.length" description="暂无消息" />
+            <el-empty v-if="!messages.length" :description="$t('common.noMessages')" />
           </div>
           <div class="chat-input" v-if="activeConv">
             <el-input
               v-model="inputText"
-              placeholder="输入消息..."
+              :placeholder="$t('common.inputMessage')"
               @keyup.enter="sendMsg"
             />
-            <el-button type="primary" @click="sendMsg">发送</el-button>
+            <el-button type="primary" @click="sendMsg">{{ $t('common.send') }}</el-button>
           </div>
         </div>
       </div>
-      <el-empty v-else description="暂无对话，去交易市场联系卖家吧" />
+      <el-empty v-else :description="$t('common.noConversations')" />
     </div>
   </div>
 </template>
 
-<script setup>
+<script setup>import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
+
 import { ref, nextTick, onMounted, onUnmounted } from 'vue'
 import { conversationApi } from '@/api'
 import { useUserStore } from '@/stores/user'
@@ -98,9 +100,9 @@ function formatTime(time) {
   const d = new Date(time)
   const now = new Date()
   const diff = now - d
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
-  return `${d.getMonth() + 1}月${d.getDate()}日`
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}${t('common.minutesAgo')}`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}${t('common.hoursAgo')}`
+  return t('common.monthDay', { m: d.getMonth() + 1, d: d.getDate() })
 }
 
 async function loadConversations(silent = false) {
@@ -177,7 +179,7 @@ async function sendMsg() {
     await refreshMessages(activeConvId.value)
     loadConversations(true)
   } catch {
-    ElMessage.error('发送失败')
+    ElMessage.error(t('common.sendFail'))
   }
 }
 

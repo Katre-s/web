@@ -4,7 +4,7 @@
       <div class="sun-moon" :class="timePeriod"></div>
       <div class="hero-overlay">
         <div class="greeting">
-          <h1 class="greeting-text">{{ greeting }}，{{ userStore.userInfo?.nickname || '同学' }}</h1>
+          <h1 class="greeting-text">{{ greeting }}，{{ userStore.userInfo?.nickname || t('home.student') }}</h1>
           <p class="greeting-sub">{{ greetingSub }}</p>
         </div>
       </div>
@@ -13,8 +13,8 @@
 
     <div class="content-section">
       <div class="section-header">
-        <h2 class="section-title">校园热点</h2>
-        <el-button type="primary" round size="small" @click="showPostDialog = true">投稿</el-button>
+        <h2 class="section-title">{{ $t('home.hotspots') }}</h2>
+        <el-button type="primary" round size="small" @click="showPostDialog = true">{{ $t('home.submit') }}</el-button>
       </div>
       <div class="hotspot-list">
         <div v-for="item in hotspots" :key="item.id" class="hotspot-card">
@@ -26,32 +26,32 @@
             <span>{{ formatTime(item.time) }}</span>
           </div>
         </div>
-        <el-empty v-if="!hotspots.length" description="暂无热点，快来投稿吧" />
+        <el-empty v-if="!hotspots.length" :description="$t('home.noHotspots')" />
       </div>
     </div>
 
     <div class="content-section" v-if="stats">
-      <h2 class="section-title">当日最新</h2>
+      <h2 class="section-title">{{ $t('home.latest') }}</h2>
       <div class="today-stats">
         <div class="stat-card stat-boards">
           <div class="stat-icon">📚</div>
           <div class="stat-info">
             <div class="stat-num">{{ stats.todayBoards }}</div>
-            <div class="stat-label">今日新上架板块</div>
+            <div class="stat-label">{{ $t('home.newBoards') }}</div>
           </div>
         </div>
         <div class="stat-card stat-books">
           <div class="stat-icon">📖</div>
           <div class="stat-info">
             <div class="stat-num">{{ stats.todayBooks }}</div>
-            <div class="stat-label">今日新上架书籍</div>
+            <div class="stat-label">{{ $t('home.newBooks') }}</div>
           </div>
         </div>
       </div>
     </div>
 
     <div class="content-section" v-if="stats && stats.chartData && stats.chartData.length">
-      <h2 class="section-title">近7天上架趋势</h2>
+      <h2 class="section-title">{{ $t('home.trend7d') }}</h2>
       <div class="chart-container">
         <div class="bar-chart">
           <div v-for="d in stats.chartData" :key="d.date" class="bar-item">
@@ -67,7 +67,7 @@
     </div>
 
     <div class="content-section" v-if="stats && stats.hotBoards && stats.hotBoards.length">
-      <h2 class="section-title">当日热销</h2>
+      <h2 class="section-title">{{ $t('home.hotToday') }}</h2>
       <div class="hot-board-grid">
         <div
           v-for="b in stats.hotBoards.slice(0, 10)"
@@ -80,40 +80,42 @@
             <h3 class="hb-title">{{ b.bookTitle }}</h3>
             <p class="hb-author" v-if="b.bookAuthor">{{ b.bookAuthor }}</p>
             <div class="hb-meta">
-              <span class="hb-sellers">🧑 {{ b.sellerCount }}卖家</span>
-              <span class="hb-views">👁 {{ b.viewCount }}浏览</span>
+              <span class="hb-sellers">🧑 {{ b.sellerCount }}{{ $t('common.seller') }}</span>
+              <span class="hb-views">👁 {{ b.viewCount }}{{ $t('home.views') }}</span>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <el-dialog v-model="showPostDialog" title="投稿校园热点" width="500px">
+    <el-dialog v-model="showPostDialog" :title="$t('home.postTitle')" width="500px">
       <el-form label-position="top">
-        <el-form-item label="标题">
-          <el-input v-model="postForm.title" placeholder="请输入标题" />
+        <el-form-item :label="$t('home.title')">
+          <el-input v-model="postForm.title" :placeholder="$t('home.placeholderTitle')" />
         </el-form-item>
-        <el-form-item label="分类">
-          <el-select v-model="postForm.tag" placeholder="选择分类" style="width: 100%">
-            <el-option label="活动" value="活动" />
-            <el-option label="通知" value="通知" />
-            <el-option label="讨论" value="讨论" />
-            <el-option label="分享" value="分享" />
+        <el-form-item :label="$t('home.category')">
+          <el-select v-model="postForm.tag" :placeholder="$t('home.selectCategory')" style="width: 100%">
+            <el-option :label="$t('home.catActivity')" value="活动" />
+            <el-option :label="$t('home.catNotice')" value="通知" />
+            <el-option :label="$t('home.catDiscuss')" value="讨论" />
+            <el-option :label="$t('home.catShare')" value="分享" />
           </el-select>
         </el-form-item>
-        <el-form-item label="内容">
-          <el-input v-model="postForm.description" type="textarea" :rows="4" placeholder="请输入内容" />
+        <el-form-item :label="$t('home.content')">
+          <el-input v-model="postForm.description" type="textarea" :rows="4" :placeholder="$t('home.placeholderContent')" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showPostDialog = false">取消</el-button>
-        <el-button type="primary" @click="submitPost">发布</el-button>
+        <el-button @click="showPostDialog = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="submitPost">{{ $t('home.publish') }}</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
-<script setup>
+<script setup>import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
+
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -134,20 +136,20 @@ const timePeriod = computed(() => {
 })
 
 const greeting = computed(() => {
-  if (hour >= 5 && hour < 9) return '早上好'
-  if (hour >= 9 && hour < 12) return '上午好'
-  if (hour >= 12 && hour < 14) return '中午好'
-  if (hour >= 14 && hour < 18) return '下午好'
-  if (hour >= 18 && hour < 22) return '晚上好'
-  return '夜深了'
+  if (hour >= 5 && hour < 9) return t('home.greetingMorning')
+  if (hour >= 9 && hour < 12) return t('home.greetingLateMorning')
+  if (hour >= 12 && hour < 14) return t('home.greetingNoon')
+  if (hour >= 14 && hour < 18) return t('home.greetingAfternoon')
+  if (hour >= 18 && hour < 22) return t('home.greetingEvening')
+  return t('home.greetingNight')
 })
 
 const greetingSub = computed(() => {
   const subs = {
-    morning: '新的一天，从文衡开始',
-    day: '阳光正好，适合淘书',
-    evening: '夕阳西下，书韵悠长',
-    night: '夜深了，注意休息'
+    morning: t('home.mottoMorning'),
+    day: t('home.mottoDay'),
+    evening: t('home.mottoEvening'),
+    night: t('home.mottoNight')
   }
   return subs[timePeriod.value]
 })
@@ -172,14 +174,14 @@ async function loadStats() {
   } catch {}
 }
 
-function formatTime(t) {
-  if (!t) return ''
-  const d = new Date(t)
+function formatTime(time) {
+  if (!time) return ''
+  const d = new Date(time)
   const now = Date.now()
   const diff = Math.floor((now - d.getTime()) / 1000)
-  if (diff < 60) return '刚刚'
-  if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`
+  if (diff < 60) return t('common.justNow')
+  if (diff < 3600) return `${Math.floor(diff / 60)}${t('common.minutesAgo')}`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}${t('common.hoursAgo')}`
   const pad = (n) => String(n).padStart(2, '0')
   return `${d.getMonth() + 1}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
@@ -202,12 +204,12 @@ function goDetail(b) {
 
 async function submitPost() {
   if (!postForm.value.title || !postForm.value.tag || !postForm.value.description) {
-    ElMessage.warning('请填写完整信息')
+    ElMessage.warning(t('home.fillAll'))
     return
   }
   try {
     await hotspotApi.create(postForm.value)
-    ElMessage.success('投稿成功')
+    ElMessage.success(t('home.postSuccess'))
     postForm.value = { title: '', tag: '', description: '' }
     showPostDialog.value = false
     loadHotspots()

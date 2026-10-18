@@ -1,6 +1,6 @@
 <template>
   <div class="cart-page">
-    <h2 class="page-title">购物车</h2>
+    <h2 class="page-title">{{ $t('cart.title') }}</h2>
     <div v-loading="loading">
       <div v-if="cartItems.length" class="cart-list">
         <div v-for="item in cartItems" :key="item.id" class="cart-item">
@@ -10,31 +10,31 @@
             <h4>{{ item.product.title || item.product.bookTitle }}</h4>
             <p class="cart-author" v-if="item.product.bookAuthor">{{ item.product.bookAuthor }}</p>
             <p class="cart-seller" v-if="item.product.seller">
-              卖家：{{ item.product.seller.nickname || item.product.seller.userNo }}
+              {{ $t('common.seller') }}：{{ item.product.seller.nickname || item.product.seller.userNo }}
               <span class="seller-no" v-if="item.product.seller.userNo">（ID: {{ item.product.seller.userNo }}）</span>
             </p>
           </div>
           <span class="cart-price">¥{{ item.product.price }}</span>
           <div class="cart-item-actions">
-            <el-button size="small" round @click="contactSeller(item)" v-if="item.product.seller && item.product.seller.id !== userStore.userInfo?.id">联系卖家</el-button>
-            <el-button text type="danger" @click="removeItem(item.product.id)">移除</el-button>
+            <el-button size="small" round @click="contactSeller(item)" v-if="item.product.seller && item.product.seller.id !== userStore.userInfo?.id">{{ $t('common.contactSeller') }}</el-button>
+            <el-button text type="danger" @click="removeItem(item.product.id)">{{ $t('cart.remove') }}</el-button>
           </div>
         </div>
         <div class="cart-footer">
-          <el-checkbox v-model="selectAll" @change="toggleSelectAll">全选</el-checkbox>
-          <el-button type="warning" round @click="contactAllSellers" :disabled="!cartItems.length" :loading="contactingAll">
-            一键联系全部卖家
-          </el-button>
-          <span class="total-price">合计：¥{{ totalPrice }}</span>
-          <el-button type="primary" :disabled="!selectedItems.length" @click="checkout">下单</el-button>
+          <el-checkbox v-model="selectAll" @change="toggleSelectAll">{{ $t('cart.selectAll') }}</el-checkbox>
+          <el-button type="warning" round @click="contactAllSellers" :disabled="!cartItems.length" :loading="contactingAll">{{ $t('cart.contactAll') }}</el-button>
+          <span class="total-price">{{ $t('common.total') }}¥{{ totalPrice }}</span>
+          <el-button type="primary" :disabled="!selectedItems.length" @click="checkout">{{ $t('cart.checkout') }}</el-button>
         </div>
       </div>
-      <el-empty v-else description="购物车是空的" />
+      <el-empty v-else :description="$t('cart.empty')" />
     </div>
   </div>
 </template>
 
-<script setup>
+<script setup>import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
+
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -71,14 +71,14 @@ function toggleSelectAll(val) {
 
 async function removeItem(productId) {
   await cartApi.remove(productId)
-  ElMessage.success('已移除')
+  ElMessage.success(t('cart.removed'))
   loadCart()
 }
 
 async function checkout() {
   const ids = selectedItems.value.map((i) => i.id)
   await orderApi.create(ids)
-  ElMessage.success('下单成功')
+  ElMessage.success(t('cart.checkedOut'))
   router.push('/orders')
 }
 
@@ -86,7 +86,7 @@ async function contactSeller(item) {
   if (!item.product.seller) return
   try {
     await conversationApi.start(item.product.seller.id, item.product.id)
-    ElMessage.success('已创建对话，请前往「对话」查看')
+    ElMessage.success(t('common.convCreated'))
     router.push('/chat')
   } catch {}
 }
@@ -101,7 +101,7 @@ async function contactAllSellers() {
     }
   }
   if (!sellerMap.size) {
-    ElMessage.warning('没有可联系的卖家')
+    ElMessage.warning(t('cart.noContactable'))
     return
   }
   contactingAll.value = true
@@ -114,10 +114,10 @@ async function contactAllSellers() {
   }
   contactingAll.value = false
   if (success) {
-    ElMessage.success(`已联系${success}位卖家，请前往「对话」查看`)
+    ElMessage.success(t('cart.contacted', { n: success }))
     router.push('/chat')
   } else {
-    ElMessage.warning('联系卖家失败')
+    ElMessage.warning(t('cart.contactFail'))
   }
 }
 

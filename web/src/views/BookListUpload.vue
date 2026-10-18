@@ -1,64 +1,62 @@
 <template>
   <div class="booklist-page">
-    <h2 class="page-title">上传书单</h2>
+    <h2 class="page-title">{{ $t('booklist.title') }}</h2>
     <div class="upload-card">
-      <p class="upload-desc">输入ISBN列表（每行一个），系统将自动处理：</p>
+      <p class="upload-desc">{{ $t('booklist.desc') }}</p>
       <ul class="upload-rules">
-        <li>有卖家的书 → 自动加入购物车</li>
-        <li>无卖家的板块 → 加入求购清单</li>
-        <li>无板块的ISBN → 自动创建板块并加入求购清单</li>
+        <li>{{ $t('booklist.rule1') }}</li>
+        <li>{{ $t('booklist.rule2') }}</li>
+        <li>{{ $t('booklist.rule3') }}</li>
       </ul>
       <el-input
         v-model="isbnText"
         type="textarea"
         :rows="12"
-        placeholder="请输入ISBN，每行一个&#10;例如：&#10;9787111407010&#10;9787302529135&#10;9787564172220"
+        :placeholder="$t('booklist.placeholder')"
         class="isbn-input"
       />
       <div class="upload-actions">
-        <el-button type="primary" round size="large" @click="processList" :loading="processing" :disabled="!isbnText.trim()">
-          开始处理
-        </el-button>
-        <el-button round size="large" @click="isbnText = ''">清空</el-button>
+        <el-button type="primary" round size="large" @click="processList" :loading="processing" :disabled="!isbnText.trim()">{{ $t('booklist.start') }}</el-button>
+        <el-button round size="large" @click="isbnText = ''">{{ $t('booklist.clear') }}</el-button>
       </div>
     </div>
 
     <div v-if="result" class="result-card">
-      <h3 class="result-title">处理结果</h3>
+      <h3 class="result-title">{{ $t('booklist.result') }}</h3>
       <div class="result-stats">
         <div class="result-stat stat-cart">
           <div class="stat-icon">🛒</div>
           <div class="stat-num">{{ result.stats.cart }}</div>
-          <div class="stat-label">加入购物车</div>
+          <div class="stat-label">{{ $t('common.addCart') }}</div>
         </div>
         <div class="result-stat stat-wishlist">
           <div class="stat-icon">📝</div>
           <div class="stat-num">{{ result.stats.wishlist }}</div>
-          <div class="stat-label">加入求购清单</div>
+          <div class="stat-label">{{ $t('booklist.addedWishlist') }}</div>
         </div>
         <div class="result-stat stat-created">
           <div class="stat-icon">📚</div>
           <div class="stat-num">{{ result.stats.created }}</div>
-          <div class="stat-label">新建板块</div>
+          <div class="stat-label">{{ $t('booklist.newBoard') }}</div>
         </div>
         <div class="result-stat stat-skipped">
           <div class="stat-icon">⏭</div>
           <div class="stat-num">{{ result.stats.skipped }}</div>
-          <div class="stat-label">跳过（无效）</div>
+          <div class="stat-label">{{ $t('booklist.skipped') }}</div>
         </div>
       </div>
 
       <div v-if="result.cartBooks && result.cartBooks.length" class="result-section">
-        <h4 class="section-subtitle">已加入购物车的书</h4>
+        <h4 class="section-subtitle">{{ $t('booklist.cartBooks') }}</h4>
         <div class="book-tags">
           <el-tag v-for="b in result.cartBooks" :key="b.isbn" type="success" class="book-tag">
-            {{ b.bookTitle }}（{{ b.sellerCount }}卖家）
+            {{ b.bookTitle }}（{{ b.sellerCount }}{{ $t('common.seller') }}）
           </el-tag>
         </div>
       </div>
 
       <div v-if="result.wishlistBooks && result.wishlistBooks.length" class="result-section">
-        <h4 class="section-subtitle">已加入求购清单的书</h4>
+        <h4 class="section-subtitle">{{ $t('booklist.wishBooks') }}</h4>
         <div class="book-tags">
           <el-tag v-for="b in result.wishlistBooks" :key="b.isbn" type="warning" class="book-tag">
             {{ b.bookTitle || `ISBN ${b.isbn}` }}
@@ -67,14 +65,16 @@
       </div>
 
       <div class="result-actions">
-        <el-button type="primary" round @click="$router.push('/cart')">查看购物车</el-button>
-        <el-button round @click="$router.push('/profile')">查看求购清单</el-button>
+        <el-button type="primary" round @click="$router.push('/cart')">{{ $t('booklist.viewCart') }}</el-button>
+        <el-button round @click="$router.push('/profile')">{{ $t('booklist.viewWishlist') }}</el-button>
       </div>
     </div>
   </div>
 </template>
 
-<script setup>
+<script setup>import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
+
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { bookApi } from '@/api'
@@ -85,7 +85,7 @@ const result = ref(null)
 
 async function processList() {
   const lines = isbnText.value.split('\n').map(l => l.trim()).filter(l => l)
-  if (!lines.length) return ElMessage.warning('请输入至少一个ISBN')
+  if (!lines.length) return ElMessage.warning(t('booklist.needIsbn'))
 
   const isbns = []
   for (const line of lines) {
@@ -94,13 +94,13 @@ async function processList() {
       isbns.push(cleaned)
     }
   }
-  if (!isbns.length) return ElMessage.warning('未识别到有效的ISBN（10-14位数字）')
+  if (!isbns.length) return ElMessage.warning(t('booklist.invalidIsbn'))
 
   processing.value = true
   try {
     const res = await bookApi.processBookList(isbns)
     result.value = res.data
-    ElMessage.success(res.message || '处理完成')
+    ElMessage.success(res.message || t('booklist.done'))
   } catch {} finally {
     processing.value = false
   }

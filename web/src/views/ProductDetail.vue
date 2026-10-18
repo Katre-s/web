@@ -6,8 +6,8 @@
       </div>
       <div class="detail-right">
         <h1 class="detail-title">{{ product.title || product.bookTitle }}</h1>
-        <p class="detail-author" v-if="product.bookAuthor">作者：{{ product.bookAuthor }}</p>
-        <p class="detail-publisher" v-if="product.bookPublisher">出版社：{{ product.bookPublisher }}</p>
+        <p class="detail-author" v-if="product.bookAuthor">{{ $t('bookdetail.authorPrefix') }}{{ product.bookAuthor }}</p>
+        <p class="detail-publisher" v-if="product.bookPublisher">{{ $t('bookdetail.publisherPrefix') }}{{ product.bookPublisher }}</p>
         <p class="detail-isbn" v-if="product.isbn">ISBN：{{ product.isbn }}</p>
         <div class="detail-price">¥{{ product.price }}</div>
         <div class="detail-meta">
@@ -15,21 +15,23 @@
           <span class="meta-tag" v-if="product.category">{{ product.category }}</span>
         </div>
         <div class="detail-desc" v-if="product.description">
-          <h3>描述</h3>
+          <h3>{{ $t('publish.description') }}</h3>
           <p>{{ product.description }}</p>
         </div>
         <div class="detail-actions">
           <el-button type="primary" @click="addToCart" :disabled="product.status === 'sold'">
-            {{ product.status === 'sold' ? '已售出' : '加入购物车' }}
+            {{ product.status === 'sold' ? t('productdetail.sold') : t('common.addCart') }}
           </el-button>
-          <el-button @click="contactSeller">联系卖家</el-button>
+          <el-button @click="contactSeller">{{ $t('common.contactSeller') }}</el-button>
         </div>
       </div>
     </div>
   </div>
 </template>
 
-<script setup>
+<script setup>import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
+
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -67,7 +69,7 @@ async function addToCart() {
     return
   }
   await cartApi.add(product.value.id)
-  ElMessage.success('已加入购物车')
+  ElMessage.success(t('common.addedCart'))
 }
 
 async function contactSeller() {
@@ -76,7 +78,7 @@ async function contactSeller() {
     return
   }
   await messageApi.send(product.value.id, product.value.userId, '我对这本书感兴趣，请问还在吗？')
-  ElMessage.success('已发送消息给卖家')
+  ElMessage.success(t('common.msgSentToSeller'))
 }
 
 onMounted(loadProduct)

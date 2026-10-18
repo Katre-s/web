@@ -4,36 +4,35 @@
       <div class="admin-logo">
         <span class="logo-seal">衡</span>
         <div class="logo-text">
-          <b>文衡管理台</b>
+          <b>{{ $t('admin.title') }}</b>
           <span>WENHENG ADMIN</span>
         </div>
       </div>
 
       <el-menu :default-active="activeSection" class="admin-menu">
         <el-menu-item index="dashboard" @click="activeSection = 'dashboard'">
-          <el-icon><DataBoard /></el-icon><span>数据概览</span>
+          <el-icon><DataBoard /></el-icon><span>{{ $t('admin.dashboard') }}</span>
         </el-menu-item>
         <el-menu-item index="posts" @click="switchSection('posts')">
-          <el-icon><ChatDotRound /></el-icon><span>帖子管理</span>
+          <el-icon><ChatDotRound /></el-icon><span>{{ $t('admin.posts') }}</span>
         </el-menu-item>
         <el-menu-item index="notifications" @click="activeSection = 'notifications'">
-          <el-icon><Bell /></el-icon><span>通知管理</span>
+          <el-icon><Bell /></el-icon><span>{{ $t('admin.notifications') }}</span>
         </el-menu-item>
         <el-menu-item index="books" @click="activeSection = 'books'">
-          <el-icon><Reading /></el-icon><span>新书上架</span>
+          <el-icon><Reading /></el-icon><span>{{ $t('admin.books') }}</span>
         </el-menu-item>
         <el-menu-item index="boards" @click="switchSection('boards')">
-          <el-icon><Files /></el-icon><span>板块管理</span>
+          <el-icon><Files /></el-icon><span>{{ $t('admin.boards') }}</span>
         </el-menu-item>
         <el-menu-item index="users" @click="switchSection('users')">
-          <el-icon><User /></el-icon><span>用户管理</span>
+          <el-icon><User /></el-icon><span>{{ $t('admin.users') }}</span>
         </el-menu-item>
       </el-menu>
 
       <div class="admin-sidebar-footer">
         <el-button text class="back-btn" @click="$router.push('/')">
-          <el-icon><Back /></el-icon> 返回前台
-        </el-button>
+          <el-icon><Back /></el-icon>{{ $t('admin.back') }}</el-button>
       </div>
     </div>
 
@@ -41,7 +40,7 @@
       <div class="admin-header">
         <h2 class="admin-title">{{ sectionTitle }}</h2>
         <div class="admin-user-info">
-          <span class="admin-role-tag">管理员</span>
+          <span class="admin-role-tag">{{ $t('common.admin') }}</span>
           <span>{{ userStore.userInfo?.nickname }}</span>
         </div>
       </div>
@@ -62,20 +61,20 @@
           </div>
 
           <div class="panel">
-            <h3 class="panel-title">最新注册用户</h3>
+            <h3 class="panel-title">{{ $t('admin.latestUsers') }}</h3>
             <el-table :data="stats?.recentUsers || []" size="small">
               <el-table-column prop="id" label="ID" width="70" />
-              <el-table-column prop="email" label="邮箱" />
-              <el-table-column prop="nickname" label="昵称" width="120" />
-              <el-table-column prop="campus" label="校区" width="100" />
-              <el-table-column label="角色" width="90">
+              <el-table-column prop="email" :label="$t('profile.email')" />
+              <el-table-column prop="nickname" :label="$t('admin.nickname')" width="120" />
+              <el-table-column prop="campus" :label="$t('admin.campus')" width="100" />
+              <el-table-column :label="$t('admin.role')" width="90">
                 <template #default="{ row }">
-                  <el-tag size="small" :type="row.role === 'admin' ? 'danger' : 'info'">{{ row.role === 'admin' ? '管理员' : '用户' }}</el-tag>
+                  <el-tag size="small" :type="row.role === 'admin' ? 'danger' : 'info'">{{ row.role === 'admin' ? t('common.admin') : t('common.user') }}</el-tag>
                 </template>
               </el-table-column>
-              <el-table-column label="状态" width="90">
+              <el-table-column :label="$t('admin.status')" width="90">
                 <template #default="{ row }">
-                  <el-tag size="small" :type="row.status === 'banned' ? 'danger' : 'success'">{{ row.status === 'banned' ? '已封禁' : '正常' }}</el-tag>
+                  <el-tag size="small" :type="row.status === 'banned' ? 'danger' : 'success'">{{ row.status === 'banned' ? t('common.banned') : t('common.normal') }}</el-tag>
                 </template>
               </el-table-column>
             </el-table>
@@ -86,27 +85,27 @@
         <template v-if="activeSection === 'posts'">
           <div class="panel">
             <div class="panel-toolbar">
-              <h3 class="panel-title">校园热点帖子</h3>
-              <el-button size="small" @click="loadPosts">刷新</el-button>
+              <h3 class="panel-title">{{ $t('admin.hotPosts') }}</h3>
+              <el-button size="small" @click="loadPosts">{{ $t('common.refresh') }}</el-button>
             </div>
             <el-table :data="posts" size="small">
-              <el-table-column prop="sort_order" label="顺序" width="70" />
-              <el-table-column prop="tag" label="分类" width="90">
+              <el-table-column prop="sort_order" :label="$t('admin.sortOrder')" width="70" />
+              <el-table-column prop="tag" :label="$t('home.category')" width="90">
                 <template #default="{ row }"><el-tag size="small">{{ row.tag }}</el-tag></template>
               </el-table-column>
-              <el-table-column prop="title" label="标题" min-width="160" />
-              <el-table-column prop="author" label="作者" width="100" />
-              <el-table-column prop="description" label="内容" min-width="200" show-overflow-tooltip />
-              <el-table-column label="状态" width="90">
+              <el-table-column prop="title" :label="$t('home.title')" min-width="160" />
+              <el-table-column prop="author" :label="$t('publish.author')" width="100" />
+              <el-table-column prop="description" :label="$t('home.content')" min-width="200" show-overflow-tooltip />
+              <el-table-column :label="$t('admin.status')" width="90">
                 <template #default="{ row }">
-                  <el-tag size="small" :type="row.status === 'active' ? 'success' : 'info'">{{ row.status === 'active' ? '展示中' : '已删除' }}</el-tag>
+                  <el-tag size="small" :type="row.status === 'active' ? 'success' : 'info'">{{ row.status === 'active' ? t('common.active') : t('common.deleted') }}</el-tag>
                 </template>
               </el-table-column>
-              <el-table-column label="操作" width="190" fixed="right">
+              <el-table-column :label="$t('common.actions')" width="190" fixed="right">
                 <template #default="{ row }">
-                  <el-button size="small" text type="primary" :disabled="row.status !== 'active'" @click="movePost(row, 'up')">上移</el-button>
-                  <el-button size="small" text type="primary" :disabled="row.status !== 'active'" @click="movePost(row, 'down')">下移</el-button>
-                  <el-button size="small" text type="danger" :disabled="row.status !== 'active'" @click="removePost(row)">删除</el-button>
+                  <el-button size="small" text type="primary" :disabled="row.status !== 'active'" @click="movePost(row, 'up')">{{ $t('admin.moveUp') }}</el-button>
+                  <el-button size="small" text type="primary" :disabled="row.status !== 'active'" @click="movePost(row, 'down')">{{ $t('admin.moveDown') }}</el-button>
+                  <el-button size="small" text type="danger" :disabled="row.status !== 'active'" @click="removePost(row)">{{ $t('common.delete') }}</el-button>
                 </template>
               </el-table-column>
             </el-table>
@@ -116,20 +115,20 @@
         <!-- ===== 通知管理 ===== -->
         <template v-if="activeSection === 'notifications'">
           <div class="panel">
-            <h3 class="panel-title">发送通知给全部用户</h3>
-            <el-input v-model="broadcastContent" type="textarea" :rows="3" placeholder="输入广播内容，发给所有用户" />
+            <h3 class="panel-title">{{ $t('admin.broadcastTitle') }}</h3>
+            <el-input v-model="broadcastContent" type="textarea" :rows="3" :placeholder="$t('admin.broadcastPlaceholder')" />
             <div class="panel-actions">
-              <el-button type="primary" @click="broadcast">发送广播</el-button>
+              <el-button type="primary" @click="broadcast">{{ $t('admin.broadcast') }}</el-button>
             </div>
           </div>
 
           <div class="panel">
             <div class="panel-toolbar">
-              <h3 class="panel-title">发送通知给单个用户</h3>
-              <el-button size="small" @click="loadUsersForSelect">刷新用户列表</el-button>
+              <h3 class="panel-title">{{ $t('admin.singleTitle') }}</h3>
+              <el-button size="small" @click="loadUsersForSelect">{{ $t('admin.refreshUsers') }}</el-button>
             </div>
             <div class="single-send-row">
-              <el-select v-model="singleUserId" filterable placeholder="选择用户" style="width: 300px">
+              <el-select v-model="singleUserId" filterable :placeholder="$t('admin.selectUser')" style="width: 300px">
                 <el-option
                   v-for="u in userOptions"
                   :key="u.id"
@@ -137,36 +136,36 @@
                   :value="u.id"
                 />
               </el-select>
-              <el-input v-model="singleContent" placeholder="通知内容" style="width: 320px" />
+              <el-input v-model="singleContent" :placeholder="$t('admin.notifContent')" style="width: 320px" />
             </div>
             <div class="panel-actions">
-              <el-button type="primary" @click="sendSingle">发送</el-button>
+              <el-button type="primary" @click="sendSingle">{{ $t('common.send') }}</el-button>
             </div>
           </div>
 
           <div class="panel">
-            <h3 class="panel-title">操作日志提示</h3>
-            <p class="muted-text">用户端的通知会显示在右上角铃铛中，点击可标记已读。</p>
+            <h3 class="panel-title">{{ $t('admin.logTip') }}</h3>
+            <p class="muted-text">{{ $t('admin.logTipDesc') }}</p>
           </div>
 
           <div class="panel">
             <div class="panel-toolbar">
-              <h3 class="panel-title">已发送通知</h3>
-              <el-button size="small" @click="loadNotifList">刷新</el-button>
+              <h3 class="panel-title">{{ $t('admin.sentNotifs') }}</h3>
+              <el-button size="small" @click="loadNotifList">{{ $t('common.refresh') }}</el-button>
             </div>
             <el-table :data="notifList" size="small">
-              <el-table-column label="类型" width="90">
+              <el-table-column :label="$t('admin.type')" width="90">
                 <template #default="{ row }">
                   <el-tag :type="row.type === 'broadcast' ? 'warning' : 'info'" size="small">
-                    {{ row.type === 'broadcast' ? '广播' : '单发' }}
+                    {{ row.type === 'broadcast' ? t('admin.broadcastType') : t('admin.singleType') }}
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column prop="content" label="内容" min-width="250" show-overflow-tooltip />
-              <el-table-column prop="time" label="时间" width="160" />
-              <el-table-column label="操作" width="90" fixed="right">
+              <el-table-column prop="content" :label="$t('home.content')" min-width="250" show-overflow-tooltip />
+              <el-table-column prop="time" :label="$t('admin.time')" width="160" />
+              <el-table-column :label="$t('common.actions')" width="90" fixed="right">
                 <template #default="{ row }">
-                  <el-button size="small" text type="danger" @click="deleteNotif(row)">删除</el-button>
+                  <el-button size="small" text type="danger" @click="deleteNotif(row)">{{ $t('common.delete') }}</el-button>
                 </template>
               </el-table-column>
             </el-table>
@@ -176,44 +175,44 @@
         <!-- ===== 新书上架 ===== -->
         <template v-if="activeSection === 'books'">
           <div class="panel">
-            <h3 class="panel-title">上架新书</h3>
+            <h3 class="panel-title">{{ $t('admin.addBookTitle') }}</h3>
             <el-form :model="bookForm" label-position="top" class="book-admin-form">
               <div class="form-grid">
-                <el-form-item label="书名 *">
-                  <el-input v-model="bookForm.bookTitle" placeholder="请输入书名" />
+                <el-form-item :label="$t('publish.bookTitle')">
+                  <el-input v-model="bookForm.bookTitle" :placeholder="$t('publish.placeholderTitle')" />
                 </el-form-item>
-                <el-form-item label="作者 *">
-                  <el-input v-model="bookForm.bookAuthor" placeholder="请输入作者" />
+                <el-form-item :label="$t('admin.authorStar')">
+                  <el-input v-model="bookForm.bookAuthor" :placeholder="$t('publish.placeholderAuthor')" />
                 </el-form-item>
-                <el-form-item label="出版社">
-                  <el-input v-model="bookForm.bookPublisher" placeholder="请输入出版社" />
+                <el-form-item :label="$t('publish.publisher')">
+                  <el-input v-model="bookForm.bookPublisher" :placeholder="$t('publish.placeholderPublisher')" />
                 </el-form-item>
-                <el-form-item label="版本号">
-                  <el-input v-model="bookForm.edition" placeholder="如：第3版" />
+                <el-form-item :label="$t('publish.edition')">
+                  <el-input v-model="bookForm.edition" :placeholder="$t('publish.editionPlaceholder')" />
                 </el-form-item>
                 <el-form-item label="ISBN">
-                  <el-input v-model="bookForm.isbn" placeholder="选填" />
+                  <el-input v-model="bookForm.isbn" :placeholder="$t('publish.optional')" />
                 </el-form-item>
-                <el-form-item label="分类">
+                <el-form-item :label="$t('home.category')">
                   <el-select v-model="bookForm.category" style="width: 100%">
-                    <el-option label="教材" value="教材" />
-                    <el-option label="小说" value="小说" />
-                    <el-option label="考研" value="考研" />
-                    <el-option label="文学" value="文学" />
-                    <el-option label="其他" value="其他" />
+                    <el-option :label="$t('publish.catTextbook')" value="教材" />
+                    <el-option :label="$t('publish.catNovel')" value="小说" />
+                    <el-option :label="$t('publish.catKaoyan')" value="考研" />
+                    <el-option :label="$t('publish.catLiterature')" value="文学" />
+                    <el-option :label="$t('publish.catOther')" value="其他" />
                   </el-select>
                 </el-form-item>
-                <el-form-item label="建议价格（元）*">
+                <el-form-item :label="$t('admin.suggestPrice')">
                   <el-input-number v-model="bookForm.price" :min="0" :precision="2" style="width: 100%" />
                 </el-form-item>
-                <el-form-item label="原价（元）">
+                <el-form-item :label="$t('admin.originalPrice')">
                   <el-input-number v-model="bookForm.originalPrice" :min="0" :precision="2" style="width: 100%" />
                 </el-form-item>
               </div>
-              <el-form-item label="书籍简介">
-                <el-input v-model="bookForm.description" type="textarea" :rows="4" placeholder="请输入书籍简介" />
+              <el-form-item :label="$t('admin.bookDesc')">
+                <el-input v-model="bookForm.description" type="textarea" :rows="4" :placeholder="$t('admin.bookDescPlaceholder')" />
               </el-form-item>
-              <el-form-item label="图书图片">
+              <el-form-item :label="$t('admin.bookImages')">
                 <el-upload
                   list-type="picture-card"
                   accept="image/*"
@@ -225,7 +224,7 @@
                   <el-icon><Plus /></el-icon>
                 </el-upload>
               </el-form-item>
-              <el-button type="primary" :loading="bookSubmitting" @click="submitBook">确认上架</el-button>
+              <el-button type="primary" :loading="bookSubmitting" @click="submitBook">{{ $t('admin.confirmSubmitBook') }}</el-button>
             </el-form>
           </div>
         </template>
@@ -234,33 +233,33 @@
         <template v-if="activeSection === 'boards'">
           <div class="panel">
             <div class="panel-toolbar">
-              <h3 class="panel-title">书籍板块管理</h3>
-              <el-button size="small" @click="loadBoards">刷新</el-button>
+              <h3 class="panel-title">{{ $t('admin.boardManage') }}</h3>
+              <el-button size="small" @click="loadBoards">{{ $t('common.refresh') }}</el-button>
             </div>
             <el-table :data="boardList" size="small">
               <el-table-column prop="id" label="ID" width="60" />
-              <el-table-column label="封面" width="80">
+              <el-table-column :label="$t('admin.cover')" width="80">
                 <template #default="{ row }">
                   <img v-if="row.bookCover" :src="row.bookCover" style="width:40px;height:55px;object-fit:cover;border-radius:4px" @error="$event.target.style.display='none'" />
                 </template>
               </el-table-column>
-              <el-table-column prop="bookTitle" label="书名" min-width="150" />
-              <el-table-column prop="bookAuthor" label="作者" width="120" />
+              <el-table-column prop="bookTitle" :label="$t('admin.bookTitle')" min-width="150" />
+              <el-table-column prop="bookAuthor" :label="$t('publish.author')" width="120" />
               <el-table-column prop="isbn" label="ISBN" width="140" />
-              <el-table-column prop="edition" label="版本" width="80" />
-              <el-table-column prop="productCount" label="在售数" width="80" />
-              <el-table-column label="操作" width="280" fixed="right">
+              <el-table-column prop="edition" :label="$t('admin.edition')" width="80" />
+              <el-table-column prop="productCount" :label="$t('admin.productCount')" width="80" />
+              <el-table-column :label="$t('common.actions')" width="280" fixed="right">
                 <template #default="{ row }">
-                  <el-button size="small" text type="primary" @click="openBoardEdit(row)">编辑信息</el-button>
+                  <el-button size="small" text type="primary" @click="openBoardEdit(row)">{{ $t('admin.editInfo') }}</el-button>
                   <el-upload
                     :show-file-list="false"
                     accept="image/*"
                     :http-request="(opt) => uploadCover(row, opt)"
                     style="display:inline-block;margin-right:8px"
                   >
-                    <el-button size="small" text type="primary">上传封面</el-button>
+                    <el-button size="small" text type="primary">{{ $t('admin.uploadCover') }}</el-button>
                   </el-upload>
-                  <el-button size="small" text type="danger" @click="deleteBoard(row)">删除板块</el-button>
+                  <el-button size="small" text type="danger" @click="deleteBoard(row)">{{ $t('admin.deleteBoard') }}</el-button>
                 </template>
               </el-table-column>
             </el-table>
@@ -271,38 +270,38 @@
         <template v-if="activeSection === 'users'">
           <div class="panel">
             <div class="panel-toolbar">
-              <h3 class="panel-title">用户列表</h3>
-              <el-input v-model="userKeyword" placeholder="搜索邮箱/昵称/姓名" clearable style="width: 240px" @keyup.enter="loadUsers" @clear="loadUsers">
-                <template #append><el-button @click="loadUsers">搜索</el-button></template>
+              <h3 class="panel-title">{{ $t('admin.userList') }}</h3>
+              <el-input v-model="userKeyword" :placeholder="$t('admin.searchUserPlaceholder')" clearable style="width: 240px" @keyup.enter="loadUsers" @clear="loadUsers">
+                <template #append><el-button @click="loadUsers">{{ $t('common.search') }}</el-button></template>
               </el-input>
             </div>
             <el-table :data="userList" size="small">
-              <el-table-column prop="id" label="序号" width="60" />
-              <el-table-column label="用户ID" width="100">
+              <el-table-column prop="id" :label="$t('admin.id')" width="60" />
+              <el-table-column :label="$t('admin.userNo')" width="100">
                 <template #default="{ row }">
-                  <span class="user-no-cell">{{ row.userNo || '未分配' }}</span>
+                  <span class="user-no-cell">{{ row.userNo || t('common.unassigned') }}</span>
                 </template>
               </el-table-column>
-              <el-table-column prop="email" label="邮箱" min-width="170" />
-              <el-table-column prop="nickname" label="昵称" width="100" />
-              <el-table-column prop="realName" label="姓名" width="90" />
-              <el-table-column prop="campus" label="校区" width="90" />
-              <el-table-column label="角色" width="100">
+              <el-table-column prop="email" :label="$t('profile.email')" min-width="170" />
+              <el-table-column prop="nickname" :label="$t('admin.nickname')" width="100" />
+              <el-table-column prop="realName" :label="$t('admin.realName')" width="90" />
+              <el-table-column prop="campus" :label="$t('admin.campus')" width="90" />
+              <el-table-column :label="$t('admin.role')" width="100">
                 <template #default="{ row }">
-                  <el-tag size="small" :type="row.role === 'admin' ? 'danger' : 'info'">{{ row.role === 'admin' ? '管理员' : '用户' }}</el-tag>
+                  <el-tag size="small" :type="row.role === 'admin' ? 'danger' : 'info'">{{ row.role === 'admin' ? t('common.admin') : t('common.user') }}</el-tag>
                 </template>
               </el-table-column>
-              <el-table-column label="状态" width="90">
+              <el-table-column :label="$t('admin.status')" width="90">
                 <template #default="{ row }">
-                  <el-tag size="small" :type="row.status === 'banned' ? 'danger' : 'success'">{{ row.status === 'banned' ? '已封禁' : '正常' }}</el-tag>
+                  <el-tag size="small" :type="row.status === 'banned' ? 'danger' : 'success'">{{ row.status === 'banned' ? t('common.banned') : t('common.normal') }}</el-tag>
                 </template>
               </el-table-column>
-              <el-table-column label="操作" width="280" fixed="right">
+              <el-table-column :label="$t('common.actions')" width="280" fixed="right">
                 <template #default="{ row }">
-                  <el-button size="small" text type="primary" @click="openUserNoDialog(row)">更改ID</el-button>
-                  <el-button size="small" text type="primary" @click="toggleRole(row)">{{ row.role === 'admin' ? '取消管理员' : '设为管理员' }}</el-button>
+                  <el-button size="small" text type="primary" @click="openUserNoDialog(row)">{{ $t('admin.changeNo') }}</el-button>
+                  <el-button size="small" text type="primary" @click="toggleRole(row)">{{ row.role === 'admin' ? t('common.unmakeAdmin') : t('common.makeAdmin') }}</el-button>
                   <el-button size="small" :type="row.status === 'banned' ? 'success' : 'danger'" plain @click="toggleBan(row)">
-                    {{ row.status === 'banned' ? '解封' : '封号' }}
+                    {{ row.status === 'banned' ? t('common.unban') : t('common.ban') }}
                   </el-button>
                 </template>
               </el-table-column>
@@ -321,51 +320,53 @@
        </div>
      </div>
 
-    <el-dialog v-model="showUserNoDialog" title="更改用户ID" width="440px">
-      <p class="user-no-tip">用户：{{ userNoForm.nickname }}（当前ID：{{ userNoForm.oldNo }}）</p>
+    <el-dialog v-model="showUserNoDialog" :title="$t('admin.changeNoTitle')" width="440px">
+      <p class="user-no-tip">{{ $t('common.user') }}：{{ userNoForm.nickname }}（{{ $t('admin.currentIdPrefix') }}{{ userNoForm.oldNo }}）</p>
       <el-form label-position="top">
-        <el-form-item label="新ID（8位数字）">
-          <el-input v-model="userNoForm.newNo" placeholder="请输入8位数字ID" maxlength="8" />
+        <el-form-item :label="$t('admin.newNo')">
+          <el-input v-model="userNoForm.newNo" :placeholder="$t('admin.newNoPlaceholder')" maxlength="8" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showUserNoDialog = false">取消</el-button>
-        <el-button type="primary" @click="submitUserNo">确认更改</el-button>
+        <el-button @click="showUserNoDialog = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="submitUserNo">{{ $t('profile.confirmChange') }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="showBoardEditDialog" title="编辑板块信息" width="520px">
+    <el-dialog v-model="showBoardEditDialog" :title="$t('admin.editBoardTitle')" width="520px">
       <el-form :model="boardEditForm" label-position="top">
         <div class="form-grid">
-          <el-form-item label="书名 *">
-            <el-input v-model="boardEditForm.bookTitle" placeholder="请输入书名" />
+          <el-form-item :label="$t('publish.bookTitle')">
+            <el-input v-model="boardEditForm.bookTitle" :placeholder="$t('publish.placeholderTitle')" />
           </el-form-item>
-          <el-form-item label="作者">
-            <el-input v-model="boardEditForm.bookAuthor" placeholder="请输入作者" />
+          <el-form-item :label="$t('publish.author')">
+            <el-input v-model="boardEditForm.bookAuthor" :placeholder="$t('publish.placeholderAuthor')" />
           </el-form-item>
-          <el-form-item label="出版社">
-            <el-input v-model="boardEditForm.bookPublisher" placeholder="请输入出版社" />
+          <el-form-item :label="$t('publish.publisher')">
+            <el-input v-model="boardEditForm.bookPublisher" :placeholder="$t('publish.placeholderPublisher')" />
           </el-form-item>
-          <el-form-item label="版本号">
-            <el-input v-model="boardEditForm.edition" placeholder="如：第3版" />
+          <el-form-item :label="$t('publish.edition')">
+            <el-input v-model="boardEditForm.edition" :placeholder="$t('publish.editionPlaceholder')" />
           </el-form-item>
           <el-form-item label="ISBN">
-            <el-input v-model="boardEditForm.isbn" placeholder="请输入ISBN" />
+            <el-input v-model="boardEditForm.isbn" :placeholder="$t('admin.isbnPlaceholder')" />
           </el-form-item>
-          <el-form-item label="原价（元）">
+          <el-form-item :label="$t('admin.originalPrice')">
             <el-input-number v-model="boardEditForm.originalPrice" :min="0" :precision="2" style="width: 100%" />
           </el-form-item>
         </div>
       </el-form>
       <template #footer>
-        <el-button @click="showBoardEditDialog = false">取消</el-button>
-        <el-button type="primary" :loading="boardSaving" @click="submitBoardEdit">保存修改</el-button>
+        <el-button @click="showBoardEditDialog = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="boardSaving" @click="submitBoardEdit">{{ $t('common.save') }}</el-button>
       </template>
     </el-dialog>
    </div>
 </template>
 
-<script setup>
+<script setup>import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
+
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -379,20 +380,20 @@ const activeSection = ref('dashboard')
 const stats = ref(null)
 
 const statCards = computed(() => [
-  { label: '用户总数', value: stats.value?.userCount ?? '-', icon: User, color: 'linear-gradient(135deg,#5c6bc0,#3949ab)' },
-  { label: '在售商品', value: stats.value?.productCount ?? '-', icon: Reading, color: 'linear-gradient(135deg,#26a69a,#00897b)' },
-  { label: '订单总数', value: stats.value?.orderCount ?? '-', icon: DataBoard, color: 'linear-gradient(135deg,#ec407a,#d81b60)' },
-  { label: '热点帖子', value: stats.value?.hotspotCount ?? '-', icon: ChatDotRound, color: 'linear-gradient(135deg,#ffa726,#fb8c00)' },
-  { label: '已封禁用户', value: stats.value?.bannedCount ?? '-', icon: Bell, color: 'linear-gradient(135deg,#ef5350,#e53935)' }
+  { label: t('admin.statUsers'), value: stats.value?.userCount ?? '-', icon: User, color: 'linear-gradient(135deg,#5c6bc0,#3949ab)' },
+  { label: t('admin.statProducts'), value: stats.value?.productCount ?? '-', icon: Reading, color: 'linear-gradient(135deg,#26a69a,#00897b)' },
+  { label: t('admin.statOrders'), value: stats.value?.orderCount ?? '-', icon: DataBoard, color: 'linear-gradient(135deg,#ec407a,#d81b60)' },
+  { label: t('admin.statHotspots'), value: stats.value?.hotspotCount ?? '-', icon: ChatDotRound, color: 'linear-gradient(135deg,#ffa726,#fb8c00)' },
+  { label: t('admin.statBanned'), value: stats.value?.bannedCount ?? '-', icon: Bell, color: 'linear-gradient(135deg,#ef5350,#e53935)' }
 ])
 
 const sectionTitle = computed(() => ({
-  dashboard: '数据概览',
-  posts: '帖子管理',
-  notifications: '通知管理',
-  books: '新书上架',
-  boards: '板块管理',
-  users: '用户管理'
+  dashboard: t('admin.dashboard'),
+  posts: t('admin.posts'),
+  notifications: t('admin.notifications'),
+  books: t('admin.books'),
+  boards: t('admin.boards'),
+  users: t('admin.users')
 }[activeSection.value]))
 
 async function loadStats() {
@@ -413,15 +414,15 @@ async function loadPosts() {
 async function movePost(row, direction) {
   try {
     await hotspotApi.move(row.id, direction)
-    ElMessage.success('顺序已调整')
+    ElMessage.success(t('admin.orderAdjusted'))
     loadPosts()
   } catch {}
 }
 async function removePost(row) {
   try {
-    await ElMessageBox.confirm(`确定删除帖子「${row.title}」？`, '提示', { type: 'warning' })
+    await ElMessageBox.confirm(t('admin.deletePostConfirm', { name: row.title }), t('common.hint'), { type: 'warning' })
     await hotspotApi.remove(row.id)
-    ElMessage.success('已删除')
+    ElMessage.success(t('common.deleted'))
     loadPosts()
   } catch {}
 }
@@ -443,9 +444,9 @@ async function loadBoards() {
 }
 async function deleteBoard(row) {
   try {
-    await ElMessageBox.confirm(`确定删除板块「${row.bookTitle}」？将同时删除该板块下所有商品！`, '警告', { type: 'warning' })
+    await ElMessageBox.confirm(t('admin.deleteBoardConfirm', { name: row.bookTitle }), t('common.warning'), { type: 'warning' })
     await adminApi.deleteBoard(row.id)
-    ElMessage.success('板块已删除')
+    ElMessage.success(t('admin.boardDeleted'))
     loadBoards()
   } catch {}
 }
@@ -455,10 +456,10 @@ async function uploadCover(row, opt) {
     const fd = new FormData()
     fd.append('cover', opt.file)
     const res = await adminApi.updateBoardCover(row.id, fd)
-    ElMessage.success('封面已更新')
+    ElMessage.success(t('admin.coverUpdated'))
     loadBoards()
   } catch {
-    ElMessage.error('上传失败')
+    ElMessage.error(t('common.uploadFail'))
   }
 }
 
@@ -470,12 +471,12 @@ const userOptions = ref([])
 
 async function broadcast() {
   if (!broadcastContent.value) {
-    ElMessage.warning('请输入通知内容')
+    ElMessage.warning(t('admin.needNotifContent'))
     return
   }
   try {
     await notificationApi.broadcast(broadcastContent.value)
-    ElMessage.success('广播已发送')
+    ElMessage.success(t('admin.broadcastSent'))
     broadcastContent.value = ''
   } catch {}
 }
@@ -487,12 +488,12 @@ async function loadUsersForSelect() {
 }
 async function sendSingle() {
   if (!singleUserId.value || !singleContent.value) {
-    ElMessage.warning('请选择用户并填写内容')
+    ElMessage.warning(t('admin.needSelectUser'))
     return
   }
   try {
     await notificationApi.sendToOne(singleUserId.value, singleContent.value)
-    ElMessage.success('通知已发送')
+    ElMessage.success(t('admin.notifSent'))
     singleContent.value = ''
     loadNotifList()
   } catch {}
@@ -507,9 +508,9 @@ async function loadNotifList() {
 }
 async function deleteNotif(row) {
   try {
-    await ElMessageBox.confirm('确定删除这条通知吗？将删除所有用户收到的该通知。', '警告', { type: 'warning' })
+    await ElMessageBox.confirm(t('admin.deleteNotifConfirm'), t('common.warning'), { type: 'warning' })
     await adminApi.deleteNotification(row.id)
-    ElMessage.success('通知已删除')
+    ElMessage.success(t('admin.notifDeleted'))
     loadNotifList()
   } catch {}
 }
@@ -528,7 +529,7 @@ function onBookImagesChange(file, files) {
 }
 async function submitBook() {
   if (!bookForm.bookTitle || !bookForm.bookAuthor || bookForm.price == null) {
-    ElMessage.warning('请填写书名、作者和建议价格')
+    ElMessage.warning(t('admin.needBookFields'))
     return
   }
   bookSubmitting.value = true
@@ -537,7 +538,7 @@ async function submitBook() {
     Object.entries(bookForm).forEach(([k, v]) => fd.append(k, v ?? ''))
     bookImages.value.forEach((img) => fd.append('images', img))
     await adminApi.createBook(fd)
-    ElMessage.success('新书上架成功')
+    ElMessage.success(t('admin.bookAdded'))
     Object.assign(bookForm, { bookTitle: '', bookAuthor: '', bookPublisher: '', edition: '', isbn: '', category: '教材', price: null, originalPrice: null, description: '' })
     bookFileList.value = []
     bookImages.value = []
@@ -564,18 +565,18 @@ async function loadUsers() {
 async function toggleBan(row) {
   const ban = row.status !== 'banned'
   try {
-    await ElMessageBox.confirm(ban ? `确定封禁用户「${row.nickname}」？` : `确定解封「${row.nickname}」？`, '提示', { type: 'warning' })
+    await ElMessageBox.confirm(ban ? t('admin.banConfirm', { name: row.nickname }) : t('admin.unbanConfirm', { name: row.nickname }), t('common.hint'), { type: 'warning' })
     await adminApi.updateUser(row.id, { status: ban ? 'banned' : 'active' })
-    ElMessage.success(ban ? '已封禁' : '已解封')
+    ElMessage.success(ban ? t('common.banned') : t('admin.unbanned'))
     loadUsers()
   } catch {}
 }
 async function toggleRole(row) {
   const makeAdmin = row.role !== 'admin'
   try {
-    await ElMessageBox.confirm(makeAdmin ? `确定将「${row.nickname}」设为管理员？` : `确定取消「${row.nickname}」的管理员身份？`, '提示', { type: 'warning' })
+    await ElMessageBox.confirm(makeAdmin ? t('admin.makeAdminConfirm', { name: row.nickname }) : t('admin.unmakeAdminConfirm', { name: row.nickname }), t('common.hint'), { type: 'warning' })
     await adminApi.updateUser(row.id, { role: makeAdmin ? 'admin' : 'user' })
-    ElMessage.success('操作成功')
+    ElMessage.success(t('common.success'))
     if (row.id === userStore.userInfo?.id) {
       userStore.userInfo.role = makeAdmin ? 'admin' : 'user'
     }
@@ -587,23 +588,23 @@ const showUserNoDialog = ref(false)
 const userNoForm = ref({ id: null, nickname: '', oldNo: '', newNo: '' })
 
 function openUserNoDialog(row) {
-  userNoForm.value = { id: row.id, nickname: row.nickname, oldNo: row.userNo || '未分配', newNo: row.userNo || '' }
+  userNoForm.value = { id: row.id, nickname: row.nickname, oldNo: row.userNo || t('common.unassigned'), newNo: row.userNo || '' }
   showUserNoDialog.value = true
 }
 
 async function submitUserNo() {
   const { id, newNo, oldNo } = userNoForm.value
   if (!newNo || !/^\d{8}$/.test(newNo)) {
-    ElMessage.warning('ID必须为8位数字')
+    ElMessage.warning(t('admin.id8Digits'))
     return
   }
   if (newNo === oldNo) {
-    ElMessage.warning('新ID与原ID相同')
+    ElMessage.warning(t('admin.idSame'))
     return
   }
   try {
     await adminApi.updateUserNo(id, newNo)
-    ElMessage.success('ID修改成功，已通知用户')
+    ElMessage.success(t('admin.idChanged'))
     showUserNoDialog.value = false
     loadUsers()
   } catch {}
@@ -629,7 +630,7 @@ function openBoardEdit(row) {
 async function submitBoardEdit() {
   const f = boardEditForm.value
   if (!f.bookTitle.trim()) {
-    ElMessage.warning('书名不能为空')
+    ElMessage.warning(t('admin.needBoardTitle'))
     return
   }
   boardSaving.value = true
@@ -642,7 +643,7 @@ async function submitBoardEdit() {
       isbn: f.isbn,
       originalPrice: f.originalPrice
     })
-    ElMessage.success('板块信息已更新')
+    ElMessage.success(t('admin.boardUpdated'))
     showBoardEditDialog.value = false
     loadBoards()
   } catch {} finally {

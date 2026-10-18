@@ -12,17 +12,17 @@
           <div class="hero-info">
             <h1 class="hero-title">{{ book.bookTitle }}</h1>
             <div class="hero-meta">
-              <span v-if="book.bookAuthor">作者：{{ book.bookAuthor }}</span>
-              <span v-if="book.edition">版本：{{ book.edition }}</span>
-              <span v-if="book.bookPublisher">出版社：{{ book.bookPublisher }}</span>
+              <span v-if="book.bookAuthor">{{ $t('bookdetail.authorPrefix') }}{{ book.bookAuthor }}</span>
+              <span v-if="book.edition">{{ $t('bookdetail.editionPrefix') }}{{ book.edition }}</span>
+              <span v-if="book.bookPublisher">{{ $t('bookdetail.publisherPrefix') }}{{ book.bookPublisher }}</span>
               <span v-if="book.isbn">ISBN：{{ book.isbn }}</span>
             </div>
             <div class="hero-original" v-if="book.originalPrice">
-              定价 ¥{{ book.originalPrice }}
+              {{ $t('bookdetail.pricePrefix') }}{{ book.originalPrice }}
             </div>
             <div class="hero-actions">
               <el-button :type="favorited ? 'warning' : 'default'" round size="small" @click="toggleFavorite">
-                {{ favorited ? '★ 已收藏' : '☆ 收藏板块' }}
+                {{ favorited ? '★ ' + $t('common.favorited') : '☆ ' + $t('common.favBoard') }}
               </el-button>
             </div>
           </div>
@@ -31,17 +31,15 @@
 
       <div class="sellers-section">
         <div class="sellers-header">
-          <h2 class="sellers-title">在售 ({{ sellers.length }} 个卖家)</h2>
+          <h2 class="sellers-title">{{ $t('bookdetail.sellersPrefix') }}{{ sellers.length }}{{ $t('bookdetail.sellersSuffix') }}</h2>
           <div class="sort-tabs">
             <button class="sort-tab" :class="{ active: sortType === 'price' }" @click="toggleSort('price')">
-              价格 {{ sortType === 'price' ? (sortAsc ? '↑' : '↓') : '' }}
+              {{ $t('bookdetail.sortPrice') }} {{ sortType === 'price' ? (sortAsc ? '↑' : '↓') : '' }}
             </button>
             <button class="sort-tab" :class="{ active: sortType === 'time' }" @click="toggleSort('time')">
-              上架时间 {{ sortType === 'time' ? (sortAsc ? '↑' : '↓') : '' }}
+              {{ $t('bookdetail.sortTime') }} {{ sortType === 'time' ? (sortAsc ? '↑' : '↓') : '' }}
             </button>
-            <button class="sort-tab" :class="{ active: sortType === 'delivery' }" @click="sortByDelivery">
-              可配送
-            </button>
+            <button class="sort-tab" :class="{ active: sortType === 'delivery' }" @click="sortByDelivery">{{ $t('common.deliverable') }}</button>
           </div>
         </div>
 
@@ -52,7 +50,7 @@
               <div class="seller-tags">
                 <span class="tag condition">{{ seller.condition }}</span>
                 <span class="tag" :class="seller.delivery ? 'delivery-yes' : 'delivery-no'">
-                  {{ seller.delivery ? '可配送' : '仅自提' }}
+                  {{ seller.delivery ? t('common.deliverable') : t('common.pickupOnly') }}
                 </span>
               </div>
             </div>
@@ -64,18 +62,20 @@
               <div class="seller-time">{{ formatTime(seller.createdAt) }}</div>
             </div>
             <div class="seller-actions">
-              <el-button type="success" size="small" round @click.stop="addToCart(seller)">加入购物车</el-button>
-              <el-button v-if="seller.sellerId !== userStore.userInfo?.id" type="primary" size="small" round @click.stop="contactSeller(seller)">联系卖家</el-button>
+              <el-button type="success" size="small" round @click.stop="addToCart(seller)">{{ $t('common.addCart') }}</el-button>
+              <el-button v-if="seller.sellerId !== userStore.userInfo?.id" type="primary" size="small" round @click.stop="contactSeller(seller)">{{ $t('common.contactSeller') }}</el-button>
             </div>
           </div>
         </div>
-        <el-empty v-else description="暂无卖家" />
+        <el-empty v-else :description="$t('common.noSellers')" />
       </div>
     </template>
   </div>
 </template>
 
-<script setup>
+<script setup>import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
+
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -140,7 +140,7 @@ async function toggleFavorite() {
 async function addToCart(seller) {
   try {
     await cartApi.add(seller.id)
-    ElMessage.success('已加入购物车')
+    ElMessage.success(t('common.addedCart'))
   } catch {}
 }
 
@@ -166,9 +166,9 @@ function formatTime(time) {
   const d = new Date(time)
   const now = new Date()
   const diff = now - d
-  if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`
-  return `${d.getMonth() + 1}月${d.getDate()}日`
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}${t('common.minutesAgo')}`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}${t('common.hoursAgo')}`
+  return t('common.monthDay', { m: d.getMonth() + 1, d: d.getDate() })
 }
 
 async function contactSeller(seller) {
@@ -178,10 +178,10 @@ async function contactSeller(seller) {
   }
   try {
     const res = await conversationApi.start(seller.sellerId, seller.id)
-    ElMessage.success('已创建对话，请前往「对话」查看')
+    ElMessage.success(t('common.convCreated'))
     router.push('/chat')
   } catch {
-    ElMessage.error('创建对话失败')
+    ElMessage.error(t('common.convCreateFail'))
   }
 }
 

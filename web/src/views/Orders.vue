@@ -1,16 +1,16 @@
 <template>
   <div class="orders-page">
-    <h2 class="page-title">我的订单</h2>
+    <h2 class="page-title">{{ $t('orders.title') }}</h2>
     <el-tabs v-model="role" @tab-change="loadOrders">
-      <el-tab-pane label="我买的" name="buyer" />
-      <el-tab-pane label="我卖的" name="seller" />
+      <el-tab-pane :label="$t('orders.buyerTab')" name="buyer" />
+      <el-tab-pane :label="$t('orders.sellerTab')" name="seller" />
     </el-tabs>
     <div v-loading="loading">
       <div v-if="orders.length" class="order-list">
         <div v-for="order in orders" :key="order.id" class="order-card">
           <div class="order-header">
-            <span class="order-id">订单号：{{ order.id }}</span>
-            <span class="order-status" :class="order.status">{{ statusMap[order.status] }}</span>
+            <span class="order-id">{{ $t('orders.idPrefix') }}{{ order.id }}</span>
+            <span class="order-status" :class="order.status">{{ t(statusMap[order.status]) }}</span>
           </div>
           <div class="order-items">
             <div v-for="item in order.items" :key="item.id" class="order-item">
@@ -22,23 +22,25 @@
             </div>
           </div>
           <div class="order-footer">
-            <span class="order-total">合计：¥{{ order.totalPrice }}</span>
+            <span class="order-total">{{ $t('common.total') }}¥{{ order.totalPrice }}</span>
             <div class="order-actions" v-if="role === 'seller' && order.status === 'pending'">
-              <el-button type="primary" size="small" @click="updateStatus(order.id, 'confirmed')">确认</el-button>
-              <el-button size="small" @click="updateStatus(order.id, 'cancelled')">取消</el-button>
+              <el-button type="primary" size="small" @click="updateStatus(order.id, 'confirmed')">{{ $t('common.confirm') }}</el-button>
+              <el-button size="small" @click="updateStatus(order.id, 'cancelled')">{{ $t('common.cancel') }}</el-button>
             </div>
             <div class="order-actions" v-if="role === 'buyer' && order.status === 'confirmed'">
-              <el-button type="primary" size="small" @click="updateStatus(order.id, 'completed')">确认收货</el-button>
+              <el-button type="primary" size="small" @click="updateStatus(order.id, 'completed')">{{ $t('common.confirmReceive') }}</el-button>
             </div>
           </div>
         </div>
       </div>
-      <el-empty v-else description="暂无订单" />
+      <el-empty v-else :description="$t('orders.empty')" />
     </div>
   </div>
 </template>
 
-<script setup>
+<script setup>import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
+
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { orderApi } from '@/api'
@@ -46,7 +48,7 @@ import { orderApi } from '@/api'
 const role = ref('buyer')
 const orders = ref([])
 const loading = ref(false)
-const statusMap = { pending: '待确认', confirmed: '已确认', completed: '已完成', cancelled: '已取消' }
+const statusMap = { pending: 'common.orderPending', confirmed: 'common.orderConfirmed', completed: 'common.orderCompleted', cancelled: 'common.orderCancelled' }
 
 async function loadOrders() {
   loading.value = true
@@ -60,7 +62,7 @@ async function loadOrders() {
 
 async function updateStatus(id, status) {
   await orderApi.updateStatus(id, status)
-  ElMessage.success('操作成功')
+  ElMessage.success(t('common.success'))
   loadOrders()
 }
 

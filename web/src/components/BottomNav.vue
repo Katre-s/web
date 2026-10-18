@@ -2,19 +2,19 @@
   <nav class="bottom-nav">
     <router-link to="/" class="nav-tab" :class="{ active: isActive('/') }">
       <el-icon><HomeFilled /></el-icon>
-      <span>首页</span>
+      <span>{{ $t('tabbar.home') }}</span>
     </router-link>
     <router-link to="/trade" class="nav-tab" :class="{ active: isActive('/trade') }">
       <el-icon><ShoppingBag /></el-icon>
-      <span>交易</span>
+      <span>{{ $t('tabbar.trade') }}</span>
     </router-link>
     <router-link to="/chat" class="nav-tab" :class="{ active: isActive('/chat') }">
       <el-icon><ChatDotRound /></el-icon>
-      <span>对话</span>
+      <span>{{ $t('tabbar.chat') }}</span>
     </router-link>
     <router-link to="/profile" class="nav-tab" :class="{ active: isActive('/profile') }">
       <el-icon><User /></el-icon>
-      <span>我的</span>
+      <span>{{ $t('tabbar.mine') }}</span>
     </router-link>
   </nav>
 </template>
