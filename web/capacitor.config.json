@@ -2,11 +2,7 @@
   "appId": "com.wenheng.campus",
   "appName": "文衡",
   "webDir": "dist",
-  "server": {
-    "url": "http://121.40.219.139",
-    "cleartext": true,
-    "androidScheme": "http"
-  },
+
   "android": {
     "allowMixedContent": true,
     "adjustMarginsForEdgeToEdge": "auto"
