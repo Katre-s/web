@@ -1,11 +1,11 @@
 <template>
   <div id="layout">
-    <NavBar v-if="!isLoginPage" />
-    <main class="main-content" :class="{ 'no-nav': isLoginPage }">
+    <NavBar v-if="!isAuthPage" />
+    <main class="main-content" :class="{ 'no-nav': isAuthPage }">
       <router-view />
     </main>
-    <TabBar v-if="!isLoginPage" />
-    <AiFloat v-if="!isLoginPage" />
+    <TabBar v-if="!isAuthPage" />
+    <AiFloat v-if="!isAuthPage" />
   </div>
 </template>
 
@@ -17,7 +17,7 @@ import TabBar from '@/components/TabBar.vue'
 import AiFloat from '@/components/AiFloat.vue'
 
 const route = useRoute()
-const isLoginPage = computed(() => route.path === '/login')
+const isAuthPage = computed(() => route.path === '/login' || route.path === '/forgot-password')
 </script>
 
 <style scoped>
