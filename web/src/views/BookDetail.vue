@@ -2,10 +2,10 @@
   <div class="book-detail-page" v-loading="loading">
     <template v-if="book">
       <div class="book-hero">
-        <img v-if="book.bookCover" :src="book.bookCover" class="hero-bg" @error="book.bookCover = ''" />
+        <img v-if="coverUrl" :src="coverUrl" class="hero-bg" @error="book.bookCover = ''" />
         <div class="hero-overlay"></div>
         <div class="hero-content">
-          <img v-if="book.bookCover" :src="book.bookCover" class="hero-cover" @error="book.bookCover = ''" />
+          <img v-if="coverUrl" :src="coverUrl" class="hero-cover" @error="book.bookCover = ''" />
           <div v-else class="hero-cover placeholder">
             <el-icon><Notebook /></el-icon>
           </div>
@@ -78,10 +78,11 @@ const { t } = useI18n()
 
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index'
 import { Notebook, Location } from '@element-plus/icons-vue'
 import { booksApi, conversationApi, cartApi, bookFavoriteApi } from '@/api'
 import { useUserStore } from '@/stores/user'
+import { resolveImg } from '@/utils/image'
 
 const route = useRoute()
 const router = useRouter()
@@ -93,6 +94,9 @@ const loading = ref(false)
 const sortType = ref('time')
 const sortAsc = ref(false)
 const favorited = ref(false)
+
+// 封面统一走 resolveImg：手机壳内需要绝对地址，Web 端走同源相对路径
+const coverUrl = computed(() => resolveImg(book.value?.bookCover))
 
 const sortedSellers = computed(() => {
   const list = [...sellers.value]
@@ -176,10 +180,15 @@ async function contactSeller(seller) {
     router.push({ name: 'Login', query: { redirect: route.fullPath } })
     return
   }
+  if (!seller?.sellerId) {
+    ElMessage.warning(t('common.convCreateFail'))
+    return
+  }
   try {
     const res = await conversationApi.start(seller.sellerId, seller.id)
+    const convId = res?.data?.conversationId
     ElMessage.success(t('common.convCreated'))
-    router.push('/chat')
+    router.push(convId ? { name: 'Chat', query: { conv: String(convId) } } : '/chat')
   } catch {
     ElMessage.error(t('common.convCreateFail'))
   }
@@ -307,6 +316,10 @@ onMounted(loadDetail)
 .seller-actions { flex-shrink: 0; display: flex; gap: 8px; }
 
 @media (max-width: 768px) {
+  /* 移动端 GPU 较弱，blur(24px) 大图背景会明显掉帧，直接隐藏只保留渐变 */
+  .hero-bg {
+    display: none;
+  }
   .book-hero {
     border-radius: 12px;
     margin-bottom: 18px;

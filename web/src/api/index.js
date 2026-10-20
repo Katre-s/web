@@ -96,7 +96,9 @@ export const adminApi = {
   deleteBoard: (id) => request.delete(`/admin/boards/${id}`),
   updateBoardCover: (id, formData) => request.post(`/admin/boards/${id}/cover`, formData),
   listNotifications: () => request.get('/admin/notifications'),
-  deleteNotification: (id) => request.delete(`/admin/notifications/${id}`)
+  deleteNotification: (id) => request.delete(`/admin/notifications/${id}`),
+  listWishlists: (params) => request.get('/admin/wishlists', { params }),
+  deleteWishlist: (id) => request.delete(`/admin/wishlists/${id}`)
 }
 
 export const conversationApi = {

@@ -85,7 +85,7 @@
     <!-- 识别筛选视图: 从扫码"去看看"跳入, 基于识别结果的简略筛选 -->
     <div class="scan-result-view" v-if="scanView">
       <div class="scan-result-head">
-        <img v-if="scanView.cover" :src="scanView.cover" class="scan-result-cover" @error="scanView.cover = ''" />
+        <img v-if="scanView.cover" :src="resolveImg(scanView.cover)" class="scan-result-cover" @error="scanView.cover = ''" />
         <div v-else class="scan-result-cover-empty"><el-icon><Notebook /></el-icon></div>
         <div class="scan-result-info">
           <h3>{{ scanView.title || t('common.unknownBook') }}</h3>
@@ -105,7 +105,7 @@
       <div class="scan-guide">
         <div class="guide-step">{{ scanPhase === 'front' ? $t('common.scanStepFront') : $t('common.scanStepBack') }}</div>
         <div v-if="frontInfo?.cover" class="guide-front">
-          <img :src="frontInfo.cover" class="guide-cover" @error="frontInfo.cover = ''" />
+          <img :src="resolveImg(frontInfo.cover)" class="guide-cover" @error="frontInfo.cover = ''" />
           <p class="guide-ok">{{ $t('common.scanFrontOk') }}</p>
         </div>
         <p class="guide-tip" v-if="scanPhase === 'back'">{{ $t('common.scanBackTip') }}</p>
@@ -121,7 +121,7 @@
     <!-- 核对书籍信息(正面+背面两次识别合并后) -->
     <el-dialog v-model="confirmVisible" :title="$t('common.confirmTitle')" width="460px" :close-on-click-modal="false">
       <div class="scan-preview" v-if="scanBook">
-        <img v-if="scanBook.cover" :src="scanBook.cover" class="scan-cover" @error="scanBook.cover = ''" />
+        <img v-if="scanBook.cover" :src="resolveImg(scanBook.cover)" class="scan-cover" @error="scanBook.cover = ''" />
         <div class="scan-text scan-edit">
           <p><span class="lbl">{{ $t('common.bookName') }}</span><el-input v-model="scanBook.title" size="small" /></p>
           <p><span class="lbl">{{ $t('common.authorPrefix') }}</span><el-input v-model="scanBook.author" size="small" /></p>
@@ -146,7 +146,7 @@
     <!-- 扫码识别结果：询问是否加入求购 -->
     <el-dialog v-model="scanDialogVisible" :title="$t('trade.scanResultTitle')" width="420px" :close-on-click-modal="false">
       <div class="scan-preview" v-if="scanBook">
-        <img v-if="scanBook.cover" :src="scanBook.cover" class="scan-cover" @error="scanBook.cover = ''" />
+        <img v-if="scanBook.cover" :src="resolveImg(scanBook.cover)" class="scan-cover" @error="scanBook.cover = ''" />
         <div class="scan-text">
           <h3>{{ scanBook.title }}</h3>
           <p v-if="scanBook.author">{{ $t('common.authorPrefix') }}{{ scanBook.author }}</p>
@@ -170,7 +170,7 @@
           @click="goDetail(book)"
         >
           <div class="book-cover-wrap">
-            <img v-if="book.bookCover" :src="book.bookCover" class="book-cover" @error="book.bookCover = ''" />
+            <img v-if="book.bookCover" :src="resolveImg(book.bookCover)" class="book-cover" @error="book.bookCover = ''" />
             <div v-else class="book-cover-placeholder">
               <el-icon><Notebook /></el-icon>
             </div>
@@ -192,7 +192,7 @@
       <div class="wish-grid" v-if="tab === 'buy' && wishes.length">
         <div v-for="w in wishes" :key="w.id" class="wish-card" @click="goWish(w)">
           <div class="wish-cover-wrap">
-            <img v-if="w.book?.bookCover || w.cover" :src="w.book?.bookCover || w.cover" class="wish-cover" @error="w.book && (w.book.bookCover = ''); w.cover = ''" />
+            <img v-if="w.book?.bookCover || w.cover" :src="resolveImg(w.book?.bookCover || w.cover)" class="wish-cover" @error="w.book && (w.book.bookCover = ''); w.cover = ''" />
             <div v-else class="wish-cover-placeholder">
               <el-icon><Notebook /></el-icon>
             </div>
@@ -225,9 +225,10 @@ const { t } = useI18n()
 
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index'
 import { Search, Plus, UploadFilled, Notebook, Document, Camera, Loading, ShoppingCart, ChatDotRound, Filter, Close } from '@element-plus/icons-vue'
 import { booksApi, bookApi, wishlistApi, conversationApi } from '@/api'
+import { resolveImg } from '@/utils/image'
 
 const router = useRouter()
 const route = useRoute()
@@ -335,10 +336,15 @@ function goWish(w) {
 }
 
 async function contactWisher(w) {
+  if (!w.user?.id) {
+    ElMessage.warning(t('trade.contactFail'))
+    return
+  }
   try {
-    await conversationApi.start(w.user.id, w.book?.id || null)
+    const res = await conversationApi.start(w.user.id, w.book?.id || null)
+    const convId = res?.data?.conversationId
     ElMessage.success({ message: t('trade.contactStarted'), duration: 2000 })
-    router.push('/chat')
+    router.push(convId ? { name: 'Chat', query: { conv: String(convId) } } : '/chat')
   } catch (err) {
     ElMessage.warning(err?.response?.data?.message || t('trade.contactFail'))
   }

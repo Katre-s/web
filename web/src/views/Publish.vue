@@ -17,7 +17,7 @@
       <div class="scan-guide">
         <div class="guide-step">{{ scanPhase === 'front' ? $t('common.scanStepFront') : $t('common.scanStepBack') }}</div>
         <div v-if="frontInfo?.cover" class="guide-front">
-          <img :src="frontInfo.cover" class="guide-cover" @error="frontInfo.cover = ''" />
+          <img :src="resolveImg(frontInfo.cover)" class="guide-cover" @error="frontInfo.cover = ''" />
           <p class="guide-ok">{{ $t('common.scanFrontOk') }}</p>
         </div>
         <p class="guide-tip" v-if="scanPhase === 'back'">{{ $t('common.scanBackTip') }}</p>
@@ -34,7 +34,7 @@
     <el-dialog v-model="confirmVisible" :title="$t('common.confirmTitle')" width="470px" :close-on-click-modal="false">
       <div class="confirm-preview">
         <div class="cover-box">
-          <img v-if="scanBook?.cover" :src="scanBook.cover" class="scan-cover" @error="scanBook.cover = ''" />
+          <img v-if="scanBook?.cover" :src="resolveImg(scanBook.cover)" class="scan-cover" @error="scanBook.cover = ''" />
           <div v-else class="cover-empty"><el-icon><Notebook /></el-icon></div>
           <el-button size="small" class="change-cover-btn" @click="coverInput?.click()">{{ $t('common.changeCover') }}</el-button>
           <input ref="coverInput" type="file" accept="image/*" style="display: none" @change="onCoverFile" />
@@ -61,7 +61,7 @@
     <!-- 识别后设置价格弹窗 -->
     <el-dialog v-model="priceDialogVisible" :title="$t('publish.priceDialogTitle')" width="440px" :close-on-click-modal="false">
       <div class="scan-book-preview" v-if="scanBook">
-        <img v-if="scanBook.cover" :src="scanBook.cover" class="scan-cover" @error="scanBook.cover = ''" />
+        <img v-if="scanBook.cover" :src="resolveImg(scanBook.cover)" class="scan-cover" @error="scanBook.cover = ''" />
         <div class="scan-book-text">
           <h3>{{ scanBook.title }}</h3>
           <p v-if="scanBook.author">{{ $t('publish.authorPrefix') }}{{ scanBook.author }}</p>
@@ -100,7 +100,7 @@
 
     <el-form :model="form" label-position="top" class="publish-form">
       <div class="book-preview" v-if="bookInfo">
-        <img :src="bookInfo.cover" v-if="bookInfo.cover" class="book-cover" @error="bookInfo.cover = ''" />
+        <img :src="resolveImg(bookInfo.cover)" v-if="bookInfo.cover" class="book-cover" @error="bookInfo.cover = ''" />
         <div class="book-info-text">
           <h3>{{ form.bookTitle }}</h3>
           <p>{{ $t('publish.authorPrefix') }}{{ form.bookAuthor }}</p>
@@ -165,9 +165,10 @@ const { t } = useI18n()
 
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index'
 import { Plus, Notebook } from '@element-plus/icons-vue'
 import { bookApi, productApi } from '@/api'
+import { resolveImg } from '@/utils/image'
 
 const router = useRouter()
 const isbn = ref('')

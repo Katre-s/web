@@ -5,7 +5,7 @@
       <div v-if="cartItems.length" class="cart-list">
         <div v-for="item in cartItems" :key="item.id" class="cart-item">
           <el-checkbox v-model="item.selected" />
-          <img :src="getCover(item)" class="cart-img" />
+          <img :src="getCover(item)" class="cart-img" @error="imgFallback" />
           <div class="cart-info">
             <h4>{{ item.product.title || item.product.bookTitle }}</h4>
             <p class="cart-author" v-if="item.product.bookAuthor">{{ item.product.bookAuthor }}</p>
@@ -37,9 +37,10 @@ const { t } = useI18n()
 
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index'
 import { cartApi, orderApi, conversationApi } from '@/api'
 import { useUserStore } from '@/stores/user'
+import { resolveImg, imgFallback } from '@/utils/image'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -47,19 +48,29 @@ const cartItems = ref([])
 const loading = ref(false)
 const contactingAll = ref(false)
 
-const selectedItems = computed(() => cartItems.value.filter((i) => i.selected))
-const totalPrice = computed(() => selectedItems.value.reduce((sum, i) => sum + Number(i.product.price), 0).toFixed(2))
+// 过滤掉商品已下架/被删除的脏数据，避免模板里 item.product.xxx 直接报错
+const selectedItems = computed(() => cartItems.value.filter((i) => i.selected && i.product))
+const totalPrice = computed(() => selectedItems.value.reduce((sum, i) => sum + Number(i.product?.price || 0), 0).toFixed(2))
 const selectAll = ref(false)
 
 function getCover(item) {
-  return item.product.cover || item.product.bookCover || item.product.images?.[0]?.imagePath || ''
+  const p = item?.product
+  if (!p) return ''
+  return resolveImg(p.cover || p.bookCover || p.images?.[0]?.imagePath)
 }
 
 async function loadCart() {
   loading.value = true
   try {
     const res = await cartApi.list()
-    cartItems.value = (res.data || res || []).map((i) => ({ ...i, selected: false }))
+    const list = res.data ?? res ?? []
+    // 后端已过滤孤儿条目，这里再兜一层，保证渲染永远不会拿到 product=null
+    cartItems.value = (Array.isArray(list) ? list : [])
+      .filter((i) => i && i.product)
+      .map((i) => ({ ...i, selected: false }))
+  } catch (err) {
+    cartItems.value = []
+    ElMessage.error(err?.response?.data?.message || t('cart.fetchFail'))
   } finally {
     loading.value = false
   }
@@ -85,10 +96,14 @@ async function checkout() {
 async function contactSeller(item) {
   if (!item.product.seller) return
   try {
-    await conversationApi.start(item.product.seller.id, item.product.id)
+    const res = await conversationApi.start(item.product.seller.id, item.product.id)
     ElMessage.success(t('common.convCreated'))
-    router.push('/chat')
+    goChat(res?.data?.conversationId)
   } catch {}
+}
+
+function goChat(conversationId) {
+  router.push(conversationId ? { name: 'Chat', query: { conv: String(conversationId) } } : '/chat')
 }
 
 async function contactAllSellers() {
@@ -106,16 +121,18 @@ async function contactAllSellers() {
   }
   contactingAll.value = true
   let success = 0
+  let firstConvId = null
   for (const [, info] of sellerMap) {
     try {
-      await conversationApi.start(info.sellerId, info.productId)
+      const res = await conversationApi.start(info.sellerId, info.productId)
+      if (!firstConvId) firstConvId = res?.data?.conversationId
       success++
     } catch {}
   }
   contactingAll.value = false
   if (success) {
     ElMessage.success(t('cart.contacted', { n: success }))
-    router.push('/chat')
+    goChat(firstConvId)
   } else {
     ElMessage.warning(t('cart.contactFail'))
   }

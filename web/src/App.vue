@@ -45,4 +45,11 @@ const isAuthPage = computed(() => route.path === '/login' || route.path === '/fo
     padding: 0;
   }
 }
+/* 桌面/宽屏：放开内容宽度，电脑客户端 1440 宽下不显得两侧空荡 */
+@media (min-width: 1440px) {
+  .main-content {
+    max-width: 1380px;
+    padding: 24px 32px 40px;
+  }
+}
 </style>

@@ -11,7 +11,8 @@ export default {
     cart: 'Cart',
     profile: 'Profile',
     admin: 'Admin',
-    logout: 'Logout'
+    logout: 'Logout',
+    notifications: 'Notifications'
   },
   tabbar: {
     home: 'Home',
@@ -19,7 +20,8 @@ export default {
     publish: 'Sell',
     chat: 'Chat',
     ai: 'AI',
-    mine: 'Mine'
+    mine: 'Mine',
+    menu: 'Menu'
   },
   ai: {
     pageTitle: '🤖 Wenheng AI Assistant',
@@ -236,6 +238,7 @@ export default {
     contactWisher: 'Contact',
     contactStarted: 'Conversation started, waiting for reply',
     contactFail: 'Failed to start conversation',
+    contactSelf: 'You cannot chat with yourself',
     emptyWish: 'No wishlist yet. Scan or upload a book to start one',
     scanBook: 'Scan a book',
     scanResultTitle: 'Recognition Result',
@@ -319,6 +322,8 @@ export default {
     optional: 'Optional'
   },
   bookdetail: {
+    authorPrefix: 'Author: ',
+    publisherPrefix: 'Publisher: ',
     editionPrefix: 'Edition: ',
     pricePrefix: 'List Price ¥',
     sellersPrefix: 'On Sale (',
@@ -358,7 +363,8 @@ export default {
     checkedOut: 'Order placed',
     noContactable: 'No contactable sellers',
     contacted: 'Contacted {n} sellers. Check them in "Chat"',
-    contactFail: 'Failed to contact sellers'
+    contactFail: 'Failed to contact sellers',
+    fetchFail: 'Failed to load cart, please try again',
   },
   chat: {
     title: 'My Chats'
@@ -457,6 +463,16 @@ export default {
     idChanged: 'ID changed, user notified',
     needBoardTitle: 'Title cannot be empty',
     boardUpdated: 'Board info updated',
+    wishlist: 'Wanted Books',
+    wishlistManage: 'Wanted Book Management',
+    wishlistBook: 'Wanted Title',
+    wishlistUser: 'Requester',
+    wishlistTime: 'Created At',
+    wishlistSearchPlaceholder: 'Search title / author / ISBN',
+    wishlistEmpty: 'No wanted books',
+    wishlistDelete: 'Delete',
+    wishlistDeleteConfirm: 'Delete wanted book "{name}"? This cannot be undone.',
+    wishlistDeleted: 'Wanted book deleted',
     bookTitle: 'Title',
     edition: 'Edition',
     authorStar: 'Author *',

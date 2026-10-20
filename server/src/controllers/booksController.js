@@ -1,6 +1,81 @@
 import { Op } from 'sequelize'
+import { sequelize } from '../models/index.js'
 import { Product, ProductImage, User, Book } from '../models/index.js'
 import { success, fail } from '../utils/response.js'
+
+const { fn, col } = sequelize
+
+/**
+ * 批量统计「按 ISBN / 按书名」的在售数与最低价。
+ * 之前是逐本书 Product.findAll + count，书一多就是典型的 N+1（几十次往返 DB），
+ * 首页 / 交易页发卡主要来自这里。
+ */
+async function buildProductStats(books) {
+  const isbns = [...new Set(books.map((b) => b.isbn).filter(Boolean))]
+  const titles = [...new Set(books.map((b) => b.bookTitle).filter(Boolean))]
+  const byIsbn = new Map()
+  const byTitle = new Map()
+  const tasks = []
+
+  if (isbns.length) {
+    tasks.push(
+      Product.findAll({
+        attributes: ['isbn', [fn('COUNT', col('id')), 'cnt'], [fn('MIN', col('price')), 'minPrice']],
+        where: { isbn: isbns, status: 'available' },
+        group: ['isbn'],
+        raw: true
+      }).then((rows) => rows.forEach((r) => byIsbn.set(r.isbn, { count: Number(r.cnt), minPrice: Number(r.minPrice) })))
+    )
+  }
+  if (titles.length) {
+    tasks.push(
+      Product.findAll({
+        attributes: ['book_title', [fn('COUNT', col('id')), 'cnt'], [fn('MIN', col('price')), 'minPrice']],
+        where: { bookTitle: titles, status: 'available' },
+        group: ['book_title'],
+        raw: true
+      }).then((rows) => rows.forEach((r) => byTitle.set(r.book_title, { count: Number(r.cnt), minPrice: Number(r.minPrice) })))
+    )
+  }
+  await Promise.all(tasks)
+
+  // 板块自身没有封面时，用最新一个在售商品的封面兜底（同样批量取）
+  const needsCover = books.filter((b) => !b.bookCover)
+  const coverByIsbn = new Map()
+  const coverByTitle = new Map()
+  if (needsCover.length) {
+    const ncIsbns = needsCover.map((b) => b.isbn).filter(Boolean)
+    const ncTitles = needsCover.map((b) => b.bookTitle).filter(Boolean)
+    const ors = []
+    if (ncIsbns.length) ors.push({ isbn: ncIsbns })
+    if (ncTitles.length) ors.push({ bookTitle: ncTitles })
+    if (ors.length) {
+      const rows = await Product.findAll({
+        where: { status: 'available', [Op.or]: ors },
+        attributes: ['isbn', 'bookTitle', 'bookCover'],
+        order: [['created_at', 'DESC']],
+        raw: true
+      })
+      for (const r of rows) {
+        if (r.isbn && !coverByIsbn.has(r.isbn)) coverByIsbn.set(r.isbn, r.bookCover)
+        if (r.bookTitle && !coverByTitle.has(r.bookTitle)) coverByTitle.set(r.bookTitle, r.bookCover)
+      }
+    }
+  }
+
+  return (book) => {
+    const stat = (book.isbn && byIsbn.get(book.isbn)) || (book.bookTitle && byTitle.get(book.bookTitle)) || null
+    const cover = book.bookCover
+      || (book.isbn && coverByIsbn.get(book.isbn))
+      || (book.bookTitle && coverByTitle.get(book.bookTitle))
+      || ''
+    return {
+      sellerCount: stat ? stat.count : 0,
+      minPrice: stat ? stat.minPrice : 0,
+      cover
+    }
+  }
+}
 
 export async function listBooks(req, res, next) {
   try {
@@ -26,21 +101,19 @@ export async function listBooks(req, res, next) {
       const cleanIsbn = String(isbn).replace(/[-\s]/g, '')
       books = await Book.findAll({ where: { isbn: cleanIsbn } })
       if (books.length === 0) {
-        const prods = await Product.findAll({
+        const prod = await Product.findOne({
           where: { isbn: cleanIsbn, status: 'available' },
           order: [['created_at', 'DESC']]
         })
-        if (prods.length > 0) {
-          const p0 = prods[0]
+        if (prod) {
           books = [{
             id: null,
-            isbn: p0.isbn || cleanIsbn,
-            bookTitle: p0.bookTitle || p0.title || '未知书目',
-            bookAuthor: p0.bookAuthor || '',
-            bookPublisher: p0.bookPublisher || '',
-            edition: p0.edition || '',
-            bookCover: p0.bookCover || '',
-            __prods: prods
+            isbn: prod.isbn || cleanIsbn,
+            bookTitle: prod.bookTitle || prod.title || '未知书目',
+            bookAuthor: prod.bookAuthor || '',
+            bookPublisher: prod.bookPublisher || '',
+            edition: prod.edition || '',
+            bookCover: prod.bookCover || ''
           }]
         }
       }
@@ -48,50 +121,21 @@ export async function listBooks(req, res, next) {
       books = await Book.findAll({ where: bookWhere, order: [['id', 'DESC']] })
     }
 
-    let result = []
-    for (const b of books) {
-      const prodWhere = { status: 'available' }
-      if (b.isbn) {
-        prodWhere.isbn = b.isbn
-      } else {
-        prodWhere[Op.or] = [
-          { bookTitle: b.bookTitle },
-          { title: b.bookTitle }
-        ]
+    const statOf = await buildProductStats(books)
+    let result = books.map((b) => {
+      const stat = statOf(b)
+      return {
+        id: b.id,
+        isbn: b.isbn,
+        bookTitle: b.bookTitle,
+        bookAuthor: b.bookAuthor,
+        bookPublisher: b.bookPublisher,
+        edition: b.edition,
+        bookCover: stat.cover,
+        minPrice: stat.minPrice,
+        sellerCount: stat.sellerCount
       }
-
-      const products = b.__prods || await Product.findAll({
-        where: prodWhere,
-        attributes: ['id', 'price', 'bookCover'],
-        order: [['created_at', 'DESC']]
-      })
-
-      if (products.length === 0) {
-        result.push({
-          id: b.id,
-          isbn: b.isbn,
-          bookTitle: b.bookTitle,
-          bookAuthor: b.bookAuthor,
-          bookPublisher: b.bookPublisher,
-          edition: b.edition,
-          bookCover: b.bookCover,
-          minPrice: 0,
-          sellerCount: 0
-        })
-      } else {
-        result.push({
-          id: b.id,
-          isbn: b.isbn,
-          bookTitle: b.bookTitle,
-          bookAuthor: b.bookAuthor,
-          bookPublisher: b.bookPublisher,
-          edition: b.edition,
-          bookCover: b.bookCover || products[0].bookCover || '',
-          minPrice: Math.min(...products.map(p => Number(p.price))),
-          sellerCount: products.length
-        })
-      }
-    }
+    })
 
     // 价格区间过滤(基于最低售价)
     const lo = minPrice !== undefined && minPrice !== '' ? Number(minPrice) : NaN
@@ -170,47 +214,57 @@ export async function bookDetail(req, res, next) {
     success(res, { book, sellers })
   } catch (err) { next(err) }
 }
+
 export async function homeStats(req, res, next) {
   try {
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
+    const weekStart = new Date(todayStart)
+    weekStart.setDate(weekStart.getDate() - 6)
 
-    const [todayBoards, todayBooks] = await Promise.all([
+    const [todayBoards, todayBooks, allBooks] = await Promise.all([
       Book.count({ where: { created_at: { [Op.gte]: todayStart } } }),
-      Product.count({ where: { created_at: { [Op.gte]: todayStart } } })
+      Product.count({ where: { created_at: { [Op.gte]: todayStart } } }),
+      Book.findAll()
     ])
 
-    const allBooks = await Book.findAll()
-    const hotBoards = []
-    for (const b of allBooks) {
-      const prodWhere = { status: 'available' }
-      if (b.isbn) prodWhere.isbn = b.isbn
-      else prodWhere[Op.or] = [{ bookTitle: b.bookTitle }, { title: b.bookTitle }]
-      const count = await Product.count({ where: prodWhere })
-      hotBoards.push({
+    // 热榜：一次批量统计，替代逐本 Product.count
+    const statOf = await buildProductStats(allBooks)
+    const hotBoards = allBooks.map((b) => {
+      const stat = statOf(b)
+      return {
         id: b.id,
         isbn: b.isbn,
         bookTitle: b.bookTitle,
         bookAuthor: b.bookAuthor,
-        bookCover: b.bookCover,
-        sellerCount: count,
+        bookCover: stat.cover || b.bookCover,
+        sellerCount: stat.sellerCount,
         viewCount: b.viewCount || 0,
-        hotScore: (b.viewCount || 0) + count * 10
-      })
-    }
-    hotBoards.sort((a, b) => b.hotScore - a.hotScore)
+        hotScore: (b.viewCount || 0) + stat.sellerCount * 10
+      }
+    }).sort((a, b) => b.hotScore - a.hotScore)
+
+    // 近 7 日上架趋势：一条 GROUP BY 替代 7 次 count
+    const dayRows = await Product.findAll({
+      attributes: [[fn('DATE', col('created_at')), 'day'], [fn('COUNT', col('id')), 'cnt']],
+      where: { created_at: { [Op.gte]: weekStart } },
+      group: [fn('DATE', col('created_at'))],
+      raw: true
+    })
+    const dayMap = new Map(dayRows.map((r) => {
+      const key = r.day instanceof Date ? r.day.toISOString().slice(0, 10) : String(r.day)
+      return [key, Number(r.cnt)]
+    }))
 
     const chartData = []
     for (let i = 6; i >= 0; i--) {
-      const d = new Date()
+      const d = new Date(todayStart)
       d.setDate(d.getDate() - i)
-      d.setHours(0, 0, 0, 0)
-      const end = new Date(d)
-      end.setDate(end.getDate() + 1)
-      const cnt = await Product.count({ where: { created_at: { [Op.gte]: d, [Op.lt]: end } } })
+      const pad = (n) => String(n).padStart(2, '0')
+      const key = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
       chartData.push({
         date: `${d.getMonth() + 1}/${d.getDate()}`,
-        count: cnt
+        count: dayMap.get(key) || 0
       })
     }
 

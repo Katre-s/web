@@ -1,9 +1,10 @@
 <template>
   <header class="navbar">
     <div class="nav-inner">
+      <span class="brand-mobile">文衡</span>
       <div class="nav-left">
         <div class="avatar-box">
-          <img :src="userStore.userInfo?.avatar || defaultAvatar" class="avatar" />
+          <img :src="resolveImg(userStore.userInfo?.avatar) || defaultAvatar" class="avatar" />
         </div>
         <span class="username">{{ userStore.userInfo?.nickname || '同学' }}</span>
       </div>
@@ -106,6 +107,7 @@ import { useRouter } from 'vue-router'
 import { HomeFilled, ShoppingBag, ChatDotRound, User, Bell, Setting, ShoppingCart, MagicStick, CaretBottom } from '@element-plus/icons-vue'
 import { notificationApi } from '@/api'
 import { setLang, currentLang } from '@/i18n'
+import { resolveImg } from '@/utils/image'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -386,34 +388,39 @@ onMounted(loadNotifications)
 .mobile-only {
   display: none;
 }
+.brand-mobile {
+  display: none;
+}
+
+/* 宽屏/桌面客户端：导航与内容同宽 */
+@media (min-width: 1440px) {
+  .nav-inner {
+    max-width: 1380px;
+    padding: 0 32px;
+  }
+}
 
 @media (max-width: 768px) {
   .nav-inner {
     height: 54px;
     padding: 0 12px;
+    justify-content: center;
+  }
+  .nav-left {
+    display: none;
   }
   .nav-links {
     display: none;
   }
-  .nav-item.mini {
+  .nav-right {
     display: none;
   }
-  .username {
-    font-size: 14px;
-    max-width: 90px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .nav-right {
-    gap: 4px;
-  }
-  .mobile-only {
-    display: flex;
-  }
-  .logout-btn {
-    font-size: 13px;
-    padding: 6px 8px;
+  .brand-mobile {
+    display: block;
+    font-size: 18px;
+    font-weight: 700;
+    color: #0d2847;
+    letter-spacing: 2px;
   }
   .notif-panel {
     max-height: 60vh;

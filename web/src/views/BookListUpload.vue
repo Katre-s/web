@@ -76,7 +76,7 @@
 const { t } = useI18n()
 
 import { ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index'
 import { bookApi } from '@/api'
 
 const isbnText = ref('')

@@ -1,0 +1,70 @@
+{
+  "name": "wenheng-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "文衡 - 校园二手书籍交易平台 Windows 客户端",
+  "author": "文衡团队",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "smoke": "electron . --smoke-test",
+    "build:web": "npm --prefix ../web run build:desktop",
+    "prepare:electron": "node scripts/prepare-electron.js",
+    "pack": "npm run build:web && npm run prepare:electron && electron-builder --win --x64 -c.electronDist=.electron-dist",
+    "pack:dir": "npm run build:web && npm run prepare:electron && electron-builder --win --dir -c.electronDist=.electron-dist"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.wenheng.desktop",
+    "productName": "Wenheng",
+    "copyright": "Copyright © 2026 Wenheng",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../web/dist",
+        "to": "web"
+      }
+    ],
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "Wenheng-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "文衡",
+      "artifactName": "Wenheng-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Wenheng-Portable-${version}.${ext}"
+    }
+  }
+}

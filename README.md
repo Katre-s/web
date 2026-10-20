@@ -2,7 +2,7 @@
 
 > 文聚学府，百事通达 —— 学生 · 书友 · 校园交易平台
 
-一个面向校园场景的二手书交易全栈项目，包含 **Web 前端（Vue 3 + Vite）**、**后端 API（Express + MySQL）** 与 **Android App（Capacitor 内嵌打包）**，并深度集成 **AI 能力**（扫码识别书籍、AI 助手对话、OCR 书单导入）。
+一个面向校园场景的二手书交易全栈项目，包含 **Web 前端（Vue 3 + Vite）**、**后端 API（Express + MySQL）**、**Android App（Capacitor 内嵌打包）** 与 **Windows 桌面客户端（Electron）**，并深度集成 **AI 能力**（扫码识别书籍、AI 助手对话、OCR 书单导入）。
 
 在线地址：`http://121.40.219.139`（宝塔面板 + Nginx + PM2 部署）
 
@@ -79,8 +79,15 @@ campus-trade/
 │   ├── android/                # Capacitor Android 工程（gradle 构建 APK）
 │   ├── capacitor.config.json   # App 打包配置
 │   ├── .env.development        # 开发环境（VITE_API_BASE=/api，proxy 到远端）
-│   ├── .env.production         # 生产环境（Android 直连绝对地址）
+│   ├── .env.production         # 生产/网页构建（同源 /api + VITE_API_ORIGIN 给原生壳用）
+│   ├── .env.desktop            # 电脑端构建（Electron 内 app:// 源，走绝对接口地址）
 │   └── vite.config.js          # 构建 + dev proxy 配置
+├── desktop/                    # Windows 桌面客户端（Electron）
+│   ├── main.js                 # 主进程：app:// 协议托管 web/dist、窗口、外链拦截、F5/F12
+│   ├── preload.js              # 预加载：暴露 isDesktop / versions / openExternal
+│   ├── scripts/                # prepare-electron.js（复用本地运行时，免二次下载）
+│   ├── build/icon.png          # 应用图标（512×512，打包自动转 ico）
+│   └── release/                # 打包产物（安装版 + 免安装版，已 gitignore）
 ├── server/                     # 后端 API
 │   ├── src/
 │   │   ├── app.js              # 入口：中间件、路由挂载、启动、定时任务
@@ -94,9 +101,10 @@ campus-trade/
 │   │   ├── utils/              # upload.js / response.js / imageDownload.js
 │   │   └── uploads/            # 上传的图片文件（/uploads 静态服务）
 │   └── deploy/                 # 后端部署说明.md（宝塔部署教程）
-├── 开发日志.md                 # 全量开发日志（36 节 + 提交记录表 + 问题汇总表）
+├── 开发日志.md                 # 全量开发日志（39 节 + 提交记录表 + 问题汇总表）
 ├── 队友快速上手手册.md         # 给协作者的完整上手手册
 ├── 安卓App打包说明.md          # Android APK 打包教程
+├── 桌面端打包说明.md           # Windows 客户端打包教程
 ├── serve.js / start-preview.bat # 本地静态预览辅助
 └── README.md
 ```
@@ -156,7 +164,8 @@ npm run dev               # 启动 Vite dev server，默认 http://localhost:517
 | `DB_HOST / DB_PORT / DB_NAME / DB_USER / DB_PASSWORD` | MySQL 连接（库名 `campus_trade`，编码 utf8mb4） |
 | `JWT_SECRET / JWT_EXPIRES` | 登录令牌密钥与有效期 |
 | `MAIL_HOST / MAIL_PORT / MAIL_USER / MAIL_PASS` | SMTP 邮件（发送验证码、找回密码） |
-| `AI_API_KEY / AI_API_URL / AI_MODEL` | SiliconFlow 视觉模型（扫码识别书籍，当前 Qwen3-VL-8B） |
+| `AI_API_KEY / AI_API_URL / AI_MODEL` | 通用 AI（视觉模型 Qwen3-VL-8B 扫码识别、书单解析走这里） |
+| `CHAT_API_URL / CHAT_API_KEY / CHAT_API_MODEL` | **仅 AI 对话助手专用**，指向本地大模型（Ollama/LM Studio/vLLM 等 OpenAI 兼容接口）；未配置则回退到 `AI_API_*`。**模型若在本地电脑而非服务器**：本机开 SSH 反向隧道 `ssh -R 11434:localhost:11434 root@服务器IP`，服务器侧 `CHAT_API_URL` 仍填 `http://127.0.0.1:11434/v1/chat/completions` 即可（隧道把本地 Ollama 映射进服务器本地端口） |
 | `BAIDU_OCR_API_KEY / BAIDU_OCR_SECRET_KEY` | 百度 OCR（书单图片解析） |
 | `OPEN_LIBRARY_URL / GOOGLE_BOOKS_URL` | ISBN 查书接口地址 |
 | `MAX_FILE_SIZE` | 上传大小限制 |
@@ -169,7 +178,9 @@ npm run dev               # 启动 Vite dev server，默认 http://localhost:517
 | --- | --- | --- |
 | `.env.development` | `VITE_API_BASE=/api` | 本地 dev 走 vite proxy |
 | `.env.development` | `VITE_API_TARGET=http://121.40.219.139:3000` | proxy 目标 |
-| `.env.production` | `VITE_API_BASE=http://121.40.219.139:3000/api` | **Android 打包直连用**；Web 部署构建时用环境变量覆盖回 `/api` |
+| `.env.production` | `VITE_API_BASE=/api` | **Web 部署走同源**（站点反代 /api，https 下也不会混合内容） |
+| `.env.production` | `VITE_API_ORIGIN=http://121.40.219.139:3000` | 仅 Android 壳内（capacitor://）拼绝对地址用 |
+| `.env.desktop` | `VITE_API_ORIGIN=http://121.40.219.139:3000` | 电脑端（app:// 源）同样走绝对地址，换服务器改这里 |
 
 ---
 

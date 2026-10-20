@@ -2,7 +2,7 @@
   <div class="profile-page">
     <h2 class="page-title">{{ $t('profile.title') }}</h2>
     <div class="profile-card">
-      <img :src="userStore.userInfo?.avatar || defaultAvatar" class="avatar" />
+      <img :src="resolveImg(userStore.userInfo?.avatar) || defaultAvatar" class="avatar" />
       <div class="profile-info">
         <h3>{{ userStore.userInfo?.nickname }}</h3>
         <p class="user-no">ID：{{ userStore.userInfo?.userNo || t('common.unassigned') }}</p>
@@ -28,7 +28,7 @@
         </div>
         <div v-for="p in filteredProducts" :key="p.id" class="my-product-item">
           <div class="my-product-info" @click="goProduct(p)">
-            <img :src="p.bookCover || p.images?.[0]?.imagePath || defaultAvatar" class="my-product-cover" />
+            <img :src="resolveImg(p.bookCover || p.images?.[0]?.imagePath) || defaultAvatar" class="my-product-cover" />
             <div class="my-product-text">
               <div class="my-product-title">{{ p.bookTitle || p.title }}</div>
               <div class="my-product-meta">
@@ -105,9 +105,11 @@ const { t } = useI18n()
 
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index'
+import { ElMessageBox } from 'element-plus/es/components/message-box/index'
 import { productApi, wishlistApi, bookFavoriteApi, authApi, conversationApi } from '@/api'
 import { useUserStore } from '@/stores/user'
+import { resolveImg } from '@/utils/image'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -159,8 +161,9 @@ function goBoard(b) {
 }
 
 function coverStyle(cover) {
-  if (!cover) return {}
-  return { backgroundImage: `url(${cover})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+  const url = resolveImg(cover)
+  if (!url) return {}
+  return { backgroundImage: `url("${url}")`, backgroundSize: 'cover', backgroundPosition: 'center' }
 }
 
 async function unfavorite(b) {
@@ -183,9 +186,10 @@ async function deleteProduct(p) {
 async function contactBuyer(p) {
   if (!p.buyer?.id) return
   try {
-    await conversationApi.start(p.buyer.id, p.id)
+    const res = await conversationApi.start(p.buyer.id, p.id)
+    const convId = res?.data?.conversationId
     ElMessage.success(t('common.convCreated'))
-    router.push('/chat')
+    router.push(convId ? { name: 'Chat', query: { conv: String(convId) } } : '/chat')
   } catch {}
 }
 

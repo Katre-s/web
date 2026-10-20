@@ -13,10 +13,10 @@
             <span class="order-status" :class="order.status">{{ t(statusMap[order.status]) }}</span>
           </div>
           <div class="order-items">
-            <div v-for="item in order.items" :key="item.id" class="order-item">
-              <img :src="item.product.cover || item.product.bookCover || item.product.images?.[0]?.imagePath" class="order-img" />
+            <div v-for="item in order.items" :key="item.id" class="order-item" v-show="item.product">
+              <img :src="resolveImg(item.product?.cover || item.product?.bookCover || item.product?.images?.[0]?.imagePath)" class="order-img" @error="imgFallback" />
               <div class="order-item-info">
-                <span>{{ item.product.title || item.product.bookTitle }}</span>
+                <span>{{ item.product?.title || item.product?.bookTitle }}</span>
                 <span class="order-item-price">¥{{ item.price }}</span>
               </div>
             </div>
@@ -42,8 +42,9 @@
 const { t } = useI18n()
 
 import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index'
 import { orderApi } from '@/api'
+import { resolveImg, imgFallback } from '@/utils/image'
 
 const role = ref('buyer')
 const orders = ref([])

@@ -1,5 +1,8 @@
 node_modules
 dist
+desktop/release
+desktop/.electron-dist
+desktop/.electron-dist-old-*
 *.log
 *.zip
 *.apk

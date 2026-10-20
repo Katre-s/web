@@ -25,6 +25,9 @@
         <el-menu-item index="boards" @click="switchSection('boards')">
           <el-icon><Files /></el-icon><span>{{ $t('admin.boards') }}</span>
         </el-menu-item>
+        <el-menu-item index="wishlist" @click="switchSection('wishlist')">
+          <el-icon><ShoppingCart /></el-icon><span>{{ $t('admin.wishlist') }}</span>
+        </el-menu-item>
         <el-menu-item index="users" @click="switchSection('users')">
           <el-icon><User /></el-icon><span>{{ $t('admin.users') }}</span>
         </el-menu-item>
@@ -240,7 +243,7 @@
               <el-table-column prop="id" label="ID" width="60" />
               <el-table-column :label="$t('admin.cover')" width="80">
                 <template #default="{ row }">
-                  <img v-if="row.bookCover" :src="row.bookCover" style="width:40px;height:55px;object-fit:cover;border-radius:4px" @error="$event.target.style.display='none'" />
+                  <img v-if="row.bookCover" :src="resolveImg(row.bookCover)" style="width:40px;height:55px;object-fit:cover;border-radius:4px" @error="imgFallback" />
                 </template>
               </el-table-column>
               <el-table-column prop="bookTitle" :label="$t('admin.bookTitle')" min-width="150" />
@@ -263,6 +266,63 @@
                 </template>
               </el-table-column>
             </el-table>
+          </div>
+        </template>
+
+        <!-- ===== 求购管理 ===== -->
+        <template v-if="activeSection === 'wishlist'">
+          <div class="panel">
+            <div class="panel-toolbar">
+              <h3 class="panel-title">{{ $t('admin.wishlistManage') }}</h3>
+              <div class="toolbar-right">
+                <el-input
+                  v-model="wishKeyword"
+                  :placeholder="$t('admin.wishlistSearchPlaceholder')"
+                  clearable
+                  style="width: 240px"
+                  @keyup.enter="loadWishlists"
+                  @clear="loadWishlists"
+                />
+                <el-button size="small" @click="loadWishlists">{{ $t('common.refresh') }}</el-button>
+              </div>
+            </div>
+            <el-table :data="wishList" size="small">
+              <el-table-column prop="id" label="ID" width="70" />
+              <el-table-column :label="$t('admin.cover')" width="70">
+                <template #default="{ row }">
+                  <img
+                    v-if="row.cover || row.book?.bookCover"
+                    :src="resolveImg(row.book?.bookCover || row.cover)"
+                    style="width: 36px; height: 50px; object-fit: cover; border-radius: 4px"
+                    @error="imgFallback"
+                  />
+                </template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.wishlistBook')" min-width="180">
+                <template #default="{ row }">
+                  {{ row.book?.bookTitle || row.title || (row.isbn ? `ISBN ${row.isbn}` : '—') }}
+                </template>
+              </el-table-column>
+              <el-table-column :label="$t('publish.author')" width="140">
+                <template #default="{ row }">{{ row.book?.bookAuthor || row.author || '—' }}</template>
+              </el-table-column>
+              <el-table-column prop="isbn" label="ISBN" width="140" />
+              <el-table-column :label="$t('admin.wishlistUser')" width="190">
+                <template #default="{ row }">
+                  <span v-if="row.user">{{ row.user.nickname || row.user.userNo }}<span class="muted-text" v-if="row.user.userNo">（{{ row.user.userNo }}）</span></span>
+                  <span v-else class="muted-text">—</span>
+                </template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.wishlistTime')" width="160">
+                <template #default="{ row }">{{ formatDate(row.createdAt || row.created_at) }}</template>
+              </el-table-column>
+              <el-table-column :label="$t('common.actions')" width="90" fixed="right">
+                <template #default="{ row }">
+                  <el-button size="small" text type="danger" @click="removeWish(row)">{{ $t('admin.wishlistDelete') }}</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            <el-empty v-if="!wishList.length" :description="$t('admin.wishlistEmpty')" :image-size="80" />
           </div>
         </template>
 
@@ -368,12 +428,14 @@
 const { t } = useI18n()
 
 import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index'
+import { ElMessageBox } from 'element-plus/es/components/message-box/index'
 import {
-  DataBoard, ChatDotRound, Bell, Reading, User, Back, Plus, Files
+  DataBoard, ChatDotRound, Bell, Reading, User, Back, Plus, Files, ShoppingCart
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { hotspotApi, notificationApi, adminApi } from '@/api'
+import { resolveImg, imgFallback } from '@/utils/image'
 
 const userStore = useUserStore()
 const activeSection = ref('dashboard')
@@ -393,6 +455,7 @@ const sectionTitle = computed(() => ({
   notifications: t('admin.notifications'),
   books: t('admin.books'),
   boards: t('admin.boards'),
+  wishlist: t('admin.wishlist'),
   users: t('admin.users')
 }[activeSection.value]))
 
@@ -431,7 +494,42 @@ function switchSection(name) {
   if (name === 'posts') loadPosts()
   if (name === 'users') loadUsers()
   if (name === 'boards') loadBoards()
+  if (name === 'wishlist') loadWishlists()
   if (name === 'notifications') loadNotifList()
+}
+
+/* ---- 求购管理 ---- */
+const wishList = ref([])
+const wishKeyword = ref('')
+
+async function loadWishlists() {
+  try {
+    const res = await adminApi.listWishlists({ keyword: wishKeyword.value })
+    wishList.value = res.data || []
+  } catch {
+    wishList.value = []
+  }
+}
+
+async function removeWish(row) {
+  const name = row.book?.bookTitle || row.title || row.isbn || `#${row.id}`
+  try {
+    await ElMessageBox.confirm(
+      t('admin.wishlistDeleteConfirm', { name }),
+      t('common.warning'),
+      { type: 'warning' }
+    )
+    await adminApi.deleteWishlist(row.id)
+    ElMessage.success(t('admin.wishlistDeleted'))
+    loadWishlists()
+  } catch {}
+}
+
+function formatDate(ts) {
+  if (!ts) return '—'
+  const d = new Date(ts)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 /* ---- 板块管理 ---- */
@@ -840,6 +938,11 @@ onMounted(() => {
 }
 .panel-toolbar .panel-title {
   margin-bottom: 0;
+}
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .panel-actions {
   margin-top: 14px;

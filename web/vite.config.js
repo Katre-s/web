@@ -32,7 +32,19 @@ export default defineConfig(({ mode }) => {
       assetsDir: 'assets',
       sourcemap: false,
       chunkSizeWarningLimit: 1500,
-      target: 'esnext'
+      target: 'esnext',
+      // 长缓存拆分：框架/UI 库变动频率低，单独分包后业务更新不必重新下载整个主包
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return
+            if (id.includes('element-plus') || id.includes('@element-plus')) return 'element-plus'
+            if (id.includes('@vue') || id.includes('vue-router') || id.includes('vue-i18n') || id.includes('pinia') || id.includes('/vue/')) return 'vue-vendor'
+            if (id.includes('axios')) return 'axios'
+            return 'vendor'
+          }
+        }
+      }
     },
     optimizeDeps: {
       esbuildOptions: { target: 'esnext' }

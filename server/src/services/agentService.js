@@ -25,10 +25,14 @@ const SYSTEM_PROMPT = `你是"文衡"二手书籍交易平台的智能助手，�
 你始终只返回一个 JSON 对象，格式：{"intent":"意图","reply":"回答内容"}，不要输出其他任何文字，不要把 JSON 包在 markdown 代码块里。`
 
 export async function chatWithAgent(userMessage, history = []) {
-  const apiKey = process.env.AI_API_KEY
-  const apiUrl = process.env.AI_API_URL
+  // 对话专用配置：优先用 CHAT_API_*，未配置则回退到通用 AI_*（兼容旧部署）
+  // 这样可单独把「AI 对话」指向本地大模型，而不影响扫码识别(视觉模型)等其他能力
+  const apiKey = process.env.CHAT_API_KEY || process.env.AI_API_KEY
+  const apiUrl = process.env.CHAT_API_URL || process.env.AI_API_URL
+  const model = process.env.CHAT_API_MODEL || process.env.AI_MODEL
 
-  if (!apiKey || !apiUrl) return fallbackReply(userMessage)
+  // 本地大模型(如 Ollama/LM Studio)常免密，仅当配置了 key 才带鉴权头
+  if (!apiUrl) return fallbackReply(userMessage)
 
   const messages = [
     { role: 'system', content: SYSTEM_PROMPT },
@@ -36,18 +40,23 @@ export async function chatWithAgent(userMessage, history = []) {
     { role: 'user', content: userMessage }
   ]
 
+  const headers = { 'Content-Type': 'application/json' }
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`
+
   try {
     const res = await axios.post(apiUrl, {
-      model: process.env.AI_MODEL || 'zai-org/GLM-5.3-Flash',
+      model: model || 'qwen2.5:7b',
       messages,
-      temperature: 0.7
+      temperature: 0.7,
+      stream: false
     }, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-      timeout: 30000
+      headers,
+      // 本地模型推理较慢，默认 60s，可用 CHAT_TIMEOUT(毫秒) 覆盖
+      timeout: Number(process.env.CHAT_TIMEOUT) || 60000
     })
 
     const content = res.data.choices?.[0]?.message?.content || ''
-    const cleaned = content.replace(/```json|```/g, '').trim()
+    const cleaned = content.replace(/```json|```/g, '').replace(/<think>[\s\S]*?<\/think>/g, '').trim()
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
     if (jsonMatch) {
       try {

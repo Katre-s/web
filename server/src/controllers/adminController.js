@@ -1,5 +1,5 @@
 import { Op } from 'sequelize'
-import { User, Product, Order, Hotspot, ProductImage, Book, Notification } from '../models/index.js'
+import { sequelize, User, Product, Order, Hotspot, ProductImage, Book, Notification, Wishlist, CartItem, Favorite } from '../models/index.js'
 import { success, fail } from '../utils/response.js'
 
 export async function stats(req, res, next) {
@@ -145,6 +145,10 @@ export async function deleteProduct(req, res, next) {
   try {
     const product = await Product.findByPk(req.params.id)
     if (!product) return fail(res, '商品不存在', 404)
+    // 级联清理：图片、购物车条目、收藏，避免孤儿数据导致前端崩溃
+    await ProductImage.destroy({ where: { productId: product.id } })
+    await CartItem.destroy({ where: { productId: product.id } })
+    await Favorite.destroy({ where: { productId: product.id } })
     await product.destroy()
     success(res, null, '商品已删除')
   } catch (err) { next(err) }
@@ -161,13 +165,41 @@ export async function listBoards(req, res, next) {
       ]
     }
     const books = await Book.findAll({ where, order: [['id', 'DESC']] })
-    const result = []
-    for (const b of books) {
-      const count = await Product.count({
-        where: b.isbn ? { isbn: b.isbn, status: 'available' } : { bookTitle: b.bookTitle, status: 'available' }
-      })
-      result.push({ ...b.toJSON(), productCount: count })
+    if (!books.length) return success(res, [])
+
+    // 批量分组统计在售数，避免逐个板块查询(N+1)
+    const isbns = books.map(b => b.isbn).filter(Boolean)
+    const titles = books.map(b => b.bookTitle).filter(Boolean)
+    const countBy = new Map()
+    const queries = []
+    if (isbns.length) {
+      queries.push(
+        Product.findAll({
+          attributes: ['isbn', [sequelize.fn('COUNT', sequelize.col('id')), 'cnt']],
+          where: { isbn: isbns, status: 'available' },
+          group: ['isbn'],
+          raw: true
+        }).then(rows => rows.forEach(r => countBy.set(`isbn:${r.isbn}`, Number(r.cnt))))
+      )
     }
+    if (titles.length) {
+      queries.push(
+        Product.findAll({
+          attributes: ['book_title', [sequelize.fn('COUNT', sequelize.col('id')), 'cnt']],
+          where: { bookTitle: titles, status: 'available' },
+          group: ['book_title'],
+          raw: true
+        }).then(rows => rows.forEach(r => countBy.set(`title:${r.book_title}`, Number(r.cnt))))
+      )
+    }
+    await Promise.all(queries)
+
+    const result = books.map(b => ({
+      ...b.toJSON(),
+      productCount: b.isbn
+        ? (countBy.get(`isbn:${b.isbn}`) || (countBy.get(`title:${b.bookTitle}`) || 0))
+        : (countBy.get(`title:${b.bookTitle}`) || 0)
+    }))
     success(res, result)
   } catch (err) { next(err) }
 }
@@ -179,9 +211,12 @@ export async function deleteBoard(req, res, next) {
 
     const prodWhere = book.isbn ? { isbn: book.isbn } : { bookTitle: book.bookTitle }
     const products = await Product.findAll({ where: prodWhere, attributes: ['id'] })
-    for (const p of products) {
-      await ProductImage.destroy({ where: { productId: p.id } })
-      await p.destroy()
+    const productIds = products.map(p => p.id)
+    if (productIds.length) {
+      await ProductImage.destroy({ where: { productId: productIds } })
+      await CartItem.destroy({ where: { productId: productIds } })
+      await Favorite.destroy({ where: { productId: productIds } })
+      await Product.destroy({ where: { id: productIds } })
     }
     await book.destroy()
     success(res, null, `板块已删除，同时删除${products.length}个商品`)
@@ -226,7 +261,7 @@ export async function listNotifications(req, res, next) {
   try {
     const all = await Notification.findAll({
       order: [['id', 'DESC']],
-      limit: 500
+      limit: 100
     })
     const seen = new Map()
     for (const n of all) {
@@ -255,5 +290,39 @@ export async function deleteNotification(req, res, next) {
       where: { type: target.type, content: target.content }
     })
     success(res, null, `已删除${count}条通知`)
+  } catch (err) { next(err) }
+}
+
+/* ---- 求购管理 ---- */
+export async function listWishlists(req, res, next) {
+  try {
+    const { keyword = '' } = req.query
+    const where = {}
+    if (keyword) {
+      where[Op.or] = [
+        { title: { [Op.like]: `%${keyword}%` } },
+        { author: { [Op.like]: `%${keyword}%` } },
+        { isbn: { [Op.like]: `%${keyword}%` } }
+      ]
+    }
+    const items = await Wishlist.findAll({
+      where,
+      order: [['created_at', 'DESC']],
+      limit: 200,
+      include: [{ model: User, as: 'user', attributes: ['id', 'userNo', 'nickname', 'email', 'campus'] }]
+    })
+    success(res, items.map(w => {
+      const json = w.toJSON()
+      return { ...json, user: json.user || null }
+    }))
+  } catch (err) { next(err) }
+}
+
+export async function deleteWishlist(req, res, next) {
+  try {
+    const item = await Wishlist.findByPk(req.params.id)
+    if (!item) return fail(res, '求购条目不存在', 404)
+    await item.destroy()
+    success(res, null, '求购已删除')
   } catch (err) { next(err) }
 }

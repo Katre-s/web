@@ -67,12 +67,15 @@
 <script setup>import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 
-import { ref, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { conversationApi } from '@/api'
 import { useUserStore } from '@/stores/user'
-import { ElMessage } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index'
 import { ArrowLeft } from '@element-plus/icons-vue'
 
+const route = useRoute()
+const router = useRouter()
 const userStore = useUserStore()
 const loading = ref(false)
 const conversations = ref([])
@@ -84,6 +87,8 @@ const msgContainer = ref(null)
 const isMobile = ref(window.innerWidth <= 768)
 const mobileShowChat = ref(false)
 let pollTimer = null
+let pollTick = 0
+let lastMsgKey = ''
 
 function onResize() {
   isMobile.value = window.innerWidth <= 768
@@ -105,13 +110,23 @@ function formatTime(time) {
   return t('common.monthDay', { m: d.getMonth() + 1, d: d.getDate() })
 }
 
+// 会话列表只做「整表替换」，避免逐条响应式触发导致的卡顿
 async function loadConversations(silent = false) {
   if (!silent) loading.value = true
   try {
     const res = await conversationApi.list()
-    conversations.value = res.data || res || []
-    if (conversations.value.length && !activeConvId.value && !isMobile.value) {
-      selectConv(conversations.value[0])
+    const list = res.data ?? res ?? []
+    conversations.value = Array.isArray(list) ? list : []
+    // 保持当前打开会话的数据是最新的（标题/商品/未读）
+    if (activeConvId.value) {
+      const fresh = conversations.value.find((c) => c.id === activeConvId.value)
+      if (fresh) activeConv.value = fresh
+    }
+    if (conversations.value.length && !activeConvId.value) {
+      const wanted = Number(route.query.conv)
+      const target = wanted ? conversations.value.find((c) => c.id === wanted) : null
+      // 桌面端自动打开第一个；带 conv 参数时两端都直接打开目标会话
+      if (target || !isMobile.value) await selectConv(target || conversations.value[0])
     }
   } finally {
     if (!silent) loading.value = false
@@ -119,14 +134,20 @@ async function loadConversations(silent = false) {
 }
 
 async function selectConv(conv) {
+  if (!conv) return
   activeConvId.value = conv.id
   activeConv.value = conv
   if (isMobile.value) mobileShowChat.value = true
-  await refreshMessages(conv.id)
+  // 地址栏同步 conv，返回/刷新后仍停在同一个对话框
+  if (String(route.query.conv || '') !== String(conv.id)) {
+    router.replace({ name: 'Chat', query: { ...route.query, conv: String(conv.id) } })
+  }
+  await refreshMessages(conv.id, true)
 }
 
 function backToList() {
   mobileShowChat.value = false
+  if (route.query.conv) router.replace({ name: 'Chat' })
 }
 
 function onBackPress() {
@@ -136,10 +157,16 @@ function onBackPress() {
   }
 }
 
-async function refreshMessages(convId) {
+// 只有消息真正变化时才重渲染 + 滚到底部，避免轮询导致的跳动与卡顿
+async function refreshMessages(convId, force = false) {
   try {
     const res = await conversationApi.getMessages(convId)
-    messages.value = res.data || res || []
+    const list = res.data ?? res ?? []
+    const arr = Array.isArray(list) ? list : []
+    const key = arr.length ? `${arr.length}-${arr[arr.length - 1].id}` : '0'
+    if (!force && key === lastMsgKey) return
+    lastMsgKey = key
+    messages.value = arr
     await nextTick()
     scrollToBottom()
   } catch {}
@@ -153,15 +180,23 @@ function scrollToBottom() {
 
 function startPolling() {
   stopPolling()
+  pollTick = 0
   pollTimer = setInterval(async () => {
+    // 页面切到后台时不轮询，回到前台再补一次
+    if (document.hidden) return
+    pollTick++
     try {
-      const res = await conversationApi.list()
-      conversations.value = res.data || res || []
+      if (activeConvId.value) await refreshMessages(activeConvId.value)
+      // 会话列表降频：每 4 个周期（约 20s）刷新一次，减少移动端请求与重排
+      if (pollTick % 4 === 0) {
+        const res = await conversationApi.list()
+        const list = res.data ?? res ?? []
+        conversations.value = Array.isArray(list) ? list : []
+        const fresh = conversations.value.find((c) => c.id === activeConvId.value)
+        if (fresh) activeConv.value = fresh
+      }
     } catch {}
-    if (activeConvId.value) {
-      await refreshMessages(activeConvId.value)
-    }
-  }, 3000)
+  }, 5000)
 }
 
 function stopPolling() {
@@ -176,12 +211,25 @@ async function sendMsg() {
   try {
     await conversationApi.sendMessage(activeConvId.value, inputText.value)
     inputText.value = ''
-    await refreshMessages(activeConvId.value)
+    await refreshMessages(activeConvId.value, true)
     loadConversations(true)
   } catch {
     ElMessage.error(t('common.sendFail'))
   }
 }
+
+// 从商品页/求购页带着 conv 参数进来时，等会话列表加载完自动打开
+watch(
+  () => route.query.conv,
+  async (val) => {
+    if (!val) return
+    const id = Number(val)
+    if (!id || id === activeConvId.value) return
+    const found = conversations.value.find((c) => c.id === id)
+    if (found) await selectConv(found)
+    else await loadConversations()
+  }
+)
 
 onMounted(() => {
   loadConversations()

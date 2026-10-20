@@ -155,7 +155,7 @@
 <script setup>
 import { ref, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index'
 
 import { useUserStore } from '@/stores/user'
 import { authApi } from '@/api'

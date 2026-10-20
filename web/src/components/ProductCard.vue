@@ -1,7 +1,7 @@
 <template>
   <div class="product-card" @click="goDetail">
     <div class="card-image">
-      <img :src="coverImg" :alt="product.title" />
+      <img :src="coverImg" :alt="product.title" loading="lazy" decoding="async" />
       <span class="status-tag" v-if="product.status === 'sold'">{{ $t('common.sold') }}</span>
     </div>
     <div class="card-body">
@@ -18,17 +18,19 @@
 <script setup>
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { resolveImg } from '@/utils/image'
 
 const props = defineProps({ product: { type: Object, required: true } })
 const router = useRouter()
 const defaultImg = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect fill="%23eee" width="200" height="200"/><text x="50%" y="50%" fill="%23aaa" text-anchor="middle" dy=".3em" font-size="14">暂无图片</text></svg>'
 
 // 后端返回的封面字段是 bookCover，images 数组元素是 { imagePath } 对象，需兼容取图
+// resolveImg: /uploads/ 相对路径拼 API 源，保证手机端(App壳/跨域)也能显示
 const coverImg = computed(() => {
   const p = props.product
   const first = p.images?.[0]
   const firstPath = typeof first === 'string' ? first : first?.imagePath
-  return p.cover || p.bookCover || firstPath || defaultImg
+  return resolveImg(p.cover || p.bookCover || firstPath) || defaultImg
 })
 
 function goDetail() {

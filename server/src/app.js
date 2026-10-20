@@ -34,7 +34,16 @@ app.use(cors())
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
+// 上传图长期缓存：文件名带时间戳+随机串，不会覆盖复用，可安全用强缓存
+// 移动端二次进入页面时不再重复下载封面，图片"闪白/加载慢"明显改善
+app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
+  maxAge: '30d',
+  immutable: true,
+  fallthrough: true,
+  setHeaders(res) {
+    res.setHeader('Cache-Control', 'public, max-age=2592000, immutable')
+  }
+}))
 
 app.use('/api/auth', authRoutes)
 app.use('/api/products', productRoutes)
@@ -60,7 +69,13 @@ const PORT = process.env.PORT || 3000
 
 async function start() {
   await testConnection()
-  await sequelize.sync({ alter: true })
+
+  // 原来每次启动都跑 sync({ alter: true })：会逐表比对并可能重建索引/临时表，
+  // 数据量一大就是几十秒启动耗时 + 锁表（表现为"打开页面卡、偶发超时"）。
+  // 现在默认只做 sync()（不存在才建表），需要改表结构时用 DB_SYNC_ALTER=true 临时开启。
+  const syncAlter = process.env.DB_SYNC_ALTER === 'true'
+  await sequelize.sync(syncAlter ? { alter: true } : {})
+  console.log(`[DB] sync 完成${syncAlter ? '(alter=true)' : ''}`)
 
   try {
     const { Product, Book } = await import('./models/index.js')

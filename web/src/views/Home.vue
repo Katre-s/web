@@ -118,9 +118,10 @@ const { t } = useI18n()
 
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage } from 'element-plus/es/components/message/index'
 import { useUserStore } from '@/stores/user'
 import { hotspotApi, booksApi } from '@/api'
+import { resolveImg } from '@/utils/image'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -193,8 +194,9 @@ function barHeight(count) {
 }
 
 function coverStyle(cover) {
-  if (!cover) return {}
-  return { backgroundImage: `url(${cover})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+  const url = resolveImg(cover)
+  if (!url) return {}
+  return { backgroundImage: `url("${url}")`, backgroundSize: 'cover', backgroundPosition: 'center' }
 }
 
 function goDetail(b) {

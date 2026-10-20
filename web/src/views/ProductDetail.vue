@@ -2,7 +2,7 @@
   <div class="detail-page" v-loading="loading">
     <div class="detail-content" v-if="product">
       <div class="detail-left">
-        <img :src="coverImg" class="cover-img" />
+        <img :src="coverImg" class="cover-img" @error="imgFallback" />
       </div>
       <div class="detail-right">
         <h1 class="detail-title">{{ product.title || product.bookTitle }}</h1>
@@ -34,9 +34,10 @@ const { t } = useI18n()
 
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { productApi, cartApi, messageApi } from '@/api'
+import { ElMessage } from 'element-plus/es/components/message/index'
+import { productApi, cartApi, conversationApi } from '@/api'
 import { useUserStore } from '@/stores/user'
+import { resolveImg, imgFallback } from '@/utils/image'
 
 const route = useRoute()
 const router = useRouter()
@@ -50,7 +51,7 @@ const coverImg = computed(() => {
   if (!p) return ''
   const first = p.images?.[0]
   const firstPath = typeof first === 'string' ? first : first?.imagePath
-  return p.cover || p.bookCover || firstPath || ''
+  return resolveImg(p.cover || p.bookCover || firstPath)
 })
 
 async function loadProduct() {
@@ -68,17 +69,39 @@ async function addToCart() {
     router.push({ name: 'Login', query: { redirect: route.fullPath } })
     return
   }
-  await cartApi.add(product.value.id)
-  ElMessage.success(t('common.addedCart'))
+  if (!product.value?.id) {
+    ElMessage.warning(t('common.unknownBook'))
+    return
+  }
+  try {
+    await cartApi.add(product.value.id)
+    ElMessage.success(t('common.addedCart'))
+  } catch {}
 }
 
+// 联系卖家：走「会话」接口建会话，并带 conv 参数跳到对话页自动打开该对话框
 async function contactSeller() {
   if (!userStore.isLoggedIn) {
     router.push({ name: 'Login', query: { redirect: route.fullPath } })
     return
   }
-  await messageApi.send(product.value.id, product.value.userId, '我对这本书感兴趣，请问还在吗？')
-  ElMessage.success(t('common.msgSentToSeller'))
+  const sellerId = product.value?.userId || product.value?.seller?.id
+  if (!sellerId) {
+    ElMessage.warning(t('common.convCreateFail'))
+    return
+  }
+  if (sellerId === userStore.userInfo?.id) {
+    ElMessage.warning(t('trade.contactSelf'))
+    return
+  }
+  try {
+    const res = await conversationApi.start(sellerId, product.value.id)
+    const convId = res?.data?.conversationId
+    ElMessage.success(t('common.convCreated'))
+    router.push(convId ? { name: 'Chat', query: { conv: String(convId) } } : '/chat')
+  } catch (err) {
+    ElMessage.error(err?.response?.data?.message || t('common.convCreateFail'))
+  }
 }
 
 onMounted(loadProduct)

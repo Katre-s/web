@@ -65,6 +65,12 @@ export async function updateStatus(req, res, next) {
     const order = await Order.findByPk(req.params.id)
     if (!order) return fail(res, '订单不存在', 404)
 
+    // 只有买家本人、订单内卖家或管理员可以改状态
+    if (req.user.role !== 'admin' && order.buyerId !== req.user.id) {
+      const asSeller = await OrderItem.findOne({ where: { orderId: order.id, sellerId: req.user.id } })
+      if (!asSeller) return fail(res, '无权操作该订单', 403)
+    }
+
     order.status = status
     await order.save()
     success(res, order, '状态更新成功')

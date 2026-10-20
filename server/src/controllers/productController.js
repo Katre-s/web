@@ -1,5 +1,5 @@
 import { Op } from 'sequelize'
-import { Product, ProductImage, User, Favorite, Book, Order, OrderItem } from '../models/index.js'
+import { Product, ProductImage, User, Favorite, Book, Order, OrderItem, CartItem } from '../models/index.js'
 import { success, fail } from '../utils/response.js'
 
 const orderMap = {
@@ -134,7 +134,10 @@ export async function remove(req, res, next) {
     const product = await Product.findByPk(req.params.id)
     if (!product) return fail(res, '商品不存在', 404)
     if (product.userId !== req.user.id) return fail(res, '无权操作', 403)
+    // 级联清理：图片、购物车条目、收藏，避免孤儿数据导致前端崩溃
     await ProductImage.destroy({ where: { productId: product.id } })
+    await CartItem.destroy({ where: { productId: product.id } })
+    await Favorite.destroy({ where: { productId: product.id } })
     await product.destroy()
     success(res, null, '删除成功')
   } catch (err) { next(err) }
