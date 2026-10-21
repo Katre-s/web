@@ -19,9 +19,6 @@
         <el-menu-item index="notifications" @click="activeSection = 'notifications'">
           <el-icon><Bell /></el-icon><span>{{ $t('admin.notifications') }}</span>
         </el-menu-item>
-        <el-menu-item index="books" @click="activeSection = 'books'">
-          <el-icon><Reading /></el-icon><span>{{ $t('admin.books') }}</span>
-        </el-menu-item>
         <el-menu-item index="boards" @click="switchSection('boards')">
           <el-icon><Files /></el-icon><span>{{ $t('admin.boards') }}</span>
         </el-menu-item>
@@ -59,6 +56,43 @@
               <div class="stat-body">
                 <b class="stat-num">{{ s.value }}</b>
                 <span class="stat-label">{{ s.label }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 当日最新 + 近7天上架趋势（仅管理台可见） -->
+          <div class="panel" v-if="homeStats">
+            <h3 class="panel-title">{{ $t('admin.todayLatest') }}</h3>
+            <div class="admin-today-stats">
+              <div class="admin-today-card admin-today-boards">
+                <div class="admin-today-icon">📚</div>
+                <div class="admin-today-info">
+                  <div class="admin-today-num">{{ homeStats.todayBoards }}</div>
+                  <div class="admin-today-label">{{ $t('admin.todayBoards') }}</div>
+                </div>
+              </div>
+              <div class="admin-today-card admin-today-books">
+                <div class="admin-today-icon">📖</div>
+                <div class="admin-today-info">
+                  <div class="admin-today-num">{{ homeStats.todayBooks }}</div>
+                  <div class="admin-today-label">{{ $t('admin.todayBooks') }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" v-if="homeStats && homeStats.chartData && homeStats.chartData.length">
+            <h3 class="panel-title">{{ $t('admin.trend7d') }}</h3>
+            <div class="chart-container">
+              <div class="bar-chart">
+                <div v-for="d in homeStats.chartData" :key="d.date" class="bar-item">
+                  <div class="bar-wrapper">
+                    <div class="bar-fill" :style="{ height: barHeight(d.count) + '%' }">
+                      <span class="bar-count" v-if="d.count > 0">{{ d.count }}</span>
+                    </div>
+                  </div>
+                  <span class="bar-label">{{ d.date }}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -175,63 +209,6 @@
           </div>
         </template>
 
-        <!-- ===== 新书上架 ===== -->
-        <template v-if="activeSection === 'books'">
-          <div class="panel">
-            <h3 class="panel-title">{{ $t('admin.addBookTitle') }}</h3>
-            <el-form :model="bookForm" label-position="top" class="book-admin-form">
-              <div class="form-grid">
-                <el-form-item :label="$t('publish.bookTitle')">
-                  <el-input v-model="bookForm.bookTitle" :placeholder="$t('publish.placeholderTitle')" />
-                </el-form-item>
-                <el-form-item :label="$t('admin.authorStar')">
-                  <el-input v-model="bookForm.bookAuthor" :placeholder="$t('publish.placeholderAuthor')" />
-                </el-form-item>
-                <el-form-item :label="$t('publish.publisher')">
-                  <el-input v-model="bookForm.bookPublisher" :placeholder="$t('publish.placeholderPublisher')" />
-                </el-form-item>
-                <el-form-item :label="$t('publish.edition')">
-                  <el-input v-model="bookForm.edition" :placeholder="$t('publish.editionPlaceholder')" />
-                </el-form-item>
-                <el-form-item label="ISBN">
-                  <el-input v-model="bookForm.isbn" :placeholder="$t('publish.optional')" />
-                </el-form-item>
-                <el-form-item :label="$t('home.category')">
-                  <el-select v-model="bookForm.category" style="width: 100%">
-                    <el-option :label="$t('publish.catTextbook')" value="教材" />
-                    <el-option :label="$t('publish.catNovel')" value="小说" />
-                    <el-option :label="$t('publish.catKaoyan')" value="考研" />
-                    <el-option :label="$t('publish.catLiterature')" value="文学" />
-                    <el-option :label="$t('publish.catOther')" value="其他" />
-                  </el-select>
-                </el-form-item>
-                <el-form-item :label="$t('admin.suggestPrice')">
-                  <el-input-number v-model="bookForm.price" :min="0" :precision="2" style="width: 100%" />
-                </el-form-item>
-                <el-form-item :label="$t('admin.originalPrice')">
-                  <el-input-number v-model="bookForm.originalPrice" :min="0" :precision="2" style="width: 100%" />
-                </el-form-item>
-              </div>
-              <el-form-item :label="$t('admin.bookDesc')">
-                <el-input v-model="bookForm.description" type="textarea" :rows="4" :placeholder="$t('admin.bookDescPlaceholder')" />
-              </el-form-item>
-              <el-form-item :label="$t('admin.bookImages')">
-                <el-upload
-                  list-type="picture-card"
-                  accept="image/*"
-                  :auto-upload="false"
-                  :on-change="onBookImagesChange"
-                  :file-list="bookFileList"
-                  :limit="6"
-                >
-                  <el-icon><Plus /></el-icon>
-                </el-upload>
-              </el-form-item>
-              <el-button type="primary" :loading="bookSubmitting" @click="submitBook">{{ $t('admin.confirmSubmitBook') }}</el-button>
-            </el-form>
-          </div>
-        </template>
-
         <!-- ===== 板块管理 ===== -->
         <template v-if="activeSection === 'boards'">
           <div class="panel">
@@ -336,28 +313,34 @@
               </el-input>
             </div>
             <el-table :data="userList" size="small">
-              <el-table-column prop="id" :label="$t('admin.id')" width="60" />
-              <el-table-column :label="$t('admin.userNo')" width="100">
+              <el-table-column prop="id" :label="$t('admin.id')" width="55" />
+              <el-table-column :label="$t('admin.userNo')" width="90">
                 <template #default="{ row }">
                   <span class="user-no-cell">{{ row.userNo || t('common.unassigned') }}</span>
                 </template>
               </el-table-column>
-              <el-table-column prop="email" :label="$t('profile.email')" min-width="170" />
-              <el-table-column prop="nickname" :label="$t('admin.nickname')" width="100" />
-              <el-table-column prop="realName" :label="$t('admin.realName')" width="90" />
-              <el-table-column prop="campus" :label="$t('admin.campus')" width="90" />
-              <el-table-column :label="$t('admin.role')" width="100">
+              <el-table-column prop="email" :label="$t('profile.email')" min-width="120" show-overflow-tooltip />
+              <el-table-column prop="nickname" :label="$t('admin.nickname')" width="85" show-overflow-tooltip />
+              <el-table-column prop="realName" :label="$t('admin.realName')" width="80" show-overflow-tooltip />
+              <el-table-column prop="campus" :label="$t('admin.campus')" width="75" />
+              <el-table-column :label="$t('admin.role')" width="85">
                 <template #default="{ row }">
                   <el-tag size="small" :type="row.role === 'admin' ? 'danger' : 'info'">{{ row.role === 'admin' ? t('common.admin') : t('common.user') }}</el-tag>
                 </template>
               </el-table-column>
-              <el-table-column :label="$t('admin.status')" width="90">
+              <el-table-column :label="$t('admin.status')" width="75">
                 <template #default="{ row }">
                   <el-tag size="small" :type="row.status === 'banned' ? 'danger' : 'success'">{{ row.status === 'banned' ? t('common.banned') : t('common.normal') }}</el-tag>
                 </template>
               </el-table-column>
-              <el-table-column :label="$t('common.actions')" width="280" fixed="right">
+              <el-table-column :label="$t('admin.balance')" width="95">
                 <template #default="{ row }">
+                  <span class="balance-cell">¥{{ Number(row.balance ?? 0).toFixed(2) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column :label="$t('common.actions')" width="300" fixed="right">
+                <template #default="{ row }">
+                  <el-button size="small" text type="primary" @click="openBalanceDialog(row)">{{ $t('admin.setBalance') }}</el-button>
                   <el-button size="small" text type="primary" @click="openUserNoDialog(row)">{{ $t('admin.changeNo') }}</el-button>
                   <el-button size="small" text type="primary" @click="toggleRole(row)">{{ row.role === 'admin' ? t('common.unmakeAdmin') : t('common.makeAdmin') }}</el-button>
                   <el-button size="small" :type="row.status === 'banned' ? 'success' : 'danger'" plain @click="toggleBan(row)">
@@ -390,6 +373,19 @@
       <template #footer>
         <el-button @click="showUserNoDialog = false">{{ $t('common.cancel') }}</el-button>
         <el-button type="primary" @click="submitUserNo">{{ $t('profile.confirmChange') }}</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="showBalanceDialog" :title="$t('admin.setBalanceTitle')" width="440px">
+      <p class="user-no-tip">{{ $t('common.user') }}：{{ balanceForm.nickname }}（{{ $t('admin.currentBalance') }}：¥{{ Number(balanceForm.oldBalance).toFixed(2) }}）</p>
+      <el-form label-position="top">
+        <el-form-item :label="$t('admin.balance')">
+          <el-input-number v-model="balanceForm.newBalance" :min="0" :precision="2" :step="10" style="width: 100%" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showBalanceDialog = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="submitBalance">{{ $t('common.save') }}</el-button>
       </template>
     </el-dialog>
 
@@ -427,14 +423,14 @@
 <script setup>import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus/es/components/message/index'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index'
 import {
-  DataBoard, ChatDotRound, Bell, Reading, User, Back, Plus, Files, ShoppingCart
+  DataBoard, ChatDotRound, Bell, Reading, User, Back, Files, ShoppingCart
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
-import { hotspotApi, notificationApi, adminApi } from '@/api'
+import { hotspotApi, notificationApi, adminApi, booksApi } from '@/api'
 import { resolveImg, imgFallback } from '@/utils/image'
 
 const userStore = useUserStore()
@@ -453,7 +449,6 @@ const sectionTitle = computed(() => ({
   dashboard: t('admin.dashboard'),
   posts: t('admin.posts'),
   notifications: t('admin.notifications'),
-  books: t('admin.books'),
   boards: t('admin.boards'),
   wishlist: t('admin.wishlist'),
   users: t('admin.users')
@@ -464,6 +459,20 @@ async function loadStats() {
     const res = await adminApi.stats()
     stats.value = res.data
   } catch {}
+}
+
+/* ---- 当日最新 + 近7天上架趋势（仅管理台） ---- */
+const homeStats = ref(null)
+async function loadHomeStats() {
+  try {
+    const res = await booksApi.homeStats()
+    homeStats.value = res.data
+  } catch {}
+}
+function barHeight(count) {
+  if (!homeStats.value || !homeStats.value.chartData) return 0
+  const max = Math.max(...homeStats.value.chartData.map(d => d.count), 1)
+  return Math.max((count / max) * 100, 4)
 }
 
 /* ---- 帖子管理 ---- */
@@ -613,39 +622,6 @@ async function deleteNotif(row) {
   } catch {}
 }
 
-/* ---- 新书上架 ---- */
-const bookForm = reactive({
-  bookTitle: '', bookAuthor: '', bookPublisher: '', edition: '',
-  isbn: '', category: '教材', price: null, originalPrice: null, description: ''
-})
-const bookFileList = ref([])
-const bookImages = ref([])
-const bookSubmitting = ref(false)
-
-function onBookImagesChange(file, files) {
-  bookImages.value = files.map((f) => f.raw)
-}
-async function submitBook() {
-  if (!bookForm.bookTitle || !bookForm.bookAuthor || bookForm.price == null) {
-    ElMessage.warning(t('admin.needBookFields'))
-    return
-  }
-  bookSubmitting.value = true
-  try {
-    const fd = new FormData()
-    Object.entries(bookForm).forEach(([k, v]) => fd.append(k, v ?? ''))
-    bookImages.value.forEach((img) => fd.append('images', img))
-    await adminApi.createBook(fd)
-    ElMessage.success(t('admin.bookAdded'))
-    Object.assign(bookForm, { bookTitle: '', bookAuthor: '', bookPublisher: '', edition: '', isbn: '', category: '教材', price: null, originalPrice: null, description: '' })
-    bookFileList.value = []
-    bookImages.value = []
-  } catch {
-  } finally {
-    bookSubmitting.value = false
-  }
-}
-
 /* ---- 用户管理 ---- */
 const userList = ref([])
 const userTotal = ref(0)
@@ -708,6 +684,33 @@ async function submitUserNo() {
   } catch {}
 }
 
+const showBalanceDialog = ref(false)
+const balanceForm = ref({ id: null, nickname: '', oldBalance: 0, newBalance: 0 })
+
+function openBalanceDialog(row) {
+  balanceForm.value = {
+    id: row.id,
+    nickname: row.nickname,
+    oldBalance: Number(row.balance ?? 0),
+    newBalance: Number(row.balance ?? 0)
+  }
+  showBalanceDialog.value = true
+}
+
+async function submitBalance() {
+  const { id, newBalance } = balanceForm.value
+  if (newBalance == null || newBalance < 0) {
+    ElMessage.warning(t('admin.balanceInvalid'))
+    return
+  }
+  try {
+    await adminApi.updateUser(id, { balance: Number(newBalance) })
+    ElMessage.success(t('admin.balanceSet'))
+    showBalanceDialog.value = false
+    loadUsers()
+  } catch {}
+}
+
 const showBoardEditDialog = ref(false)
 const boardSaving = ref(false)
 const boardEditForm = ref({ id: null, bookTitle: '', bookAuthor: '', bookPublisher: '', edition: '', isbn: '', originalPrice: 0 })
@@ -751,6 +754,7 @@ async function submitBoardEdit() {
 
 onMounted(() => {
   loadStats()
+  loadHomeStats()
 })
 </script>
 
@@ -987,5 +991,102 @@ onMounted(() => {
   margin-bottom: 16px;
   color: #607d8b;
   font-size: 14px;
+}
+.balance-cell {
+  font-weight: 600;
+  color: #26a69a;
+}
+
+/* 当日最新 + 近7天上架趋势（管理台） */
+.admin-today-stats {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+.admin-today-card {
+  flex: 1;
+  background: #fff;
+  border-radius: 14px;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid rgba(180, 160, 120, 0.2);
+  box-shadow: 0 4px 16px rgba(60, 50, 30, 0.07);
+  transition: all 0.3s;
+}
+.admin-today-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(60, 50, 30, 0.12);
+}
+.admin-today-boards {
+  border-left: 4px solid #42a5f5;
+}
+.admin-today-books {
+  border-left: 4px solid #66bb6a;
+}
+.admin-today-icon {
+  font-size: 34px;
+}
+.admin-today-num {
+  font-size: 30px;
+  font-weight: 700;
+  color: #3b3020;
+  line-height: 1.2;
+}
+.admin-today-label {
+  font-size: 13px;
+  color: #9a8a6c;
+  margin-top: 4px;
+}
+.chart-container {
+  background: #fff;
+  border-radius: 14px;
+  padding: 24px 20px;
+  border: 1px solid rgba(180, 160, 120, 0.2);
+}
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  height: 200px;
+  gap: 12px;
+}
+.bar-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+}
+.bar-wrapper {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.bar-fill {
+  width: 70%;
+  max-width: 48px;
+  background: linear-gradient(180deg, #42a5f5, #1e88e5);
+  border-radius: 8px 8px 0 0;
+  transition: all 0.5s ease;
+  position: relative;
+  min-height: 4px;
+}
+.bar-count {
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e88e5;
+}
+.bar-label {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #78909c;
 }
 </style>

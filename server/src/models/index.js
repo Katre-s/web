@@ -11,7 +11,8 @@ export const User = sequelize.define('User', {
   avatar: { type: DataTypes.STRING(255), defaultValue: '' },
   campus: { type: DataTypes.STRING(100), defaultValue: '' },
   role: { type: DataTypes.STRING(20), defaultValue: 'user' },
-  status: { type: DataTypes.STRING(20), defaultValue: 'active' }
+  status: { type: DataTypes.STRING(20), defaultValue: 'active' },
+  balance: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 }
 }, { tableName: 'users' })
 
 export const Hotspot = sequelize.define('Hotspot', {

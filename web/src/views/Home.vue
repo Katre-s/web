@@ -28,6 +28,29 @@
       <div class="hero-bottom-gradient"></div>
     </div>
 
+    <!-- 当日热销（第二位，位于校园热点上方） -->
+    <div class="content-section" v-if="stats && stats.hotBoards && stats.hotBoards.length">
+      <h2 class="section-title">{{ $t('home.hotToday') }}</h2>
+      <div class="hot-board-grid">
+        <div
+          v-for="b in stats.hotBoards.slice(0, 10)"
+          :key="b.id"
+          class="hot-board-card"
+          @click="goDetail(b)"
+        >
+          <div class="hb-cover" :style="coverStyle(b.bookCover)"></div>
+          <div class="hb-info">
+            <h3 class="hb-title">{{ b.bookTitle }}</h3>
+            <p class="hb-author" v-if="b.bookAuthor">{{ b.bookAuthor }}</p>
+            <div class="hb-meta">
+              <span class="hb-sellers">🧑 {{ b.sellerCount }}{{ $t('common.seller') }}</span>
+              <span class="hb-views">👁 {{ b.viewCount }}{{ $t('home.views') }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="content-section">
       <div class="section-header">
         <h2 class="section-title">{{ $t('home.hotspots') }}</h2>
@@ -62,44 +85,6 @@
           <div class="stat-info">
             <div class="stat-num">{{ stats.todayBooks }}</div>
             <div class="stat-label">{{ $t('home.newBooks') }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="content-section" v-if="stats && stats.chartData && stats.chartData.length">
-      <h2 class="section-title">{{ $t('home.trend7d') }}</h2>
-      <div class="chart-container">
-        <div class="bar-chart">
-          <div v-for="d in stats.chartData" :key="d.date" class="bar-item">
-            <div class="bar-wrapper">
-              <div class="bar-fill" :style="{ height: barHeight(d.count) + '%' }">
-                <span class="bar-count" v-if="d.count > 0">{{ d.count }}</span>
-              </div>
-            </div>
-            <span class="bar-label">{{ d.date }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="content-section" v-if="stats && stats.hotBoards && stats.hotBoards.length">
-      <h2 class="section-title">{{ $t('home.hotToday') }}</h2>
-      <div class="hot-board-grid">
-        <div
-          v-for="b in stats.hotBoards.slice(0, 10)"
-          :key="b.id"
-          class="hot-board-card"
-          @click="goDetail(b)"
-        >
-          <div class="hb-cover" :style="coverStyle(b.bookCover)"></div>
-          <div class="hb-info">
-            <h3 class="hb-title">{{ b.bookTitle }}</h3>
-            <p class="hb-author" v-if="b.bookAuthor">{{ b.bookAuthor }}</p>
-            <div class="hb-meta">
-              <span class="hb-sellers">🧑 {{ b.sellerCount }}{{ $t('common.seller') }}</span>
-              <span class="hb-views">👁 {{ b.viewCount }}{{ $t('home.views') }}</span>
-            </div>
           </div>
         </div>
       </div>
@@ -262,12 +247,6 @@ function formatTime(time) {
   if (diff < 86400) return `${Math.floor(diff / 3600)}${t('common.hoursAgo')}`
   const pad = (n) => String(n).padStart(2, '0')
   return `${d.getMonth() + 1}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-function barHeight(count) {
-  if (!stats.value || !stats.value.chartData) return 0
-  const max = Math.max(...stats.value.chartData.map(d => d.count), 1)
-  return Math.max((count / max) * 100, 4)
 }
 
 function coverStyle(cover) {

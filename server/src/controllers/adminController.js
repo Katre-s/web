@@ -29,7 +29,7 @@ export async function users(req, res, next) {
     }
     const { rows, count } = await User.findAndCountAll({
       where,
-      attributes: ['id', 'email', 'userNo', 'nickname', 'realName', 'campus', 'role', 'status', ['created_at', 'created_at']],
+      attributes: ['id', 'email', 'userNo', 'nickname', 'realName', 'campus', 'role', 'status', 'balance', ['created_at', 'created_at']],
       order: [['id', 'DESC']],
       offset: (page - 1) * pageSize,
       limit: Number(pageSize)
@@ -41,7 +41,7 @@ export async function users(req, res, next) {
 export async function updateUser(req, res, next) {
   try {
     const { id } = req.params
-    const { status, role } = req.body
+    const { status, role, balance } = req.body
     const user = await User.findByPk(id)
     if (!user) return fail(res, '用户不存在', 404)
     if (Number(id) === req.user.id && status === 'banned') {
@@ -49,6 +49,11 @@ export async function updateUser(req, res, next) {
     }
     if (status) user.status = status
     if (role) user.role = role
+    if (balance !== undefined && balance !== null && balance !== '') {
+      const bal = Number(balance)
+      if (Number.isNaN(bal) || bal < 0) return fail(res, '余额必须为非负数字')
+      user.balance = bal
+    }
     await user.save()
     success(res, null, '操作成功')
   } catch (err) { next(err) }

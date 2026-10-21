@@ -7,6 +7,7 @@
         <h3>{{ userStore.userInfo?.nickname }}</h3>
         <p class="user-no">ID：{{ userStore.userInfo?.userNo || t('common.unassigned') }}</p>
         <p>{{ $t('profile.email') }}：{{ userStore.userInfo?.email }} <el-button text type="primary" size="small" @click="showEmailDialog = true">{{ $t('profile.change') }}</el-button></p>
+        <p class="profile-balance">{{ $t('profile.balance') }}：<b>¥{{ Number(userStore.userInfo?.balance ?? 0).toFixed(2) }}</b></p>
       </div>
     </div>
 
