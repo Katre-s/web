@@ -163,14 +163,16 @@
 <script setup>import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 
-import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus/es/components/message/index'
 import { Plus, Notebook } from '@element-plus/icons-vue'
 import { bookApi, productApi } from '@/api'
 import { resolveImg } from '@/utils/image'
+import { DRAFT_KEYS, takeDraft } from '@/utils/agentAction'
 
 const router = useRouter()
+const route = useRoute()
 const isbn = ref('')
 const looking = ref(false)
 const scanning = ref(false)
@@ -372,6 +374,40 @@ async function handleSubmit() {
     submitting.value = false
   }
 }
+
+// AI 对话里说"卖《XXX》"，会带着草稿跳到这里：把书籍信息填好，用户只需确认/填写售价
+function applyPublishDraft(draft) {
+  if (!draft) return
+  isbn.value = draft.isbn || ''
+  form.bookTitle = draft.bookTitle || ''
+  form.bookAuthor = draft.bookAuthor || ''
+  form.bookPublisher = draft.bookPublisher || ''
+  form.edition = draft.edition || ''
+  if (draft.price) form.price = Number(draft.price)
+  if (draft.condition) form.condition = draft.condition
+  if (draft.category) form.category = draft.category
+  bookInfo.value = {
+    cover: draft.bookCover || '',
+    bookTitle: draft.bookTitle || '',
+    bookAuthor: draft.bookAuthor || '',
+    bookPublisher: draft.bookPublisher || ''
+  }
+  ElMessage.success({ message: t('ai.draftFilled'), duration: 2500 })
+}
+
+function onAiAction(e) {
+  if (e.detail?.type === 'open_publish') applyPublishDraft(takeDraft(DRAFT_KEYS.publish) || e.detail.draft)
+}
+
+onMounted(() => {
+  window.addEventListener('ai-action', onAiAction)
+  if (route.query.from !== 'ai') return
+  applyPublishDraft(takeDraft(DRAFT_KEYS.publish))
+})
+
+onUnmounted(() => {
+  window.removeEventListener('ai-action', onAiAction)
+})
 </script>
 
 <style scoped>

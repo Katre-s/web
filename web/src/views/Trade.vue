@@ -23,12 +23,20 @@
           <el-icon><Search /></el-icon>
         </template>
       </el-input>
-      <el-popover placement="bottom-end" :width="160" trigger="click">
+      <button v-if="tab === 'buy'" class="wish-add-btn" :title="$t('trade.addWish')" @click="openWishDialog()">
+        <el-icon><Plus /></el-icon>
+        <span class="wish-add-text">{{ $t('trade.addWish') }}</span>
+      </button>
+      <el-popover placement="bottom-end" :width="180" trigger="click">
         <template #reference>
           <button class="add-btn" :title="$t('trade.uploadBook')">
             <el-icon><Plus /></el-icon>
           </button>
         </template>
+        <div class="add-menu" @click="openWishDialog()">
+          <el-icon><Notebook /></el-icon>
+          <span>{{ $t('trade.addWish') }}</span>
+        </div>
         <div class="add-menu" @click="goPublish">
           <el-icon><UploadFilled /></el-icon>
           <span>{{ $t('trade.uploadBook') }}</span>
@@ -39,13 +47,21 @@
         </div>
       </el-popover>
       <!-- 筛选按钮 -->
-      <el-popover placement="bottom-end" :width="280" trigger="click">
+      <el-popover placement="bottom-end" :width="280" trigger="click" @show="syncFilterPanel">
         <template #reference>
           <button class="filter-btn" :title="$t('trade.filterBtn')">
             <el-icon><Filter /></el-icon>
           </button>
         </template>
         <div class="filter-panel">
+          <p class="filter-label">{{ $t('trade.filterContent') }}</p>
+          <el-input
+            v-model="filterContent"
+            size="small"
+            clearable
+            :placeholder="$t('trade.filterContentPlaceholder')"
+            @keyup.enter="applyFilter"
+          />
           <p class="filter-label">{{ $t('trade.filterField') }}</p>
           <el-radio-group v-model="filterField" size="small">
             <el-radio-button value="all">{{ $t('trade.fieldAll') }}</el-radio-button>
@@ -53,12 +69,14 @@
             <el-radio-button value="author">{{ $t('common.author') }}</el-radio-button>
             <el-radio-button value="isbn">ISBN</el-radio-button>
           </el-radio-group>
-          <p class="filter-label">{{ $t('trade.filterPrice') }}</p>
-          <div class="filter-price">
-            <el-input v-model="filterMin" type="number" size="small" :placeholder="$t('trade.priceMin')" />
-            <span class="price-sep">-</span>
-            <el-input v-model="filterMax" type="number" size="small" :placeholder="$t('trade.priceMax')" />
-          </div>
+          <template v-if="tab === 'sell'">
+            <p class="filter-label">{{ $t('trade.filterPrice') }}</p>
+            <div class="filter-price">
+              <el-input v-model="filterMin" type="number" size="small" :placeholder="$t('trade.priceMin')" />
+              <span class="price-sep">-</span>
+              <el-input v-model="filterMax" type="number" size="small" :placeholder="$t('trade.priceMax')" />
+            </div>
+          </template>
           <div class="filter-actions">
             <el-button size="small" @click="resetFilter">{{ $t('common.reset') }}</el-button>
             <el-button size="small" type="primary" @click="applyFilter">{{ $t('common.confirm') }}</el-button>
@@ -160,6 +178,26 @@
       </template>
     </el-dialog>
 
+    <!-- 上架求购：买家自己发布想收的书 -->
+    <el-dialog v-model="wishDialogVisible" :title="$t('trade.addWishTitle')" width="420px" :close-on-click-modal="false">
+      <el-form label-position="top" class="wish-form">
+        <el-form-item :label="$t('trade.wishBookLabel')">
+          <el-input v-model="wishForm.title" maxlength="60" :placeholder="$t('trade.wishTitlePlaceholder')" />
+        </el-form-item>
+        <el-form-item :label="$t('trade.wishAuthorLabel')">
+          <el-input v-model="wishForm.author" maxlength="40" :placeholder="$t('trade.wishAuthorPlaceholder')" />
+        </el-form-item>
+        <el-form-item :label="$t('trade.wishIsbnLabel')">
+          <el-input v-model="wishForm.isbn" maxlength="20" placeholder="9787111407010" />
+        </el-form-item>
+        <p class="wish-dialog-tip">{{ $t('trade.wishDialogTip') }}</p>
+      </el-form>
+      <template #footer>
+        <el-button @click="wishDialogVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="wishSubmitting" @click="submitWish">{{ $t('trade.wishSubmit') }}</el-button>
+      </template>
+    </el-dialog>
+
     <div v-loading="loading">
       <!-- 在售(卖)：卖家想卖的东西 -->
       <div class="book-grid" v-if="tab === 'sell' && books.length">
@@ -223,12 +261,13 @@
 <script setup>import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus/es/components/message/index'
 import { Search, Plus, UploadFilled, Notebook, Document, Camera, Loading, ShoppingCart, ChatDotRound, Filter, Close } from '@element-plus/icons-vue'
 import { booksApi, bookApi, wishlistApi, conversationApi } from '@/api'
 import { resolveImg } from '@/utils/image'
+import { DRAFT_KEYS, takeDraft } from '@/utils/agentAction'
 
 const router = useRouter()
 const route = useRoute()
@@ -257,6 +296,13 @@ const scanView = ref(null)
 const filterField = ref('all')
 const filterMin = ref(null)
 const filterMax = ref(null)
+// 筛选面板内的"筛选内容"输入（此前只能在顶部搜索框输入，面板里无处可填）
+const filterContent = ref('')
+
+// 上架求购
+const wishDialogVisible = ref(false)
+const wishSubmitting = ref(false)
+const wishForm = reactive({ title: '', author: '', isbn: '' })
 
 function switchTab(t) {
   tab.value = t
@@ -295,7 +341,12 @@ async function loadWishlist() {
 }
 
 // 筛选面板
+function syncFilterPanel() {
+  filterContent.value = keyword.value || ''
+}
+
 function applyFilter() {
+  keyword.value = (filterContent.value || '').trim()
   if (tab.value === 'sell') loadBooks()
   else loadWishlist()
 }
@@ -305,8 +356,43 @@ function resetFilter() {
   filterMin.value = null
   filterMax.value = null
   keyword.value = ''
+  filterContent.value = ''
   if (tab.value === 'sell') loadBooks()
   else loadWishlist()
+}
+
+// 打开"上架求购"弹窗（可由 AI 对话带草稿直接打开）
+function openWishDialog(draft) {
+  wishForm.title = draft?.title || ''
+  wishForm.author = draft?.author || ''
+  wishForm.isbn = draft?.isbn || ''
+  wishDialogVisible.value = true
+}
+
+async function submitWish() {
+  const title = wishForm.title.trim()
+  const isbn = wishForm.isbn.replace(/[-\s]/g, '')
+  if (!title && !isbn) {
+    ElMessage.warning(t('trade.wishNeedTitle'))
+    return
+  }
+  wishSubmitting.value = true
+  try {
+    await wishlistApi.add({ title, author: wishForm.author.trim(), isbn, cover: '' })
+    ElMessage.success(t('trade.wishSuccess'))
+    wishDialogVisible.value = false
+    wishForm.title = ''
+    wishForm.author = ''
+    wishForm.isbn = ''
+    tab.value = 'buy'
+    keyword.value = ''
+    filterContent.value = ''
+    await loadWishlist()
+  } catch (err) {
+    ElMessage.warning(err?.response?.data?.message || t('trade.wishFail'))
+  } finally {
+    wishSubmitting.value = false
+  }
 }
 
 // 退出识别筛选视图, 回到正常交易市场
@@ -477,6 +563,7 @@ async function agreeWishlist() {
 }
 
 onMounted(() => {
+  window.addEventListener('ai-action', onAiAction)
   // 识别筛选视图: /trade?isbn=xxx&title=xxx&from=scan 或 keyword+field
   const qIsbn = route.query.isbn
   const qTitle = route.query.title ? decodeURIComponent(route.query.title) : ''
@@ -495,6 +582,25 @@ onMounted(() => {
   } else {
     loadBooks()
   }
+
+  // 支持 /trade?tab=buy 直达求购页；AI 说"上架求购"时会带草稿 compose=wish 直接打开弹窗
+  if (route.query.tab === 'buy' || route.query.tab === 'sell') {
+    tab.value = route.query.tab
+    if (tab.value === 'buy') loadWishlist()
+  }
+  if (route.query.compose === 'wish') openWishDialog(takeDraft(DRAFT_KEYS.wish))
+})
+
+// 已在交易页时（AI 悬浮窗），路由不会重新挂载，用事件直接打开弹窗
+function onAiAction(e) {
+  if (e.detail?.type !== 'open_wish') return
+  tab.value = 'buy'
+  if (!wishes.value.length) loadWishlist()
+  openWishDialog(takeDraft(DRAFT_KEYS.wish) || e.detail.draft)
+}
+
+onUnmounted(() => {
+  window.removeEventListener('ai-action', onAiAction)
 })
 </script>
 
@@ -669,6 +775,36 @@ onMounted(() => {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(66, 165, 245, 0.5);
 }
+.wish-add-btn {
+  height: 42px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, #66bb6a, #43a047);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 14px rgba(67, 160, 71, 0.3);
+}
+.wish-add-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(67, 160, 71, 0.45);
+}
+.wish-form :deep(.el-form-item) {
+  margin-bottom: 14px;
+}
+.wish-dialog-tip {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.6;
+  margin: 0;
+}
 .scan-btn {
   width: 44px;
   height: 44px;
@@ -840,6 +976,16 @@ onMounted(() => {
     width: 40px;
     height: 40px;
     flex-shrink: 0;
+  }
+  .wish-add-btn {
+    height: 40px;
+    width: 40px;
+    padding: 0;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .wish-add-text {
+    display: none;
   }
   .book-grid {
     grid-template-columns: repeat(3, 1fr);

@@ -10,7 +10,11 @@ router.post('/chat', async (req, res, next) => {
   try {
     const { message, history } = req.body
     if (!message || !String(message).trim()) return fail(res, '请输入内容')
-    const result = await chatWithAgent(String(message).trim(), Array.isArray(history) ? history : [])
+    const result = await chatWithAgent(
+      String(message).trim(),
+      Array.isArray(history) ? history : [],
+      { userId: req.user.id }
+    )
     success(res, result)
   } catch (err) {
     next(err)

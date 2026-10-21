@@ -116,10 +116,14 @@ campus-trade/
 - **卖/买双 Tab 交易市场**：交易页可切换「我要卖 / 我要求购」，两种场景各自独立流程
 - **扫码识别上架（AI）**：拍照 → **正面识别一次 + 背面 ISBN 再识别一次** → 自动填充书名/作者/出版社/定价等 → 弹出核对弹窗 → 识别照片自动作为封面（可后改）→ 识别后如有同 ISBN 在售/求购，自动罗列到筛选面板（可按书名/ISBN/价格筛选）
 - **AI 助手**：站内智能助手（AiFloat 悬浮窗，可开/关），支持多轮记忆（localStorage 持久化，切页不丢）、界面跳转按钮/链接、中英双语回复
+- **AI 可执行操作**：不只聊天——"把《X》加入购物车 / 求购《X》 / 卖《X》15元 / 打开购物车"会真正落库或跳页；缺信息（如没给售价）自动转成预填表单让用户确认
+- **AI 多轮上下文**：支持"它 / 这本 / 那本 / 第一本 / 第二本"指代，服务端会结合历史解析成具体书名（不依赖模型是否听话），也能直接回答"那本多少钱"
+- **求购广场可上架求购**：求购 Tab 点「上架求购」填书名/作者/ISBN 即可发布；筛选面板支持输入筛选内容 + 按书名/作者/ISBN 检索
 - **账号体系**：邮箱注册/登录、8 位学号、**忘记密码（邮箱验证码自助找回）**、管理后台（管理员专属）
 - **书单智能导入**：上传书单图片 → OCR + AI 解析 → 一键加入购物车
 - **交易闭环**：购物车、订单、求购清单、收藏、站内聊天（会话合并、过期清理）
 - **首页**：书籍瀑布流、热点/公告、分类导航、个人中心
+- **首页实时天空**：接入 Open-Meteo，按真实天气切换晴 / 多云 / 阴 / 雾 / 雨 / 雪 / 雷的动效与色调；日出日落时间来自当天真实数据（默认徐州云龙区，可在 `.env` 改）
 - **国际化**：全站中英文切换（zh.js / en.js 双语资源）
 - **PWA + Android**：可"添加到主屏幕"；Android APK 内嵌打包，API 直连远程
 
@@ -168,6 +172,7 @@ npm run dev               # 启动 Vite dev server，默认 http://localhost:517
 | `CHAT_API_URL / CHAT_API_KEY / CHAT_API_MODEL` | **仅 AI 对话助手专用**，指向本地大模型（Ollama/LM Studio/vLLM 等 OpenAI 兼容接口）；未配置则回退到 `AI_API_*`。**模型若在本地电脑而非服务器**：本机开 SSH 反向隧道 `ssh -R 11434:localhost:11434 root@服务器IP`，服务器侧 `CHAT_API_URL` 仍填 `http://127.0.0.1:11434/v1/chat/completions` 即可（隧道把本地 Ollama 映射进服务器本地端口） |
 | `BAIDU_OCR_API_KEY / BAIDU_OCR_SECRET_KEY` | 百度 OCR（书单图片解析） |
 | `OPEN_LIBRARY_URL / GOOGLE_BOOKS_URL` | ISBN 查书接口地址 |
+| `WEATHER_DEFAULT_LAT / WEATHER_DEFAULT_LON / WEATHER_DEFAULT_CITY` | 首页实时天气的默认坐标与城市名，默认 `34.2538 / 117.2264 / 徐州云龙区`（数据源 Open-Meteo，免 Key） |
 | `MAX_FILE_SIZE` | 上传大小限制 |
 
 > 未配置 AI Key 时：书单解析走内置兜底逻辑，ISBN 查书仍可用免费接口。
@@ -198,6 +203,7 @@ npm run dev               # 启动 Vite dev server，默认 http://localhost:517
 | `/api/notifications` | 通知 | 登录 |
 | `/api/hotspots` | 首页热点/公告 | 读公开 |
 | `/api/agent` | **AI 助手对话（多轮记忆、界面跳转）** | 登录 |
+| `/api/weather` | 首页实时天气（Open-Meteo，默认徐州云龙区；`?lat=&lon=` 可临时覆盖） | 公开 |
 | `/api/admin` | 管理后台 | admin |
 | `/uploads` | 上传图片静态访问 | 公开 |
 

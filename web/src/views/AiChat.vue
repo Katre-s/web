@@ -9,7 +9,20 @@
         <div class="ai-bubble">
           <div v-if="m.intent && m.role === 'assistant'" class="ai-intent">{{ intentText(m.intent) }}</div>
           <div class="ai-content">{{ m.content }}</div>
-          <div v-if="m.intent && m.role === 'assistant' && actionFor(m.intent)" class="ai-actions">
+          <div v-if="m.role === 'assistant' && m.actions && m.actions.length" class="ai-actions">
+            <el-button
+              v-for="(a, ai) in m.actions"
+              :key="ai"
+              size="small"
+              type="primary"
+              plain
+              round
+              @click="doAction(a)"
+            >
+              {{ a.label }}
+            </el-button>
+          </div>
+          <div v-else-if="m.intent && m.role === 'assistant' && actionFor(m.intent)" class="ai-actions">
             <el-button size="small" type="primary" plain round @click="go(actionFor(m.intent))">
               {{ actionText(m.intent) }}
             </el-button>
@@ -39,6 +52,7 @@ import { useI18n } from 'vue-i18n'
 import { agentApi } from '@/api'
 import { ElMessage } from 'element-plus/es/components/message/index'
 import { useAgentStore } from '@/stores/agent'
+import { runAgentAction } from '@/utils/agentAction'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -69,6 +83,10 @@ function go(to) {
   router.push(to)
 }
 
+function doAction(action) {
+  runAgentAction(action, router)
+}
+
 function scrollBottom() {
   nextTick(() => {
     if (msgBox.value) msgBox.value.scrollTop = msgBox.value.scrollHeight
@@ -91,7 +109,7 @@ async function send() {
   try {
     const res = await agentApi.chat(content, history)
     const data = res.data || res
-    agentStore.addMessage({ role: 'assistant', content: data.reply, intent: data.intent })
+    agentStore.addMessage({ role: 'assistant', content: data.reply, intent: data.intent, actions: data.actions || [] })
   } catch {
     ElMessage.error(t('ai.error'))
   } finally {
@@ -173,9 +191,14 @@ onMounted(() => {
   margin-bottom: 6px;
 }
 .ai-content { white-space: pre-wrap; }
-.ai-actions { margin-top: 8px; }
+.ai-actions {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
 .ai-actions .el-button {
-  margin-right: 6px;
+  margin: 0;
   font-size: 12px;
 }
 .typing { color: #90a4ae; }
