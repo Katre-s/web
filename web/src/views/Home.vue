@@ -1,12 +1,29 @@
 <template>
   <div class="home-page">
-    <div class="hero-banner" :class="timePeriod">
-      <div class="sun-moon" :class="timePeriod"></div>
+    <div class="hero-banner" :class="[period, weatherClass]">
+      <div class="sky-effects" :class="weatherClass">
+        <div class="clouds"><i></i><i></i><i></i></div>
+        <div class="rain-layer"></div>
+        <div class="snow-layer"></div>
+        <div class="fog-layer"></div>
+        <div class="flash-layer"></div>
+      </div>
+      <div class="sun-moon" :class="period"></div>
       <div class="hero-overlay">
         <div class="greeting">
           <h1 class="greeting-text">{{ greeting }}，{{ userStore.userInfo?.nickname || t('home.student') }}</h1>
           <p class="greeting-sub">{{ greetingSub }}</p>
+          <p class="sun-times" v-if="weather && weather.sunrise">
+            <span>🌅 {{ t('home.sunrise') }} {{ timeOfDay(weather.sunrise) }}</span>
+            <span>🌇 {{ t('home.sunset') }} {{ timeOfDay(weather.sunset) }}</span>
+          </p>
         </div>
+      </div>
+      <div class="weather-chip" v-if="weather" :title="weatherSource">
+        <span class="wc-icon">{{ weatherIcon }}</span>
+        <span class="wc-temp">{{ Math.round(weather.temperature) }}°</span>
+        <span class="wc-text">{{ t(`home.weatherScene.${weather.scene}`) }}</span>
+        <span class="wc-city" v-if="weather.city">{{ weather.city }}</span>
       </div>
       <div class="hero-bottom-gradient"></div>
     </div>
@@ -116,33 +133,49 @@
 <script setup>import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus/es/components/message/index'
 import { useUserStore } from '@/stores/user'
-import { hotspotApi, booksApi } from '@/api'
+import { hotspotApi, booksApi, weatherApi } from '@/api'
 import { resolveImg } from '@/utils/image'
 
 const userStore = useUserStore()
 const router = useRouter()
 
-const now = new Date()
-const hour = now.getHours()
+/* ------------------------------ 实时天气 ------------------------------ */
+const weather = ref(null)
+const weatherClass = computed(() => (weather.value ? `w-${weather.value.scene}` : ''))
+let weatherTimer = null
 
-const timePeriod = computed(() => {
-  if (hour >= 5 && hour < 9) return 'morning'
-  if (hour >= 9 && hour < 17) return 'day'
-  if (hour >= 17 && hour < 20) return 'evening'
-  return 'night'
+// 时间段优先按天气接口给的真实日出日落算，拿不到再退回固定时段
+const period = computed(() => {
+  const now = new Date()
+  const h = now.getHours()
+  const fallback = h >= 5 && h < 9 ? 'morning' : h >= 9 && h < 17 ? 'day' : h >= 17 && h < 20 ? 'evening' : 'night'
+
+  const w = weather.value
+  if (!w || typeof w.isDay !== 'boolean') return fallback
+  if (!w.isDay) return 'night'
+
+  const rise = Date.parse(w.sunrise)
+  const set = Date.parse(w.sunset)
+  if (Number.isNaN(rise) || Number.isNaN(set)) return fallback
+
+  const ts = now.getTime()
+  if (ts < rise + 90 * 60 * 1000) return 'morning'   // 日出后一个半小时内算清晨
+  if (ts > set - 120 * 60 * 1000) return 'evening'  // 日落前两小时算黄昏
+  return 'day'
 })
 
 const greeting = computed(() => {
-  if (hour >= 5 && hour < 9) return t('home.greetingMorning')
-  if (hour >= 9 && hour < 12) return t('home.greetingLateMorning')
-  if (hour >= 12 && hour < 14) return t('home.greetingNoon')
-  if (hour >= 14 && hour < 18) return t('home.greetingAfternoon')
-  if (hour >= 18 && hour < 22) return t('home.greetingEvening')
-  return t('home.greetingNight')
+  const h = new Date().getHours()
+  if (period.value === 'night') return h >= 22 || h < 5 ? t('home.greetingNight') : t('home.greetingEvening')
+  if (period.value === 'morning') return t('home.greetingMorning')
+  if (period.value === 'evening') return t('home.greetingEvening')
+  if (h < 12) return t('home.greetingLateMorning')
+  if (h < 14) return t('home.greetingNoon')
+  return t('home.greetingAfternoon')
 })
 
 const greetingSub = computed(() => {
@@ -152,8 +185,52 @@ const greetingSub = computed(() => {
     evening: t('home.mottoEvening'),
     night: t('home.mottoNight')
   }
-  return subs[timePeriod.value]
+  return subs[period.value]
 })
+
+const WEATHER_ICONS = {
+  clear: '☀️',
+  partly: '⛅',
+  cloudy: '☁️',
+  fog: '🌫️',
+  drizzle: '🌦️',
+  rain: '🌧️',
+  snow: '❄️',
+  thunder: '⛈️'
+}
+
+const weatherIcon = computed(() => {
+  const w = weather.value
+  if (!w) return ''
+  if (w.scene === 'clear' && w.isDay === false) return '🌙'
+  return WEATHER_ICONS[w.scene] || '🌤️'
+})
+
+const weatherSource = computed(() => {
+  if (!weather.value) return ''
+  const d = new Date(weather.value.updatedAt || Date.now())
+  const pad = (n) => String(n).padStart(2, '0')
+  return `实时天气 · Open-Meteo · 更新于 ${pad(d.getHours())}:${pad(d.getMinutes())}`
+})
+
+function timeOfDay(iso) {
+  if (!iso) return '--:--'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '--:--'
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+// 固定默认城市（徐州云龙区），不申请定位权限；城市在服务端 .env 里改
+async function loadWeather() {
+  try {
+    const res = await weatherApi.current()
+    const data = res?.data || res
+    if (data && data.scene) weather.value = data
+  } catch {
+    // 天气失败不影响首页，保持原有时间背景
+  }
+}
 
 const hotspots = ref([])
 const stats = ref(null)
@@ -221,6 +298,13 @@ async function submitPost() {
 onMounted(() => {
   loadHotspots()
   loadStats()
+  loadWeather()
+  // 每 30 分钟刷新一次，长时间挂着页面也能跟上天气变化
+  weatherTimer = setInterval(loadWeather, 30 * 60 * 1000)
+})
+
+onUnmounted(() => {
+  if (weatherTimer) clearInterval(weatherTimer)
 })
 </script>
 
@@ -250,8 +334,242 @@ onMounted(() => {
   background: linear-gradient(180deg, #0a1929 0%, #102a43 40%, #1a3a5c 70%, #283593 100%);
 }
 
+/* ---------------- 实时天气视觉层 ---------------- */
+.sky-effects {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+/* 天气色调：叠在原有时间段渐变之上，只改"阴晴"，不破坏早晚配色 */
+.sky-effects::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.9s ease;
+}
+.sky-effects.w-partly::before {
+  background: linear-gradient(180deg, #7d93a8, #c9d6e2);
+  opacity: 0.32;
+}
+.sky-effects.w-cloudy::before {
+  background: linear-gradient(180deg, #5b6b7c, #8fa0b0);
+  opacity: 0.52;
+}
+.sky-effects.w-fog::before {
+  background: linear-gradient(180deg, #7c8a96, #cfd8e0);
+  opacity: 0.5;
+}
+.sky-effects.w-drizzle::before {
+  background: linear-gradient(180deg, #4a5a6b, #7a8a9a);
+  opacity: 0.46;
+}
+.sky-effects.w-rain::before {
+  background: linear-gradient(180deg, #3f4f60, #6a7a8a);
+  opacity: 0.56;
+}
+.sky-effects.w-snow::before {
+  background: linear-gradient(180deg, #9fb3c4, #e6eef5);
+  opacity: 0.45;
+}
+.sky-effects.w-thunder::before {
+  background: linear-gradient(180deg, #2b3644, #4a5768);
+  opacity: 0.66;
+}
+
+/* 云 */
+.clouds {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.9s ease;
+}
+.w-partly .clouds,
+.w-cloudy .clouds,
+.w-drizzle .clouds,
+.w-rain .clouds,
+.w-snow .clouds,
+.w-thunder .clouds {
+  opacity: 1;
+}
+.clouds i {
+  position: absolute;
+  display: block;
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: 50%;
+  filter: blur(16px);
+}
+.clouds i:nth-child(1) {
+  width: 260px;
+  height: 78px;
+  top: 12%;
+  left: -18%;
+  animation: cloud-drift 44s linear infinite;
+}
+.clouds i:nth-child(2) {
+  width: 190px;
+  height: 58px;
+  top: 34%;
+  left: -30%;
+  opacity: 0.8;
+  animation: cloud-drift 58s linear infinite 8s;
+}
+.clouds i:nth-child(3) {
+  width: 320px;
+  height: 88px;
+  top: 2%;
+  left: -40%;
+  opacity: 0.6;
+  animation: cloud-drift 72s linear infinite 20s;
+}
+@keyframes cloud-drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(180vw); }
+}
+
+/* 雨 */
+.rain-layer {
+  position: absolute;
+  inset: -20% 0;
+  opacity: 0;
+  background-image: repeating-linear-gradient(100deg, rgba(255, 255, 255, 0.55) 0 1px, transparent 1px 9px);
+  background-size: 100% 160px;
+  animation: rain-fall 0.6s linear infinite;
+  transition: opacity 0.6s ease;
+}
+.w-rain .rain-layer,
+.w-thunder .rain-layer {
+  opacity: 0.5;
+}
+.w-drizzle .rain-layer {
+  opacity: 0.26;
+  animation-duration: 1.1s;
+}
+@keyframes rain-fall {
+  from { background-position: 0 0; }
+  to { background-position: -40px 160px; }
+}
+
+/* 雪 */
+.snow-layer {
+  position: absolute;
+  inset: -10%;
+  opacity: 0;
+  background-image:
+    radial-gradient(2.2px 2.2px at 20px 30px, rgba(255, 255, 255, 0.95), transparent),
+    radial-gradient(1.8px 1.8px at 92px 82px, rgba(255, 255, 255, 0.85), transparent),
+    radial-gradient(2.4px 2.4px at 150px 42px, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(1.6px 1.6px at 62px 132px, rgba(255, 255, 255, 0.8), transparent);
+  background-size: 180px 180px;
+  animation: snow-fall 14s linear infinite;
+  transition: opacity 0.8s ease;
+}
+.w-snow .snow-layer {
+  opacity: 0.85;
+}
+@keyframes snow-fall {
+  from { background-position: 0 0; }
+  to { background-position: 40px 360px; }
+}
+
+/* 雾 */
+.fog-layer {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.72));
+  transition: opacity 1s ease;
+}
+.w-fog .fog-layer {
+  opacity: 0.9;
+  animation: fog-breathe 11s ease-in-out infinite alternate;
+}
+@keyframes fog-breathe {
+  from { opacity: 0.75; }
+  to { opacity: 0.95; }
+}
+
+/* 闪电 */
+.flash-layer {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: #fff;
+}
+.w-thunder .flash-layer {
+  animation: lightning 8s ease-in-out infinite;
+}
+@keyframes lightning {
+  0%, 90%, 100% { opacity: 0; }
+  91% { opacity: 0.5; }
+  92% { opacity: 0; }
+  93.5% { opacity: 0.32; }
+  94.5% { opacity: 0; }
+}
+
+/* 阴雨天把太阳/月亮压暗，避免"暴雨配烈日" */
+.hero-banner.w-cloudy .sun-moon,
+.hero-banner.w-drizzle .sun-moon,
+.hero-banner.w-rain .sun-moon,
+.hero-banner.w-thunder .sun-moon {
+  opacity: 0.3;
+  filter: blur(2px);
+}
+.hero-banner.w-fog .sun-moon {
+  opacity: 0.38;
+  filter: blur(4px);
+}
+.hero-banner.w-snow .sun-moon {
+  opacity: 0.55;
+}
+
+.sun-times {
+  margin-top: 10px;
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.74);
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.28);
+}
+
+.weather-chip {
+  position: absolute;
+  right: 20px;
+  bottom: 18px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(13, 40, 71, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  backdrop-filter: blur(10px);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.wc-icon {
+  font-size: 15px;
+}
+.wc-temp {
+  font-size: 16px;
+  font-weight: 700;
+}
+.wc-city {
+  opacity: 0.82;
+  margin-left: 2px;
+  padding-left: 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
+}
+
 .sun-moon {
   position: absolute;
+  z-index: 1;
   width: 60px;
   height: 60px;
   border-radius: 50%;
@@ -282,11 +600,14 @@ onMounted(() => {
 
 .hero-overlay {
   position: absolute;
+  z-index: 2;
   top: 0; left: 0;
   width: 100%; height: 100%;
   display: flex;
   align-items: flex-start;
   padding: 32px;
+  /* 阴/雾/雪天背景偏亮，压一层暗角保证白字可读 */
+  background: linear-gradient(120deg, rgba(10, 25, 41, 0.26) 0%, rgba(10, 25, 41, 0) 62%);
 }
 .greeting-text {
   font-size: 32px;
@@ -303,6 +624,7 @@ onMounted(() => {
 }
 .hero-bottom-gradient {
   position: absolute;
+  z-index: 1;
   bottom: 0; left: 0; right: 0;
   height: 60px;
   background: linear-gradient(180deg, transparent, rgba(248, 251, 255, 0.5));
@@ -546,6 +868,24 @@ onMounted(() => {
     margin-bottom: 4px;
   }
   .greeting-sub {
+    font-size: 13px;
+  }
+  .sun-times {
+    margin-top: 6px;
+    gap: 10px;
+    font-size: 11px;
+  }
+  .weather-chip {
+    right: 12px;
+    bottom: 12px;
+    padding: 5px 10px;
+    font-size: 12px;
+    gap: 4px;
+  }
+  .wc-temp {
+    font-size: 14px;
+  }
+  .wc-icon {
     font-size: 13px;
   }
   .content-section {

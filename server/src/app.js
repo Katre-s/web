@@ -22,6 +22,7 @@ import adminRoutes from './routes/admin.js'
 import conversationRoutes from './routes/conversations.js'
 import bookFavoriteRoutes from './routes/bookFavorites.js'
 import agentRoutes from './routes/agent.js'
+import weatherRoutes from './routes/weather.js'
 
 dotenv.config()
 
@@ -60,6 +61,7 @@ app.use('/api/admin', adminRoutes)
 app.use('/api/conversations', conversationRoutes)
 app.use('/api/book-favorites', bookFavoriteRoutes)
 app.use('/api/agent', agentRoutes)
+app.use('/api/weather', weatherRoutes)
 
 app.get('/api/health', (req, res) => res.json({ code: 0, message: 'ok' }))
 

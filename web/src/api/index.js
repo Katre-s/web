@@ -111,3 +111,8 @@ export const conversationApi = {
 export const agentApi = {
   chat: (message, history) => request.post('/agent/chat', { message, history })
 }
+
+export const weatherApi = {
+  // 不传坐标时由服务端按 IP 定位；失败时前端静默保持默认视觉
+  current: (params) => request.get('/weather', { params })
+}
