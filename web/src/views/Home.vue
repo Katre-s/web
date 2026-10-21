@@ -25,6 +25,46 @@
         <span class="wc-text">{{ t(`home.weatherScene.${weather.scene}`) }}</span>
         <span class="wc-city" v-if="weather.city">{{ weather.city }}</span>
       </div>
+
+      <!-- 主题装饰层：随主题切换填充 hero 空白（默认纸飞机/书本、可爱爱心气球、科技粒子圆环） -->
+      <div class="theme-decor" aria-hidden="true">
+        <i class="de de-glow"></i>
+        <i class="de de-paper"></i>
+        <i class="de de-book"></i>
+        <i class="de de-pen"></i>
+        <span class="de de-emoji de-heart">💗</span>
+        <span class="de de-emoji de-balloon">🎈</span>
+        <span class="de de-emoji de-star">⭐</span>
+        <span class="de de-emoji de-cloud">☁️</span>
+        <i class="de de-ring"></i>
+        <i class="de de-ring de-ring2"></i>
+        <i class="de de-particle"></i>
+        <i class="de de-particle de-p2"></i>
+        <i class="de de-particle de-p3"></i>
+        <i class="de de-particle de-p4"></i>
+        <i class="de de-particle de-p5"></i>
+        <i class="de de-dot"></i>
+        <i class="de de-dot de-d2"></i>
+        <i class="de de-dot de-d3"></i>
+        <i class="de de-dot de-d4"></i>
+      </div>
+
+      <!-- 平台速览：玻璃卡片填充 hero 右侧空白 -->
+      <div class="hero-stats" v-if="stats">
+        <div class="hs-item">
+          <b>{{ stats.todayBoards }}</b>
+          <span>{{ $t('home.newBoards') }}</span>
+        </div>
+        <div class="hs-item">
+          <b>{{ stats.todayBooks }}</b>
+          <span>{{ $t('home.newBooks') }}</span>
+        </div>
+        <div class="hs-item">
+          <b>{{ stats.hotBoards?.length || 0 }}</b>
+          <span>{{ $t('home.hotToday') }}</span>
+        </div>
+      </div>
+
       <div class="hero-bottom-gradient"></div>
     </div>
 
@@ -516,8 +556,9 @@ onUnmounted(() => {
 
 .weather-chip {
   position: absolute;
-  right: 20px;
-  bottom: 18px;
+  left: 136px;
+  right: auto;
+  bottom: 14px;
   z-index: 3;
   display: flex;
   align-items: center;
@@ -609,14 +650,244 @@ onUnmounted(() => {
   background: linear-gradient(180deg, transparent, rgba(248, 251, 255, 0.5));
 }
 
+/* ================ 主题装饰层（填充 hero 空白，随主题变化） ================ */
+.theme-decor {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+}
+.theme-decor .de {
+  display: none;
+  position: absolute;
+}
+
+/* —— 默认主题：纸飞机 / 书本 / 钢笔，低饱和线条风 —— */
+[data-theme='default'] .theme-decor .de-paper,
+[data-theme='default'] .theme-decor .de-book,
+[data-theme='default'] .theme-decor .de-pen,
+[data-theme='default'] .theme-decor .de-glow { display: block; }
+
+.de-glow {
+  left: 12%;
+  top: 8%;
+  width: 220px;
+  height: 150px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(255, 255, 255, 0.28), transparent 70%);
+  filter: blur(2px);
+  animation: glow-breathe 6s ease-in-out infinite;
+}
+@keyframes glow-breathe {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.12); }
+}
+
+.de-paper {
+  left: 16%;
+  top: 16%;
+  width: 64px;
+  height: 46px;
+  opacity: 0.85;
+  filter: drop-shadow(0 4px 14px rgba(30, 136, 229, 0.35));
+  animation: float-y 7s ease-in-out infinite;
+}
+.de-paper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(0 38%, 100% 0, 46% 100%, 38% 58%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.35));
+}
+.de-book {
+  right: 12%;
+  top: 24%;
+  width: 52px;
+  height: 40px;
+  opacity: 0.8;
+  animation: float-y 9s ease-in-out infinite 1.2s;
+}
+.de-book::before,
+.de-book::after {
+  content: '';
+  position: absolute;
+  width: 22px;
+  height: 34px;
+  border-radius: 3px 8px 8px 3px;
+  background: rgba(255, 255, 255, 0.5);
+}
+.de-book::before { left: 0; transform: skewY(-8deg); }
+.de-book::after { right: 0; transform: skewY(8deg); }
+.de-pen {
+  right: 30%;
+  bottom: 18%;
+  width: 40px;
+  height: 8px;
+  opacity: 0.45;
+  transform: rotate(-32deg);
+  border-radius: 6px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.25));
+  animation: float-y 8s ease-in-out infinite 0.6s;
+}
+
+/* —— 可爱主题：爱心 / 气球 / 星星 / 云朵 —— */
+[data-theme='cute'] .theme-decor .de-emoji { display: block; }
+.de-heart {
+  left: 15%;
+  top: 18%;
+  font-size: 30px;
+  animation: float-y 5.5s ease-in-out infinite;
+  filter: drop-shadow(0 6px 14px rgba(255, 107, 157, 0.4));
+}
+.de-balloon {
+  right: 13%;
+  top: 15%;
+  font-size: 36px;
+  animation: float-y 6.5s ease-in-out infinite 0.8s;
+  filter: drop-shadow(0 6px 16px rgba(167, 139, 250, 0.45));
+}
+.de-star {
+  left: 30%;
+  bottom: 20%;
+  font-size: 22px;
+  animation: twinkle 3.4s ease-in-out infinite;
+}
+.de-cloud {
+  right: 32%;
+  top: 30%;
+  font-size: 30px;
+  opacity: 0.9;
+  animation: cloud-bob 9s ease-in-out infinite 1.6s;
+}
+
+/* —— 科技主题：发光圆环 + 粒子 + 点阵 —— */
+[data-theme='tech'] .theme-decor .de-ring,
+[data-theme='tech'] .theme-decor .de-particle,
+[data-theme='tech'] .theme-decor .de-dot { display: block; }
+.de-ring {
+  right: 14%;
+  top: 16%;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 2px solid rgba(103, 232, 249, 0.4);
+  box-shadow: 0 0 24px rgba(34, 211, 238, 0.35), inset 0 0 24px rgba(167, 139, 250, 0.25);
+  animation: ring-spin 14s linear infinite;
+}
+.de-ring::before {
+  content: '';
+  position: absolute;
+  inset: 14px;
+  border-radius: 50%;
+  border: 1px dashed rgba(167, 139, 250, 0.5);
+  animation: ring-spin 10s linear infinite reverse;
+}
+.de-ring2 {
+  left: 14%;
+  bottom: 14%;
+  width: 70px;
+  height: 70px;
+  animation-duration: 18s;
+  animation-direction: reverse;
+}
+.de-particle {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #67e8f9;
+  box-shadow: 0 0 10px #22d3ee;
+  animation: particle-rise 6s ease-in-out infinite;
+}
+.de-p2 { left: 22%; top: 30%; animation-delay: 1.4s; }
+.de-p3 { right: 26%; top: 40%; animation-delay: 2.6s; }
+.de-p4 { left: 40%; top: 22%; animation-delay: 3.8s; }
+.de-p5 { right: 20%; bottom: 30%; animation-delay: 5s; }
+.de-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(167, 139, 250, 0.7);
+  animation: twinkle 4s ease-in-out infinite;
+}
+.de-d2 { left: 10%; top: 42%; animation-delay: 0.8s; }
+.de-d3 { right: 8%; top: 50%; animation-delay: 1.6s; }
+.de-d4 { left: 26%; bottom: 26%; animation-delay: 2.4s; }
+
+@keyframes float-y {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-16px) rotate(4deg); }
+}
+@keyframes cloud-bob {
+  0%, 100% { transform: translateX(0) translateY(0); }
+  50% { transform: translateX(-14px) translateY(-8px); }
+}
+@keyframes twinkle {
+  0%, 100% { opacity: 0.35; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+@keyframes ring-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes particle-rise {
+  0% { transform: translateY(0) scale(0.7); opacity: 0.3; }
+  50% { transform: translateY(-34px) scale(1.2); opacity: 1; }
+  100% { transform: translateY(0) scale(0.7); opacity: 0.3; }
+}
+
+/* —— hero 平台速览玻璃卡 —— */
+.hero-stats {
+  position: absolute;
+  z-index: 3;
+  right: 28px;
+  bottom: 26px;
+  display: flex;
+  gap: 16px;
+  padding: 14px 22px;
+  border-radius: 14px;
+  background: rgba(10, 25, 41, 0.32);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+}
+.hs-item {
+  text-align: center;
+  min-width: 64px;
+}
+.hs-item b {
+  display: block;
+  font-size: 21px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+.hs-item span {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.72);
+  letter-spacing: 0.5px;
+}
+
 .content-section {
   margin-bottom: 36px;
 }
 .section-title {
   font-size: 22px;
   font-weight: 700;
-  color: #0d2847;
+  color: var(--text-main);
   margin-bottom: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-title::before {
+  content: '';
+  width: 5px;
+  height: 20px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--accent), var(--accent-2));
+  box-shadow: 0 0 10px var(--accent-soft);
 }
 .section-header {
   display: flex;
@@ -634,16 +905,20 @@ onUnmounted(() => {
   gap: 16px;
 }
 .hotspot-card {
-  background: #fff;
-  border-radius: 14px;
+  background: var(--card-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: var(--radius-md);
   padding: 20px 24px;
-  box-shadow: 0 2px 12px rgba(13, 40, 71, 0.06);
+  box-shadow: var(--card-shadow);
   transition: all 0.3s ease;
-  border-left: 4px solid #42a5f5;
+  border-left: 4px solid var(--accent);
+  border: 1px solid var(--card-border);
+  border-left-width: 4px;
 }
 .hotspot-card:hover {
   transform: translateX(4px);
-  box-shadow: 0 4px 20px rgba(66, 165, 245, 0.12);
+  box-shadow: var(--card-shadow-hover);
 }
 .hotspot-tag {
   display: inline-block;
@@ -651,19 +926,19 @@ onUnmounted(() => {
   border-radius: 10px;
   font-size: 12px;
   font-weight: 600;
-  color: #42a5f5;
-  background: rgba(66, 165, 245, 0.1);
+  color: var(--accent);
+  background: var(--accent-soft);
   margin-bottom: 10px;
 }
 .hotspot-title {
   font-size: 17px;
   font-weight: 600;
-  color: #0d2847;
+  color: var(--text-main);
   margin-bottom: 8px;
 }
 .hotspot-desc {
   font-size: 14px;
-  color: #607d8b;
+  color: var(--text-sub);
   line-height: 1.6;
   margin-bottom: 12px;
 }
@@ -671,7 +946,8 @@ onUnmounted(() => {
   display: flex;
   gap: 16px;
   font-size: 13px;
-  color: #90a4ae;
+  color: var(--text-sub);
+  opacity: 0.85;
 }
 
 .today-stats {
@@ -680,24 +956,27 @@ onUnmounted(() => {
 }
 .stat-card {
   flex: 1;
-  background: #fff;
-  border-radius: 16px;
+  background: var(--card-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
   padding: 28px 32px;
   display: flex;
   align-items: center;
   gap: 20px;
-  box-shadow: 0 2px 12px rgba(13, 40, 71, 0.06);
+  box-shadow: var(--card-shadow);
   transition: all 0.3s ease;
 }
 .stat-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(13, 40, 71, 0.12);
+  box-shadow: var(--card-shadow-hover);
 }
 .stat-boards {
-  border-left: 4px solid #42a5f5;
+  border-left: 4px solid var(--accent);
 }
 .stat-books {
-  border-left: 4px solid #66bb6a;
+  border-left: 4px solid var(--btn-bg);
 }
 .stat-icon {
   font-size: 40px;
@@ -705,7 +984,7 @@ onUnmounted(() => {
 .stat-num {
   font-size: 36px;
   font-weight: 700;
-  color: #0d2847;
+  color: var(--text-main);
   line-height: 1.2;
 }
 .stat-label {
@@ -775,16 +1054,19 @@ onUnmounted(() => {
   gap: 16px;
 }
 .hot-board-card {
-  background: #fff;
-  border-radius: 14px;
+  background: var(--card-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
   overflow: hidden;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 12px rgba(13, 40, 71, 0.06);
+  box-shadow: var(--card-shadow);
 }
 .hot-board-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(66, 165, 245, 0.15);
+  transform: translateY(-6px);
+  box-shadow: var(--card-shadow-hover);
 }
 .hb-cover {
   height: 140px;
@@ -798,7 +1080,7 @@ onUnmounted(() => {
 .hb-title {
   font-size: 15px;
   font-weight: 600;
-  color: #0d2847;
+  color: var(--text-main);
   margin-bottom: 6px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -806,7 +1088,7 @@ onUnmounted(() => {
 }
 .hb-author {
   font-size: 13px;
-  color: #78909c;
+  color: var(--text-sub);
   margin-bottom: 8px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -816,7 +1098,8 @@ onUnmounted(() => {
   display: flex;
   gap: 12px;
   font-size: 12px;
-  color: #90a4ae;
+  color: var(--text-sub);
+  opacity: 0.9;
 }
 .hb-sellers {
   color: #43a047;
@@ -832,6 +1115,14 @@ onUnmounted(() => {
     border-radius: 12px;
     margin-bottom: 20px;
   }
+  .hero-stats {
+    display: none;
+  }
+  .de-paper { left: 10%; top: 14%; transform: scale(0.7); }
+  .de-book { right: 6%; top: 20%; transform: scale(0.7); }
+  .de-balloon { right: 8%; top: 12%; font-size: 26px; }
+  .de-heart { left: 8%; top: 16%; font-size: 22px; }
+  .de-ring { right: 8%; top: 12%; width: 84px; height: 84px; }
   .sun-moon {
     width: 42px;
     height: 42px;
@@ -855,6 +1146,7 @@ onUnmounted(() => {
     font-size: 11px;
   }
   .weather-chip {
+    left: auto;
     right: 12px;
     bottom: 12px;
     padding: 5px 10px;

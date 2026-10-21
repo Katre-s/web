@@ -13,6 +13,7 @@ import 'element-plus/theme-chalk/el-overlay.css'
 import App from './App.vue'
 import router from './router'
 import i18n from './i18n'
+import { useThemeStore } from './stores/theme'
 import './assets/styles/main.css'
 
 const app = createApp(App)
@@ -20,6 +21,8 @@ app.use(createPinia())
 app.use(ElLoading) // 注册 v-loading 指令（按需引入后需要手动挂载）
 app.use(router)
 app.use(i18n)
+// 应用已保存的主题（data-theme 属性），避免刷新后闪烁
+useThemeStore().init()
 app.mount('#app')
 
 // 桌面客户端（Electron 壳）标记：用于宽屏布局与"关于/版本"等桌面专属能力

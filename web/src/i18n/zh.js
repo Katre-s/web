@@ -23,6 +23,13 @@ export default {
     mine: '我的',
     menu: '菜单',
   },
+  theme: {
+    title: '选择主题',
+    default: '清新校园',
+    cute: '可爱风',
+    tech: '科技风',
+    tip: '主题会应用到全站并自动保存',
+  },
   ai: {
     pageTitle: '🤖 文衡智能助手',
     tag: 'AI',

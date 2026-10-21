@@ -23,6 +23,13 @@ export default {
     mine: 'Mine',
     menu: 'Menu'
   },
+  theme: {
+    title: 'Choose Theme',
+    default: 'Fresh Campus',
+    cute: 'Cute',
+    tech: 'Tech',
+    tip: 'Applies site-wide and is saved automatically',
+  },
   ai: {
     pageTitle: '🤖 Wenheng AI Assistant',
     tag: 'AI',

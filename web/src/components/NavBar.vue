@@ -169,12 +169,13 @@ onMounted(loadNotifications)
 
 <style scoped>
 .navbar {
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--nav-bg);
   backdrop-filter: blur(10px);
   box-shadow: 0 2px 20px rgba(13, 40, 71, 0.08);
   position: sticky;
   top: 0;
   z-index: 100;
+  transition: background 0.4s ease;
 }
 .nav-inner {
   max-width: 1200px;
@@ -210,7 +211,7 @@ onMounted(loadNotifications)
 .username {
   font-size: 15px;
   font-weight: 600;
-  color: #0d2847;
+  color: var(--nav-text-strong);
 }
 
 .nav-links {
@@ -224,7 +225,7 @@ onMounted(loadNotifications)
   gap: 6px;
   padding: 8px 18px;
   border-radius: 12px;
-  color: #546e7a;
+  color: var(--nav-text);
   font-size: 15px;
   font-weight: 500;
   transition: all 0.3s ease;
@@ -238,20 +239,20 @@ onMounted(loadNotifications)
   width: 0;
   height: 3px;
   border-radius: 2px;
-  background: linear-gradient(90deg, #42a5f5, #64b5f6);
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
   transition: all 0.3s ease;
   transform: translateX(-50%);
 }
 .nav-item:hover {
-  color: #42a5f5;
-  background: rgba(66, 165, 245, 0.06);
+  color: var(--accent);
+  background: var(--accent-soft-2);
 }
 .nav-item:hover::after {
   width: 60%;
 }
 .nav-item.router-link-active {
-  color: #42a5f5;
-  background: rgba(66, 165, 245, 0.1);
+  color: var(--accent);
+  background: var(--accent-soft);
 }
 .nav-item.router-link-active::after {
   width: 60%;
@@ -277,17 +278,17 @@ onMounted(loadNotifications)
   justify-content: center;
   cursor: pointer;
   transition: all 0.3s;
-  color: #546e7a;
+  color: var(--nav-text);
 }
 .bell-box:hover {
-  background: rgba(66, 165, 245, 0.08);
-  color: #42a5f5;
+  background: var(--accent-soft-2);
+  color: var(--accent);
 }
 .bell-icon {
-  color: #546e7a;
+  color: var(--nav-text);
 }
 .logout-btn {
-  color: #90a4ae;
+  color: var(--text-sub);
   font-size: 14px;
 }
 .lang-drop {
@@ -299,16 +300,16 @@ onMounted(loadNotifications)
   align-items: center;
   gap: 2px;
   font-size: 13px;
-  color: #546e7a;
+  color: var(--nav-text);
   padding: 5px 10px;
   border-radius: 10px;
-  border: 1px solid #e3f2fd;
+  border: 1px solid var(--accent-soft);
   transition: all 0.2s;
 }
 .lang-btn:hover {
-  color: #1e88e5;
-  border-color: #42a5f5;
-  background: rgba(66, 165, 245, 0.06);
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft-2);
 }
 .logout-btn:hover {
   color: #ef5350;
@@ -327,7 +328,7 @@ onMounted(loadNotifications)
   border-bottom: 1px solid #f0ece2;
 }
 .notif-header b {
-  color: #3b3020;
+  color: var(--text-main);
   letter-spacing: 2px;
 }
 .notif-list {
@@ -419,7 +420,7 @@ onMounted(loadNotifications)
     display: block;
     font-size: 18px;
     font-weight: 700;
-    color: #0d2847;
+    color: var(--nav-text-strong);
     letter-spacing: 2px;
   }
   .notif-panel {

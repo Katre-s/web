@@ -6,6 +6,7 @@
     </main>
     <TabBar v-if="!isAuthPage" />
     <AiFloat v-if="!isAuthPage" />
+    <ThemeSwitcher v-if="!isAuthPage" />
   </div>
 </template>
 
@@ -15,6 +16,7 @@ import { useRoute } from 'vue-router'
 import NavBar from '@/components/NavBar.vue'
 import TabBar from '@/components/TabBar.vue'
 import AiFloat from '@/components/AiFloat.vue'
+import ThemeSwitcher from '@/components/ThemeSwitcher.vue'
 
 const route = useRoute()
 const isAuthPage = computed(() => route.path === '/login' || route.path === '/forgot-password')

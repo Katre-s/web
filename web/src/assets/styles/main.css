@@ -4,17 +4,113 @@
   box-sizing: border-box;
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-  background-color: #f5f5f5;
-  background:
+/* ============ 主题变量系统（default / cute / tech）============ */
+:root {
+  --app-bg:
     radial-gradient(ellipse at 8% 14%, rgba(165, 138, 75, 0.07), transparent 42%),
     radial-gradient(ellipse at 92% 18%, rgba(90, 110, 140, 0.06), transparent 40%),
     radial-gradient(ellipse at 78% 88%, rgba(155, 120, 90, 0.06), transparent 45%),
     linear-gradient(180deg, #f7f3ea 0%, #f2ecdd 55%, #ede4cf 100%);
+  --bg-grid: rgba(120, 100, 60, 0.022);
+  --accent: #42a5f5;
+  --accent-2: #64b5f6;
+  --accent-strong: #1e88e5;
+  --accent-soft: rgba(66, 165, 245, 0.1);
+  --accent-soft-2: rgba(66, 165, 245, 0.06);
+  --btn-bg: #4caf50;
+  --btn-bg-hover: #66bb6a;
+  --btn-bg-active: #43a047;
+  --card-bg: #ffffff;
+  --card-border: rgba(180, 160, 120, 0.2);
+  --card-shadow: 0 2px 12px rgba(13, 40, 71, 0.06);
+  --card-shadow-hover: 0 8px 26px rgba(66, 165, 245, 0.16);
+  --text-main: #1a1a1a;
+  --text-sub: #546e7a;
+  --nav-bg: rgba(255, 255, 255, 0.95);
+  --nav-text: #546e7a;
+  --nav-text-strong: #0d2847;
+  --hero-tint: rgba(10, 25, 41, 0.26);
+  --hero-glass: rgba(255, 255, 255, 0.14);
+  --hero-glass-border: rgba(255, 255, 255, 0.32);
+  --radius-lg: 16px;
+  --radius-md: 14px;
+  --glow: 0 0 24px var(--accent-soft);
+}
+
+/* 可爱风：粉紫马卡龙、奶油底色、柔和圆角 */
+[data-theme='cute'] {
+  --app-bg:
+    radial-gradient(ellipse at 8% 12%, rgba(255, 107, 157, 0.12), transparent 42%),
+    radial-gradient(ellipse at 92% 16%, rgba(167, 139, 250, 0.12), transparent 40%),
+    radial-gradient(ellipse at 75% 90%, rgba(255, 183, 213, 0.14), transparent 45%),
+    linear-gradient(180deg, #fff6fa 0%, #fdeef6 55%, #fbe7f3 100%);
+  --bg-grid: rgba(255, 107, 157, 0.028);
+  --accent: #ff6b9d;
+  --accent-2: #a78bfa;
+  --accent-strong: #f34d8a;
+  --accent-soft: rgba(255, 107, 157, 0.12);
+  --accent-soft-2: rgba(255, 107, 157, 0.07);
+  --btn-bg: #ff6b9d;
+  --btn-bg-hover: #ff8ab1;
+  --btn-bg-active: #f34d8a;
+  --card-bg: rgba(255, 255, 255, 0.92);
+  --card-border: rgba(255, 107, 157, 0.18);
+  --card-shadow: 0 4px 16px rgba(255, 107, 157, 0.1);
+  --card-shadow-hover: 0 10px 28px rgba(255, 107, 157, 0.2);
+  --text-main: #5c3a52;
+  --text-sub: #b07a9a;
+  --nav-bg: rgba(255, 246, 250, 0.95);
+  --nav-text: #b07a9a;
+  --nav-text-strong: #7a4a6d;
+  --hero-tint: rgba(90, 30, 70, 0.2);
+  --hero-glass: rgba(255, 255, 255, 0.18);
+  --hero-glass-border: rgba(255, 255, 255, 0.5);
+  --radius-lg: 20px;
+  --radius-md: 18px;
+  --glow: 0 0 26px rgba(255, 107, 157, 0.22);
+}
+
+/* 科技风：深空底色、霓虹青紫、发光玻璃 */
+[data-theme='tech'] {
+  --app-bg:
+    radial-gradient(ellipse at 10% 10%, rgba(34, 211, 238, 0.1), transparent 40%),
+    radial-gradient(ellipse at 90% 15%, rgba(167, 139, 250, 0.12), transparent 42%),
+    radial-gradient(ellipse at 80% 92%, rgba(244, 114, 182, 0.08), transparent 45%),
+    linear-gradient(180deg, #0b1020 0%, #101735 60%, #0d1330 100%);
+  --bg-grid: rgba(34, 211, 238, 0.05);
+  --accent: #22d3ee;
+  --accent-2: #a78bfa;
+  --accent-strong: #67e8f9;
+  --accent-soft: rgba(34, 211, 238, 0.14);
+  --accent-soft-2: rgba(34, 211, 238, 0.08);
+  --btn-bg: #22d3ee;
+  --btn-bg-hover: #38bdf8;
+  --btn-bg-active: #0ea5e9;
+  --card-bg: rgba(23, 32, 66, 0.72);
+  --card-border: rgba(103, 232, 249, 0.22);
+  --card-shadow: 0 4px 22px rgba(0, 0, 0, 0.35);
+  --card-shadow-hover: 0 10px 34px rgba(34, 211, 238, 0.22);
+  --text-main: #e8f6ff;
+  --text-sub: #8fb3c9;
+  --nav-bg: rgba(11, 16, 32, 0.88);
+  --nav-text: #8fb3c9;
+  --nav-text-strong: #e8f6ff;
+  --hero-tint: rgba(5, 10, 25, 0.4);
+  --hero-glass: rgba(148, 197, 255, 0.1);
+  --hero-glass-border: rgba(103, 232, 249, 0.35);
+  --radius-lg: 16px;
+  --radius-md: 14px;
+  --glow: 0 0 28px rgba(34, 211, 238, 0.25);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  background-color: #f5f5f5;
+  background: var(--app-bg);
   background-attachment: fixed;
   min-height: 100vh;
-  color: #333;
+  color: var(--text-main);
+  transition: background 0.6s ease, color 0.4s ease;
 }
 
 #app::before {
@@ -24,8 +120,9 @@ body {
   z-index: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(115deg, transparent 0 49.5%, rgba(120, 100, 60, 0.022) 49.5% 50.5%, transparent 50.5% 100%);
+    linear-gradient(115deg, transparent 0 49.5%, var(--bg-grid) 49.5% 50.5%, transparent 50.5% 100%);
   background-size: 180px 180px;
+  transition: background 0.6s ease;
 }
 
 a {
@@ -37,7 +134,7 @@ a {
   font-size: 22px;
   font-weight: 600;
   margin-bottom: 20px;
-  color: #1a1a1a;
+  color: var(--text-main);
 }
 
 .card-shadow {
@@ -45,12 +142,13 @@ a {
 }
 
 .el-button--primary {
-  --el-button-bg-color: #4caf50;
-  --el-button-border-color: #4caf50;
-  --el-button-hover-bg-color: #66bb6a;
-  --el-button-hover-border-color: #66bb6a;
-  --el-button-active-bg-color: #43a047;
-  --el-button-active-border-color: #43a047;
+  --el-button-bg-color: var(--btn-bg);
+  --el-button-border-color: var(--btn-bg);
+  --el-button-hover-bg-color: var(--btn-bg-hover);
+  --el-button-hover-border-color: var(--btn-bg-hover);
+  --el-button-active-bg-color: var(--btn-bg-active);
+  --el-button-active-border-color: var(--btn-bg-active);
+  --el-button-text-color: #fff;
 }
 html {
   -webkit-tap-highlight-color: transparent;
