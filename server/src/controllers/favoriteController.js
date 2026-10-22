@@ -15,6 +15,15 @@ export async function toggle(req, res, next) {
   } catch (err) { next(err) }
 }
 
+export async function check(req, res, next) {
+  try {
+    const productId = Number(req.params.productId)
+    if (!Number.isInteger(productId) || productId <= 0) return success(res, { favorited: false })
+    const exists = await Favorite.findOne({ where: { userId: req.user.id, productId } })
+    success(res, { favorited: !!exists })
+  } catch (err) { next(err) }
+}
+
 export async function list(req, res, next) {
   try {
     const items = await Favorite.findAll({

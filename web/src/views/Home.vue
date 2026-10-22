@@ -97,33 +97,31 @@
       </div>
     </section>
 
-    <!-- ===== 今日热销 ===== -->
-    <section class="block" v-if="hotBoards.length">
+    <!-- ===== 推荐 ===== -->
+    <section class="block" v-if="recs.items.length">
       <div class="block-head">
         <div>
-          <h2>{{ $t('home.hotToday') }}</h2>
-          <p>{{ $t('home.hotTodaySub') }}</p>
+          <h2>{{ $t('home.recommend') }}</h2>
+          <p>{{ recommendSub }}</p>
         </div>
         <button class="head-link" @click="goTrade()">{{ $t('home.viewAll') }}<span>→</span></button>
       </div>
 
-      <div class="hot-grid">
+      <div class="rec-grid">
         <article
-          v-for="b in hotBoards"
-          :key="b.id"
-          class="hot-card"
-          @click="goDetail(b)"
+          v-for="p in recs.items"
+          :key="p.id"
+          class="rec-card"
+          @click="openRec(p)"
         >
-          <div class="hot-cover" :style="coverStyle(b.bookCover)">
-            <span class="hot-rank" v-if="b.sellerCount > 0">{{ b.sellerCount }} 人在卖</span>
+          <div class="rec-cover" :style="coverStyle(p.bookCover || p.images?.[0]?.imagePath)">
+            <span class="rec-cat">{{ $t('tradeCat.' + categoryKey(p.category)) }}</span>
           </div>
-          <div class="hot-info">
-            <h3>{{ b.bookTitle }}</h3>
-            <p class="hot-author" v-if="b.bookAuthor">{{ b.bookAuthor }}</p>
-            <div class="hot-meta">
-              <span class="hot-price" v-if="b.minPrice">¥{{ b.minPrice }}<em>起</em></span>
-              <span class="hot-price empty" v-else>{{ $t('home.noSeller') }}</span>
-              <span class="hot-views">👁 {{ b.viewCount }}</span>
+          <div class="rec-info">
+            <h3>{{ p.title || p.bookTitle }}</h3>
+            <div class="rec-meta">
+              <span class="rec-price">¥{{ p.price }}</span>
+              <span class="rec-seller" v-if="p.seller?.campus">{{ p.seller.campus }}</span>
             </div>
           </div>
         </article>
@@ -150,10 +148,10 @@ const { t } = useI18n()
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { booksApi, weatherApi } from '@/api'
+import { booksApi, weatherApi, recommendApi } from '@/api'
 import { resolveImg } from '@/utils/image'
 import BrandLogo from '@/components/BrandLogo.vue'
-import { TRADE_CATEGORIES } from '@/constants/categories'
+import { TRADE_CATEGORIES, categoryKey } from '@/constants/categories'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -247,7 +245,7 @@ async function loadWeather() {
   }
 }
 
-/* ------------------------------ 热销数据 ------------------------------ */
+/* ------------------------------ 首页数据 ------------------------------ */
 const stats = ref(null)
 const hotBoards = computed(() => (stats.value?.hotBoards || []).slice(0, 8))
 
@@ -258,15 +256,46 @@ async function loadStats() {
   } catch {}
 }
 
+/* ------------------------------ 推荐 ------------------------------ */
+const recs = ref({ items: [], source: 'random', basis: { categories: [], keywords: [] } })
+const recommendSub = computed(() => {
+  const map = {
+    llm: 'home.recommendSubLlm',
+    rule: 'home.recommendSubRule',
+    random: 'home.recommendSubRandom'
+  }
+  return t(map[recs.value.source] || map.random)
+})
+
+async function loadRecommend() {
+  try {
+    const res = await recommendApi.home({ limit: 8 })
+    const data = res.data || {}
+    recs.value = {
+      items: Array.isArray(data.items) ? data.items : [],
+      source: data.source || 'random',
+      basis: data.basis || { categories: [], keywords: [] }
+    }
+  } catch {
+    recs.value = { items: [], source: 'random', basis: { categories: [], keywords: [] } }
+  }
+}
+
+function openRec(p) {
+  if (!p?.id) return
+  recommendApi.track({
+    type: 'click',
+    productId: p.id,
+    category: p.category,
+    keyword: p.title || p.bookTitle
+  }).catch(() => {})
+  router.push(`/product/${p.id}`)
+}
+
 function coverStyle(cover) {
   const url = resolveImg(cover)
   if (!url) return {}
   return { backgroundImage: `url("${url}")`, backgroundSize: 'cover', backgroundPosition: 'center' }
-}
-
-function goDetail(b) {
-  const key = b.isbn || b.bookTitle
-  router.push(`/book/${encodeURIComponent(key)}`)
 }
 
 function goTrade(category) {
@@ -279,6 +308,7 @@ function goPublish() {
 
 onMounted(() => {
   loadStats()
+  loadRecommend()
   loadWeather()
   // 每 30 分钟刷新一次，长时间挂着页面也能跟上天气变化
   weatherTimer = setInterval(loadWeather, 30 * 60 * 1000)
@@ -702,6 +732,72 @@ onUnmounted(() => {
 }
 
 /* 热销 */
+.rec-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+.rec-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: var(--card-shadow);
+  transition: all 0.3s ease;
+}
+.rec-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 18px 34px -20px rgba(16, 102, 122, 0.55);
+}
+.rec-cover {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background: linear-gradient(135deg, #e6f4f2, #d9edf3);
+  background-size: cover;
+  background-position: center;
+}
+.rec-cat {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  color: #fff;
+  background: rgba(11, 47, 63, 0.55);
+  backdrop-filter: blur(4px);
+}
+.rec-info {
+  padding: 12px 14px 14px;
+}
+.rec-info h3 {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 40px;
+}
+.rec-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+.rec-price {
+  font-size: 17px;
+  font-weight: 800;
+  color: #e5484d;
+}
+.rec-seller {
+  font-size: 11px;
+  color: #9db2ba;
+}
+
 .hot-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -943,7 +1039,8 @@ onUnmounted(() => {
   .cat-desc {
     display: none;
   }
-  .hot-grid {
+  .hot-grid,
+  .rec-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
   }

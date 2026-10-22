@@ -26,8 +26,8 @@
         clearable
         size="large"
         class="search-input"
-        @keyup.enter="reload"
-        @clear="reload"
+        @keyup.enter="doSearch"
+        @clear="doSearch"
       >
         <template #prefix>
           <el-icon><Search /></el-icon>
@@ -229,7 +229,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus/es/components/message/index'
 import { Search, Plus, UploadFilled, Notebook, Document, Camera, Loading, Filter, Close } from '@element-plus/icons-vue'
-import { booksApi, bookApi, productApi } from '@/api'
+import { booksApi, bookApi, productApi, recommendApi } from '@/api'
 import { resolveImg } from '@/utils/image'
 import { TRADE_CATEGORIES, DEFAULT_CATEGORY, isValidCategory, getCategory, categoryKey } from '@/constants/categories'
 
@@ -277,6 +277,7 @@ const emptyText = computed(() => (
 function switchCategory(value) {
   if (category.value === value) return
   category.value = value
+  recommendApi.track({ type: 'search', keyword: '', category: value }).catch(() => {})
   // 切类目时清掉上一个类目的筛选状态
   keyword.value = ''
   filterContent.value = ''
@@ -293,6 +294,16 @@ function switchCategory(value) {
   delete query.title
   delete query.keyword
   router.replace({ path: '/trade', query })
+  reload()
+}
+
+function trackSearch() {
+  const kw = (keyword.value || isbnFilter.value || '').trim()
+  recommendApi.track({ type: 'search', keyword: kw, category: category.value }).catch(() => {})
+}
+
+function doSearch() {
+  trackSearch()
   reload()
 }
 
@@ -355,6 +366,7 @@ function syncFilterPanel() {
 
 function applyFilter() {
   keyword.value = (filterContent.value || '').trim()
+  trackSearch()
   reload()
 }
 

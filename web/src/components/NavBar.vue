@@ -33,9 +33,9 @@
           <el-icon><MagicStick /></el-icon>
           <span>{{ $t('nav.ai') }}</span>
         </router-link>
-        <router-link to="/cart" class="nav-item" :title="$t('nav.cart')">
-          <el-icon><ShoppingCart /></el-icon>
-          <span>{{ $t('nav.cart') }}</span>
+        <router-link to="/orders" class="nav-item" :title="$t('nav.orders')">
+          <el-icon><Tickets /></el-icon>
+          <span>{{ $t('nav.orders') }}</span>
         </router-link>
         <router-link to="/profile" class="nav-item" :title="$t('nav.profile')">
           <el-icon><User /></el-icon>
@@ -62,8 +62,8 @@
           <span>{{ $t('nav.admin') }}</span>
         </router-link>
 
-        <router-link to="/cart" class="icon-btn mobile-only" title="购物车">
-          <el-icon :size="20"><ShoppingCart /></el-icon>
+        <router-link to="/orders" class="icon-btn mobile-only" :title="$t('nav.orders')">
+          <el-icon :size="20"><Tickets /></el-icon>
         </router-link>
 
         <router-link v-if="isAdmin" to="/admin" class="icon-btn mobile-only" title="管理台">
@@ -111,7 +111,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
-import { HomeFilled, ShoppingBag, ChatLineSquare, ChatDotRound, User, Bell, Setting, ShoppingCart, MagicStick, CaretBottom } from '@element-plus/icons-vue'
+import { HomeFilled, ShoppingBag, ChatLineSquare, ChatDotRound, User, Bell, Setting, Tickets, MagicStick, CaretBottom } from '@element-plus/icons-vue'
 import { notificationApi } from '@/api'
 import { setLang, currentLang } from '@/i18n'
 import { resolveImg } from '@/utils/image'

@@ -69,7 +69,9 @@ export const Order = sequelize.define('Order', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   buyerId: { type: DataTypes.INTEGER, allowNull: false, field: 'buyer_id' },
   totalPrice: { type: DataTypes.DECIMAL(10, 2), allowNull: false, field: 'total_price' },
-  status: { type: DataTypes.STRING(20), defaultValue: 'pending' }
+  status: { type: DataTypes.STRING(20), defaultValue: 'pending' },
+  // 售后状态：none 未申请 / applied 已申请
+  aftersaleStatus: { type: DataTypes.STRING(20), defaultValue: 'none', field: 'aftersale_status' }
 }, { tableName: 'orders' })
 
 export const OrderItem = sequelize.define('OrderItem', {
@@ -79,6 +81,28 @@ export const OrderItem = sequelize.define('OrderItem', {
   sellerId: { type: DataTypes.INTEGER, allowNull: false, field: 'seller_id' },
   price: { type: DataTypes.DECIMAL(10, 2), allowNull: false }
 }, { tableName: 'order_items' })
+
+export const AfterSale = sequelize.define('AfterSale', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  orderId: { type: DataTypes.INTEGER, allowNull: false, field: 'order_id' },
+  buyerId: { type: DataTypes.INTEGER, allowNull: false, field: 'buyer_id' },
+  reason: { type: DataTypes.TEXT },
+  // pending 待处理 / processing 处理中 / resolved 已解决 / rejected 已驳回
+  status: { type: DataTypes.STRING(20), defaultValue: 'pending' },
+  adminId: { type: DataTypes.INTEGER, field: 'admin_id' },
+  adminNote: { type: DataTypes.STRING(500), defaultValue: '', field: 'admin_note' },
+  handledAt: { type: DataTypes.DATE, field: 'handled_at' }
+}, { tableName: 'after_sales' })
+
+export const UserBehavior = sequelize.define('UserBehavior', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  userId: { type: DataTypes.INTEGER, allowNull: false, field: 'user_id' },
+  // search 搜索 / click 浏览点击
+  type: { type: DataTypes.STRING(20), allowNull: false },
+  keyword: { type: DataTypes.STRING(120), defaultValue: '' },
+  category: { type: DataTypes.STRING(30), defaultValue: '' },
+  productId: { type: DataTypes.INTEGER, field: 'product_id' }
+}, { tableName: 'user_behaviors' })
 
 export const Favorite = sequelize.define('Favorite', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
@@ -112,6 +136,19 @@ export const Notification = sequelize.define('Notification', {
   content: { type: DataTypes.TEXT, allowNull: false },
   isRead: { type: DataTypes.BOOLEAN, defaultValue: false, field: 'is_read' }
 }, { tableName: 'notifications' })
+
+export const BalanceLog = sequelize.define('BalanceLog', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  userId: { type: DataTypes.INTEGER, allowNull: false, field: 'user_id' },
+  // 类型：recharge 充值 / pay 下单扣款 / income 卖出收入 / admin 管理员调整 / refund 退款
+  type: { type: DataTypes.STRING(20), allowNull: false },
+  amount: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
+  balanceAfter: { type: DataTypes.DECIMAL(10, 2), allowNull: false, field: 'balance_after' },
+  orderId: { type: DataTypes.INTEGER, field: 'order_id', allowNull: true },
+  note: { type: DataTypes.STRING(255), defaultValue: '' }
+}, { tableName: 'balance_logs' })
+User.hasMany(BalanceLog, { foreignKey: 'user_id', as: 'balanceLogs' })
+BalanceLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' })
 User.hasMany(Product, { foreignKey: 'user_id', as: 'products' })
 Product.belongsTo(User, { foreignKey: 'user_id', as: 'seller' })
 
@@ -125,6 +162,16 @@ CartItem.belongsTo(Product, { foreignKey: 'product_id', as: 'product' })
 Order.hasMany(OrderItem, { foreignKey: 'order_id', as: 'items' })
 OrderItem.belongsTo(Order, { foreignKey: 'order_id', as: 'order' })
 OrderItem.belongsTo(Product, { foreignKey: 'product_id', as: 'product' })
+Order.belongsTo(User, { foreignKey: 'buyer_id', as: 'buyer' })
+User.hasMany(Order, { foreignKey: 'buyer_id', as: 'orders' })
+
+AfterSale.belongsTo(Order, { foreignKey: 'order_id', as: 'order' })
+AfterSale.belongsTo(User, { foreignKey: 'buyer_id', as: 'buyer' })
+AfterSale.belongsTo(User, { foreignKey: 'admin_id', as: 'admin' })
+Order.hasOne(AfterSale, { foreignKey: 'order_id', as: 'aftersale' })
+
+User.hasMany(UserBehavior, { foreignKey: 'user_id', as: 'behaviors' })
+UserBehavior.belongsTo(User, { foreignKey: 'user_id', as: 'user' })
 
 User.hasMany(Favorite, { foreignKey: 'user_id', as: 'favorites' })
 Favorite.belongsTo(User, { foreignKey: 'user_id', as: 'user' })

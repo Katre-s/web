@@ -1,20 +1,21 @@
-import { Op } from 'sequelize'
-import { sequelize, User, Product, Order, Hotspot, PlazaPost, ProductImage, Book, Notification, CartItem, Favorite } from '../models/index.js'
+import { Op, QueryTypes } from 'sequelize'
+import { sequelize, User, Product, Order, Hotspot, PlazaPost, ProductImage, Book, Notification, CartItem, Favorite, BalanceLog, AfterSale } from '../models/index.js'
 import { success, fail } from '../utils/response.js'
 import { TRADE_CATEGORIES, normalizeCategory } from '../config/categories.js'
 
 export async function stats(req, res, next) {
   try {
-    const [userCount, productCount, orderCount, hotspotCount, plazaCount, bannedCount] = await Promise.all([
+    const [userCount, productCount, orderCount, hotspotCount, plazaCount, aftersalePending, bannedCount] = await Promise.all([
       User.count(),
       Product.count(),
       Order.count(),
       Hotspot.count({ where: { status: 'active' } }),
       PlazaPost.count({ where: { status: 'active' } }),
+      AfterSale.count({ where: { status: ['pending', 'processing'] } }),
       User.count({ where: { status: 'banned' } })
     ])
     const recentUsers = await User.findAll({ order: [['id', 'DESC']], limit: 5, attributes: ['id', 'email', 'nickname', 'campus', 'role', 'status', ['created_at', 'created_at']] })
-    success(res, { userCount, productCount, orderCount, hotspotCount, plazaCount, bannedCount, recentUsers })
+    success(res, { userCount, productCount, orderCount, hotspotCount, plazaCount, aftersalePending, bannedCount, recentUsers })
   } catch (err) { next(err) }
 }
 
@@ -54,7 +55,17 @@ export async function updateUser(req, res, next) {
     if (balance !== undefined && balance !== null && balance !== '') {
       const bal = Number(balance)
       if (Number.isNaN(bal) || bal < 0) return fail(res, '余额必须为非负数字')
+      const diff = bal - Number(user.balance)
       user.balance = bal
+      if (diff !== 0) {
+        await BalanceLog.create({
+          userId: Number(id),
+          type: 'admin',
+          amount: diff,
+          balanceAfter: bal,
+          note: `管理员调整余额${diff > 0 ? '上调' : '下调'} ¥${Math.abs(diff).toFixed(2)}`
+        })
+      }
     }
     await user.save()
     success(res, null, '操作成功')
@@ -366,5 +377,67 @@ export async function deleteNotification(req, res, next) {
       where: { type: target.type, content: target.content }
     })
     success(res, null, `已删除${count}条通知`)
+  } catch (err) { next(err) }
+}
+
+
+/* ---- 后台图表：近 7 天上架 / 单日分时段 / 类目交易额 ---- */
+function fmtDate(d) {
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+export async function charts(req, res, next) {
+  try {
+    const start = new Date()
+    start.setHours(0, 0, 0, 0)
+    start.setDate(start.getDate() - 6)
+
+    const rows = await sequelize.query(
+      `SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS d, HOUR(created_at) AS h, COUNT(*) AS c
+       FROM products
+       WHERE created_at >= :start
+       GROUP BY d, h`,
+      { replacements: { start: `${fmtDate(start)} 00:00:00` }, type: QueryTypes.SELECT }
+    )
+
+    const days = []
+    const hourly = {}
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start)
+      d.setDate(start.getDate() + i)
+      const key = fmtDate(d)
+      days.push({ date: key, count: 0 })
+      hourly[key] = Array.from({ length: 24 }, () => 0)
+    }
+    const dayMap = new Map(days.map((d) => [d.date, d]))
+    for (const r of rows) {
+      const day = dayMap.get(r.d)
+      const count = Number(r.c) || 0
+      if (!day) continue
+      day.count += count
+      if (hourly[r.d]) hourly[r.d][Number(r.h)] = count
+    }
+
+    const catRows = await sequelize.query(
+      `SELECT p.category AS category, SUM(oi.price) AS amount
+       FROM order_items oi
+       JOIN orders o ON o.id = oi.order_id AND o.status = 'completed'
+       JOIN products p ON p.id = oi.product_id
+       GROUP BY p.category
+       ORDER BY amount DESC`,
+      { type: QueryTypes.SELECT }
+    )
+    const list = catRows.map((r) => ({
+      category: r.category || '未分类',
+      amount: Number(r.amount) || 0
+    }))
+    const totalAmount = list.reduce((sum, i) => sum + i.amount, 0)
+    const category = list.map((i) => ({
+      ...i,
+      percent: totalAmount > 0 ? Number(((i.amount / totalAmount) * 100).toFixed(1)) : 0
+    }))
+
+    success(res, { days, hourly, category, totalAmount })
   } catch (err) { next(err) }
 }

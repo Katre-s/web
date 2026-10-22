@@ -80,7 +80,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus/es/components/message/index'
 import { Notebook, Location } from '@element-plus/icons-vue'
-import { booksApi, conversationApi, cartApi, bookFavoriteApi } from '@/api'
+import { booksApi, conversationApi, cartApi, bookFavoriteApi, recommendApi } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { resolveImg } from '@/utils/image'
 
@@ -121,6 +121,11 @@ async function loadDetail() {
     const data = res.data || res
     book.value = data.book
     sellers.value = data.sellers || []
+    recommendApi.track({
+      type: 'click',
+      keyword: data.book?.bookTitle || '',
+      category: '图书'
+    }).catch(() => {})
     if (book.value?.id) {
       try {
         const favRes = await bookFavoriteApi.check(book.value.id)

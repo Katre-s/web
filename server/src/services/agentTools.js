@@ -18,8 +18,8 @@ import { Product, Book, CartItem } from '../models/index.js'
 
 /* ------------------------------ 页面别名 ------------------------------ */
 const PAGES = [
-  { keys: ['购物车'], path: '/cart', name: '购物车' },
-  { keys: ['我的订单', '订单'], path: '/orders', name: '我的订单' },
+  { keys: ['购物车'], path: '/orders?tab=cart', name: '订单信息（含购物车）' },
+  { keys: ['我的订单', '订单', '订单信息'], path: '/orders', name: '我的订单' },
   { keys: ['交易市场', '交易页', '二手市场', '交易'], path: '/trade', name: '交易页' },
   { keys: ['发布页', '发布', '上架页'], path: '/publish', name: '发布页' },
   { keys: ['书单'], path: '/booklist', name: '书单上传' },
@@ -208,7 +208,7 @@ export async function runAgentAction(parsed, userId) {
 }
 
 function goCartAction() {
-  return { type: 'navigate', path: '/cart', label: '去购物车' }
+  return { type: 'navigate', path: '/orders?tab=cart', label: '去购物车' }
 }
 
 function availableWhere(variants, isbn) {

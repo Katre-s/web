@@ -65,7 +65,7 @@
       </div>
 
       <div class="result-actions">
-        <el-button type="primary" round @click="$router.push('/cart')">{{ $t('booklist.viewCart') }}</el-button>
+        <el-button type="primary" round @click="$router.push('/orders?tab=cart')">{{ $t('booklist.viewCart') }}</el-button>
         <el-button round @click="$router.push('/trade')">{{ $t('tabbar.trade') }}</el-button>
       </div>
     </div>

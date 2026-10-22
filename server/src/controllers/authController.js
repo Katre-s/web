@@ -1,9 +1,14 @@
 import bcrypt from 'bcryptjs'
 import { Op } from 'sequelize'
+import path from 'path'
+import fs from 'fs'
+import { fileURLToPath } from 'url'
+import sharp from 'sharp'
 import { User } from '../models/index.js'
 import { generateToken } from '../middlewares/auth.js'
 import { success, fail } from '../utils/response.js'
 import { sendVerificationCode, verifyCode } from '../services/emailService.js'
+import { upload } from '../utils/upload.js'
 
 const emailRegex = /^[\w.+-]+@[\w-]+(\.[\w-]+)+$/
 const campusOptions = ['一期', '二期', '东校区']
@@ -160,3 +165,30 @@ export async function me(req, res, next) {
     success(res, { user: userInfo })
   } catch (err) { next(err) }
 }
+
+// 头像上传：multer 接收 → sharp 居中裁成 256x256 JPEG → 覆盖 user.avatar
+export const uploadAvatar = [
+  upload.single('avatar'),
+  async (req, res, next) => {
+    try {
+      if (!req.file) return fail(res, '请选择头像图片')
+
+      const __dirname = path.dirname(fileURLToPath(import.meta.url))
+      const uploadsDir = path.join(__dirname, '../../uploads')
+      const finalName = `avatar_${Date.now()}_${Math.round(Math.random() * 1e6)}.jpg`
+      await sharp(req.file.path).resize(256, 256, { fit: 'cover' }).jpeg({ quality: 88 }).toFile(path.join(uploadsDir, finalName))
+
+      // 清理中间文件与旧头像（只删本站 /uploads/ 下的，外链头像不动）
+      fs.unlink(req.file.path, () => {})
+      const user = await User.findByPk(req.user.id)
+      if (user.avatar && user.avatar.startsWith('/uploads/')) {
+        const oldFile = path.join(uploadsDir, path.basename(user.avatar))
+        if (path.basename(user.avatar) !== finalName) fs.unlink(oldFile, () => {})
+      }
+
+      await user.update({ avatar: `/uploads/${finalName}` })
+      const { password: _, ...userInfo } = user.toJSON()
+      success(res, { user: userInfo }, '头像更新成功')
+    } catch (err) { next(err) }
+  }
+]

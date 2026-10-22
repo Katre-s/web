@@ -1,5 +1,6 @@
+import { Op } from 'sequelize'
 import { sequelize } from '../config/database.js'
-import { CartItem, Product, Order, OrderItem, User } from '../models/index.js'
+import { CartItem, Product, Order, OrderItem, User, Conversation, ChatMessage, Notification, BalanceLog, AfterSale } from '../models/index.js'
 import { success, fail } from '../utils/response.js'
 
 // 事务锁等待/死锁自动重试：线上偶发并发时避免直接 500
@@ -19,6 +20,7 @@ async function withRetry(fn, tries = 3, baseDelay = 1000) {
   }
 }
 
+// 下单：只占商品（标记 sold）+ 建订单，不动余额；确认收货时才扣款入账
 export async function create(req, res, next) {
   try {
     const { cartItemIds } = req.body
@@ -35,35 +37,15 @@ export async function create(req, res, next) {
 
     const totalPrice = availableItems.reduce((sum, i) => sum + Number(i.product.price), 0)
 
-    // 余额校验：买家余额必须足够支付
+    // 余额预检：确认收货时才真正扣款，这里提前提示避免下单后才发现付不起
     const buyer = await User.findByPk(req.user.id)
-    const buyerBalance = Number(buyer.balance)
-    if (buyerBalance < totalPrice) {
-      return fail(res, `余额不足，当前余额 ¥${buyerBalance.toFixed(2)}，本单需 ¥${totalPrice.toFixed(2)}`)
+    if (Number(buyer.balance) < totalPrice) {
+      return fail(res, `余额不足，当前余额 ¥${Number(buyer.balance).toFixed(2)}，本单需 ¥${totalPrice.toFixed(2)}，请先充值`)
     }
 
-    // 按卖家汇总本单应收金额
-    const sellerGain = new Map()
-    availableItems.forEach((i) => {
-      const sellerId = i.product.userId
-      sellerGain.set(sellerId, (sellerGain.get(sellerId) || 0) + Number(i.product.price))
-    })
-
-    // 事务：扣买家余额 → 卖家入账 → 商品标记售出 → 建订单 → 明细
     // 顺序关键：必须先 Product.update（拿商品行 X 锁），再建明细（外键检查只取 S 锁，自己持有 X 兼容），
     // 反之则明细插入时 FK 检查对商品行加 S 锁（事务结束才释放），同事务再 UPDATE 需 X 锁 → MySQL5.7 Lock wait timeout
     const order = await withRetry(() => sequelize.transaction(async (tx) => {
-      await User.update(
-        { balance: sequelize.literal(`balance - ${totalPrice}`) },
-        { where: { id: req.user.id }, transaction: tx }
-      )
-      for (const [sellerId, gain] of sellerGain) {
-        await User.update(
-          { balance: sequelize.literal(`balance + ${gain}`) },
-          { where: { id: sellerId }, transaction: tx }
-        )
-      }
-
       await Product.update({ status: 'sold' }, { where: { id: availableItems.map(i => i.productId) } }, { transaction: tx })
 
       const newOrder = await Order.create({ buyerId: req.user.id, totalPrice, status: 'pending' }, { transaction: tx })
@@ -78,13 +60,29 @@ export async function create(req, res, next) {
       return newOrder
     }))
 
-    success(res, order, '下单成功，已从余额中扣款')
+    // 通知卖家有新订单
+    const sellerIds = [...new Set(availableItems.map(i => i.product.userId))]
+    for (const sellerId of sellerIds) {
+      if (sellerId === req.user.id) continue
+      await Notification.create({
+        userId: sellerId,
+        type: 'order',
+        content: `您有新的订单 #${order.id}，买家已下单，等待对方确认收货`
+      })
+    }
+
+    success(res, order, '下单成功，确认收货后将自动扣款')
   } catch (err) { next(err) }
 }
 
 export async function list(req, res, next) {
   try {
-    const { role } = req.query
+    const { role, status } = req.query
+    const where = {}
+    if (['pending', 'completed', 'cancelled', 'confirmed'].includes(status)) {
+      where.status = status
+    }
+
     let orders
     if (role === 'seller') {
       orders = await Order.findAll({
@@ -97,8 +95,11 @@ export async function list(req, res, next) {
       })
     } else {
       orders = await Order.findAll({
-        where: { buyerId: req.user.id },
-        include: [{ model: OrderItem, as: 'items', include: [{ model: Product, as: 'product' }] }],
+        where: { buyerId: req.user.id, ...where },
+        include: [
+          { model: OrderItem, as: 'items', include: [{ model: Product, as: 'product' }] },
+          { model: AfterSale, as: 'aftersale', include: [{ model: User, as: 'admin', attributes: ['id', 'nickname'] }] }
+        ],
         order: [['created_at', 'DESC']]
       })
     }
@@ -106,55 +107,232 @@ export async function list(req, res, next) {
   } catch (err) { next(err) }
 }
 
+// 确认收货：买家操作，pending → completed，此时才扣买家余额、给卖家入账
+export async function confirmReceipt(req, res, next) {
+  try {
+    const order = await Order.findByPk(req.params.id)
+    if (!order) return fail(res, '订单不存在', 404)
+    if (order.buyerId !== req.user.id) return fail(res, '只能操作自己的订单', 403)
+    if (order.status !== 'pending') return fail(res, '订单当前状态不可确认收货')
+
+    const totalPrice = Number(order.totalPrice)
+
+    // 旧版本流程「下单即扣款」，补充列时已把这些订单迁移成 completed；
+    // 这里再加一道流水校验，保证已结清的订单绝不会被二次扣款
+    const paid = await BalanceLog.findOne({ where: { userId: order.buyerId, type: 'pay', orderId: order.id } })
+    if (paid) {
+      order.status = 'completed'
+      await order.save()
+      return success(res, order, '确认收货成功，订单已完成')
+    }
+
+    const items = await OrderItem.findAll({ where: { orderId: order.id } })
+    const sellerGain = new Map()
+    items.forEach((it) => {
+      sellerGain.set(it.sellerId, (sellerGain.get(it.sellerId) || 0) + Number(it.price))
+    })
+
+    const buyer = await User.findByPk(order.buyerId)
+    if (Number(buyer.balance) < totalPrice) {
+      return fail(res, `余额不足，当前余额 ¥${Number(buyer.balance).toFixed(2)}，本单需 ¥${totalPrice.toFixed(2)}，请先充值`)
+    }
+
+    const sellers = await User.findAll({ where: { id: [...sellerGain.keys()] }, attributes: ['id', 'balance'] })
+    const sellerBalance = new Map(sellers.map(s => [s.id, Number(s.balance)]))
+
+    await withRetry(() => sequelize.transaction(async (tx) => {
+      await User.update(
+        { balance: sequelize.literal(`balance - ${totalPrice}`) },
+        { where: { id: order.buyerId }, transaction: tx }
+      )
+      await BalanceLog.create({
+        userId: order.buyerId,
+        type: 'pay',
+        amount: -totalPrice,
+        balanceAfter: Number(buyer.balance) - totalPrice,
+        orderId: order.id,
+        note: `订单 #${order.id} 确认收货扣款`
+      }, { transaction: tx })
+
+      for (const [sellerId, gain] of sellerGain) {
+        await User.update(
+          { balance: sequelize.literal(`balance + ${gain}`) },
+          { where: { id: sellerId }, transaction: tx }
+        )
+        await BalanceLog.create({
+          userId: sellerId,
+          type: 'income',
+          amount: gain,
+          balanceAfter: (sellerBalance.get(sellerId) || 0) + gain,
+          orderId: order.id,
+          note: `订单 #${order.id} 售出收入`
+        }, { transaction: tx })
+      }
+
+      order.status = 'completed'
+      await order.save({ transaction: tx })
+    }))
+
+    for (const [sellerId, gain] of sellerGain) {
+      await Notification.create({
+        userId: sellerId,
+        type: 'order',
+        content: `订单 #${order.id} 买家已确认收货，¥${gain.toFixed(2)} 已入余额`
+      })
+    }
+
+    success(res, order, '确认收货成功，款项已从余额扣除')
+  } catch (err) { next(err) }
+}
+
+// 取消订单：只能取消待收货（pending）的订单；下单未扣款，取消只恢复商品，不动余额
 export async function updateStatus(req, res, next) {
   try {
     const { status } = req.body
-    const validStatus = ['pending', 'confirmed', 'completed', 'cancelled']
-    if (!validStatus.includes(status)) return fail(res, '无效的订单状态')
+    if (status !== 'cancelled') return fail(res, '订单状态只能通过确认收货或取消来变更')
 
     const order = await Order.findByPk(req.params.id)
     if (!order) return fail(res, '订单不存在', 404)
 
-    // 只有买家本人、订单内卖家或管理员可以改状态
+    // 买家本人、订单内卖家或管理员可以取消
     if (req.user.role !== 'admin' && order.buyerId !== req.user.id) {
       const asSeller = await OrderItem.findOne({ where: { orderId: order.id, sellerId: req.user.id } })
       if (!asSeller) return fail(res, '无权操作该订单', 403)
     }
 
-    // 取消订单 → 原路退款（买家加回，卖家扣回）；已完成/确认收货不产生金额变动
-    if (status === 'cancelled' && order.status !== 'cancelled') {
-      const items = await OrderItem.findAll({ where: { orderId: order.id } })
-      const sellerRefund = new Map()
-      items.forEach((it) => {
-        sellerRefund.set(it.sellerId, (sellerRefund.get(it.sellerId) || 0) + Number(it.price))
-      })
+    if (order.status !== 'pending') return fail(res, '只有待收货的订单可以取消')
 
-      await withRetry(() => sequelize.transaction(async (tx) => {
-        // 先恢复商品为可售（拿商品行 X 锁，与明细外键无冲突）
-        await Product.update(
-          { status: 'available' },
-          { where: { id: items.map(it => it.productId) } },
-          { transaction: tx }
-        )
-        await User.update(
-          { balance: sequelize.literal(`balance + ${Number(order.totalPrice)}`) },
-          { where: { id: order.buyerId }, transaction: tx }
-        )
-        for (const [sellerId, refund] of sellerRefund) {
-          await User.update(
-            { balance: sequelize.literal(`balance - ${refund}`) },
-            { where: { id: sellerId }, transaction: tx }
-          )
-        }
-        order.status = 'cancelled'
-        await order.save({ transaction: tx })
-      }))
-      success(res, order, '订单已取消，款项已原路退回')
-      return
+    const items = await OrderItem.findAll({ where: { orderId: order.id }, attributes: ['productId', 'sellerId'] })
+
+    await withRetry(() => sequelize.transaction(async (tx) => {
+      // 先恢复商品为可售（拿商品行 X 锁，与明细外键无冲突）
+      await Product.update(
+        { status: 'available' },
+        { where: { id: items.map(it => it.productId) } },
+        { transaction: tx }
+      )
+      order.status = 'cancelled'
+      await order.save({ transaction: tx })
+    }))
+
+    const sellerIds = [...new Set(items.map(it => it.sellerId))]
+    for (const sellerId of sellerIds) {
+      if (sellerId === order.buyerId) continue
+      await Notification.create({
+        userId: sellerId,
+        type: 'order',
+        content: `订单 #${order.id} 已取消，商品已重新上架`
+      })
     }
 
-    order.status = status
+    success(res, order, '订单已取消')
+  } catch (err) { next(err) }
+}
+
+// 申请售后：买家对已完成订单发起（被驳回后允许重新申请）
+export async function applyAftersale(req, res, next) {
+  try {
+    const order = await Order.findByPk(req.params.id)
+    if (!order) return fail(res, '订单不存在', 404)
+    if (order.buyerId !== req.user.id) return fail(res, '只能操作自己的订单', 403)
+    if (order.status !== 'completed') return fail(res, '只有已完成的订单可以申请售后')
+
+    const reason = String(req.body.reason || '').trim().slice(0, 500)
+    const existing = await AfterSale.findOne({ where: { orderId: order.id } })
+    if (existing && existing.status !== 'rejected') {
+      return fail(res, '该订单已在售后处理中，请勿重复申请')
+    }
+
+    if (existing) {
+      await existing.update({
+        reason,
+        status: 'pending',
+        adminId: null,
+        adminNote: '',
+        handledAt: null
+      })
+    } else {
+      await AfterSale.create({ orderId: order.id, buyerId: req.user.id, reason, status: 'pending' })
+    }
+
+    order.aftersaleStatus = 'pending'
     await order.save()
-    success(res, order, '状态更新成功')
+
+    const items = await OrderItem.findAll({ where: { orderId: order.id }, attributes: ['sellerId'] })
+    const sellerIds = [...new Set(items.map(it => it.sellerId))]
+    for (const sellerId of sellerIds) {
+      if (sellerId === order.buyerId) continue
+      await Notification.create({
+        userId: sellerId,
+        type: 'aftersale',
+        content: `买家对订单 #${order.id} 发起了售后申请，请及时与买家沟通处理`
+      })
+    }
+
+    success(res, order, '售后申请已提交')
+  } catch (err) { next(err) }
+}
+
+// 联系管理员：自动分配一个当前会话量最少的管理员与买家对话（需先申请售后）
+export async function contactAdmin(req, res, next) {
+  try {
+    const order = await Order.findByPk(req.params.id)
+    if (!order) return fail(res, '订单不存在', 404)
+    if (order.buyerId !== req.user.id) return fail(res, '只能操作自己的订单', 403)
+    if (order.status !== 'completed') return fail(res, '只有已完成的订单可以联系管理员')
+
+    const admins = await User.findAll({
+      where: { role: 'admin', status: 'active' },
+      attributes: ['id', 'nickname']
+    })
+    if (!admins.length) return fail(res, '暂无可用管理员，请稍后再试', 404)
+
+    // 统计每个管理员名下的会话量，挑最"空闲"的一个
+    const adminIds = admins.map(a => a.id)
+    const convRows = await Conversation.findAll({
+      where: { [Op.or]: [{ buyerId: adminIds }, { sellerId: adminIds }] },
+      attributes: ['buyerId', 'sellerId'],
+      raw: true
+    })
+    const loadMap = new Map(adminIds.map(id => [id, 0]))
+    for (const row of convRows) {
+      if (loadMap.has(row.buyerId)) loadMap.set(row.buyerId, loadMap.get(row.buyerId) + 1)
+      if (loadMap.has(row.sellerId)) loadMap.set(row.sellerId, loadMap.get(row.sellerId) + 1)
+    }
+    const admin = [...admins].sort((a, b) => (loadMap.get(a.id) || 0) - (loadMap.get(b.id) || 0))[0]
+
+    const buyerId = order.buyerId
+    let conv = await Conversation.findOne({
+      where: {
+        [Op.or]: [
+          { buyerId, sellerId: admin.id },
+          { buyerId: admin.id, sellerId: buyerId }
+        ]
+      },
+      order: [['last_message_at', 'DESC']]
+    })
+    if (!conv) {
+      conv = await Conversation.create({ buyerId, sellerId: admin.id, productId: null, lastMessageAt: new Date() })
+    }
+    const reason = order.aftersaleStatus === 'applied'
+      ? `我对订单 #${order.id} 申请了售后，请管理员协助处理`
+      : `我想就订单 #${order.id} 咨询一下，请管理员协助处理`
+    await ChatMessage.create({
+      conversationId: conv.id,
+      senderId: buyerId,
+      content: `你好，${reason}`
+    })
+    await conv.update({ lastMessageAt: new Date() })
+
+    await Notification.create({
+      userId: admin.id,
+      type: 'aftersale',
+      content: `系统分配：买家就订单 #${order.id} 发起咨询${order.aftersaleStatus === 'applied' ? '（含售后）' : ''}，请查看对话`
+    })
+
+    success(res, {
+      conversationId: conv.id,
+      admin: { id: admin.id, nickname: admin.nickname }
+    }, `已为您分配管理员（${admin.nickname}），请查看对话`)
   } catch (err) { next(err) }
 }

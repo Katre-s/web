@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { login, register, sendCode, sendChangeEmailCode, changeEmail, me, sendResetCode, resetPassword } from '../controllers/authController.js'
+import { login, register, sendCode, sendChangeEmailCode, changeEmail, me, sendResetCode, resetPassword, uploadAvatar } from '../controllers/authController.js'
 import { verifyToken } from '../middlewares/auth.js'
 
 const router = Router()
@@ -11,4 +11,5 @@ router.post('/reset-password', resetPassword)
 router.get('/me', verifyToken, me)
 router.post('/send-change-email-code', verifyToken, sendChangeEmailCode)
 router.post('/change-email', verifyToken, changeEmail)
+router.post('/avatar', verifyToken, uploadAvatar)
 export default router

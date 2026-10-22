@@ -23,6 +23,9 @@
             {{ product.status === 'sold' ? t('productdetail.sold') : t('common.addCart') }}
           </el-button>
           <el-button @click="contactSeller">{{ $t('common.contactSeller') }}</el-button>
+          <el-button :type="favorited ? 'warning' : 'default'" @click="toggleFavorite">
+            {{ favorited ? $t('common.favorited') : $t('common.favItem') }}
+          </el-button>
         </div>
       </div>
     </div>
@@ -35,7 +38,7 @@ const { t } = useI18n()
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus/es/components/message/index'
-import { productApi, cartApi, conversationApi } from '@/api'
+import { productApi, cartApi, conversationApi, favoriteApi, recommendApi } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { resolveImg, imgFallback } from '@/utils/image'
 import { categoryKey } from '@/constants/categories'
@@ -45,6 +48,7 @@ const router = useRouter()
 const userStore = useUserStore()
 const product = ref(null)
 const loading = ref(false)
+const favorited = ref(false)
 
 // 后端返回的封面字段是 bookCover，images 数组元素是 { imagePath } 对象，需兼容取图
 const coverImg = computed(() => {
@@ -60,9 +64,34 @@ async function loadProduct() {
   try {
     const res = await productApi.detail(route.params.id)
     product.value = res.data || res
+    if (product.value?.id) {
+      recommendApi.track({
+        type: 'click',
+        productId: product.value.id,
+        category: product.value.category,
+        keyword: product.value.title || product.value.bookTitle
+      }).catch(() => {})
+      try {
+        const fav = await favoriteApi.check(product.value.id)
+        favorited.value = !!fav?.data?.favorited
+      } catch {}
+    }
   } finally {
     loading.value = false
   }
+}
+
+async function toggleFavorite() {
+  if (!userStore.isLoggedIn) {
+    router.push({ name: 'Login', query: { redirect: route.fullPath } })
+    return
+  }
+  if (!product.value?.id) return
+  try {
+    const res = await favoriteApi.toggle(product.value.id)
+    favorited.value = !!res?.data?.favorited
+    ElMessage.success(favorited.value ? t('common.favorited') : t('common.unfavDone'))
+  } catch {}
 }
 
 async function addToCart() {

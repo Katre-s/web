@@ -2,12 +2,23 @@
   <div class="profile-page">
     <h2 class="page-title">{{ $t('profile.title') }}</h2>
     <div class="profile-card">
-      <img :src="resolveImg(userStore.userInfo?.avatar) || defaultAvatar" class="avatar" />
+      <div class="avatar-wrap" @click="pickAvatar">
+        <img :src="resolveImg(userStore.userInfo?.avatar) || defaultUserAvatar" class="avatar" />
+        <div class="avatar-mask" v-loading="avatarUploading">
+          <span>{{ avatarUploading ? $t('profile.avatarUploading') : $t('profile.changeAvatar') }}</span>
+        </div>
+        <span class="avatar-edit-badge">📷</span>
+        <input ref="avatarInput" type="file" accept="image/*" class="avatar-input" @change="onAvatarChange" />
+      </div>
       <div class="profile-info">
         <h3>{{ userStore.userInfo?.nickname }}</h3>
         <p class="user-no">ID：{{ userStore.userInfo?.userNo || t('common.unassigned') }}</p>
         <p>{{ $t('profile.email') }}：{{ userStore.userInfo?.email }} <el-button text type="primary" size="small" @click="showEmailDialog = true">{{ $t('profile.change') }}</el-button></p>
-        <p class="profile-balance">{{ $t('profile.balance') }}：<b>¥{{ Number(userStore.userInfo?.balance ?? 0).toFixed(2) }}</b></p>
+        <p class="profile-balance">
+          {{ $t('profile.balance') }}：<b>¥{{ Number(userStore.userInfo?.balance ?? 0).toFixed(2) }}</b>
+          <el-button type="primary" size="small" round @click="showRechargeDialog = true">{{ $t('profile.rechargeTitle') }}</el-button>
+          <el-button size="small" round @click="openLogs">{{ $t('profile.balanceLogs') }}</el-button>
+        </p>
       </div>
     </div>
 
@@ -45,22 +56,27 @@
         </div>
         <el-empty v-if="!filteredProducts.length" :description="$t('common.noBooks')" />
       </div>
-      <div v-else-if="activeTab === 'favorites'" class="fav-board-grid">
-        <div v-for="b in tabData" :key="b.id" class="fav-board-card" @click="goBoard(b)">
-          <div class="fav-cover" :style="coverStyle(b.bookCover)"></div>
+      <div v-else-if="activeTab === 'favorites'" class="fav-products">
+        <div v-for="f in favList" :key="f.key" class="fav-product-card" @click="openFav(f)">
+          <img :src="favCover(f)" class="fav-cover" />
           <div class="fav-info">
-            <h4 class="fav-title">{{ b.bookTitle }}</h4>
-            <p class="fav-author" v-if="b.bookAuthor">{{ b.bookAuthor }}</p>
+            <h4 class="fav-title">{{ favTitle(f) }}</h4>
             <div class="fav-meta">
-              <span v-if="b.sellerCount" class="fav-sellers">{{ b.sellerCount }}{{ $t('common.seller') }}</span>
-              <span v-if="b.minPrice" class="fav-price">¥{{ b.minPrice }}{{ $t('common.from') }}</span>
-              <span v-else class="fav-empty">{{ $t('common.noSellers') }}</span>
+              <span class="fav-price">{{ favPrice(f) }}</span>
+              <span class="fav-status" :class="favOnSale(f) ? 'status-on' : 'status-off'">
+                <template v-if="f.kind === 'book'">
+                  {{ f.book.sellerCount ? f.book.sellerCount + $t('common.seller') : $t('common.noSellers') }}
+                </template>
+                <template v-else>
+                  {{ favOnSale(f) ? $t('common.available') : $t('common.sold') }}
+                </template>
+              </span>
             </div>
           </div>
-          <el-button text type="danger" size="small" @click.stop="unfavorite(b)">{{ $t('common.unfav') }}</el-button>
+          <el-button text type="danger" size="small" @click.stop="unfavorite(f)">{{ $t('common.unfav') }}</el-button>
         </div>
+        <el-empty v-if="!favList.length" :description="t('common.empty')" />
       </div>
-      <el-empty v-if="!tabData.length && activeTab !== 'products'" :description="t('common.empty')" />
     </div>
 
     <el-dialog v-model="showEmailDialog" :title="$t('profile.changeEmailTitle')" width="440px">
@@ -82,6 +98,47 @@
         <el-button type="primary" @click="submitChangeEmail" :loading="changingEmail">{{ $t('profile.confirmChange') }}</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="showRechargeDialog" :title="$t('profile.rechargeTitle')" width="440px">
+      <div class="quick-amounts">
+        <button
+          v-for="a in quickAmounts"
+          :key="a"
+          class="amount-btn"
+          :class="{ active: rechargeAmount === a }"
+          @click="rechargeAmount = a"
+        >¥{{ a }}</button>
+      </div>
+      <el-form label-position="top" @submit.prevent>
+        <el-form-item :label="$t('profile.rechargeAmount')">
+          <el-input v-model.number="rechargeAmount" type="number" min="0.01" step="0.01" placeholder="0.00">
+            <template #prepend>¥</template>
+          </el-input>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showRechargeDialog = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="recharging" @click="submitRecharge">{{ $t('profile.rechargeSubmit') }}</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="showLogsDialog" :title="$t('profile.balanceLogs')" width="480px">
+      <div v-loading="loadingLogs" class="log-list">
+        <div v-for="log in balanceLogs" :key="log.id" class="log-item">
+          <div class="log-left">
+            <span class="log-type" :class="log.type">{{ logTypeLabel(log.type) }}</span>
+            <span class="log-note">{{ log.note || logTypeLabel(log.type) }}</span>
+          </div>
+          <div class="log-right">
+            <span class="log-amount" :class="Number(log.amount) >= 0 ? 'plus' : 'minus'">
+              {{ Number(log.amount) >= 0 ? '+' : '' }}¥{{ Number(log.amount).toFixed(2) }}
+            </span>
+            <span class="log-after">→ ¥{{ Number(log.balanceAfter).toFixed(2) }}</span>
+          </div>
+        </div>
+        <el-empty v-if="!balanceLogs.length && !loadingLogs" :description="$t('profile.noLogs')" :image-size="60" />
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -92,7 +149,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus/es/components/message/index'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index'
-import { productApi, bookFavoriteApi, authApi, conversationApi } from '@/api'
+import { productApi, favoriteApi, bookFavoriteApi, authApi, balanceApi, conversationApi } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { resolveImg } from '@/utils/image'
 
@@ -100,10 +157,88 @@ const userStore = useUserStore()
 const router = useRouter()
 const activeTab = ref('products')
 const tabData = ref([])
+const favList = ref([])
 const loading = ref(false)
 const productFilter = ref('available')
 const defaultAvatar = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect fill="%23eee" width="80" height="80"/><text x="50%" y="50%" fill="%23aaa" text-anchor="middle" dy=".3em" font-size="12">无图</text></svg>'
+const defaultUserAvatar = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><circle cx="40" cy="40" r="40" fill="%2310667a"/><text x="50%" y="50%" fill="%23fff" text-anchor="middle" dy=".35em" font-size="30">鱼</text></svg>'
 
+/* ---------- 头像上传 ---------- */
+const avatarInput = ref(null)
+const avatarUploading = ref(false)
+
+function pickAvatar() {
+  if (!avatarUploading.value) avatarInput.value?.click()
+}
+
+async function onAvatarChange(e) {
+  const file = e.target.files?.[0]
+  e.target.value = ''
+  if (!file) return
+  if (file.size > 15 * 1024 * 1024) {
+    ElMessage.warning(t('profile.avatarTooLarge'))
+    return
+  }
+  const formData = new FormData()
+  formData.append('avatar', file)
+  avatarUploading.value = true
+  try {
+    const res = await authApi.uploadAvatar(formData)
+    if (res.data?.user) {
+      userStore.setAuth(userStore.token, res.data.user)
+    }
+    ElMessage.success(res.message || t('common.success'))
+  } catch {} finally {
+    avatarUploading.value = false
+  }
+}
+
+/* ---------- 充值与流水 ---------- */
+const showRechargeDialog = ref(false)
+const rechargeAmount = ref(50)
+const recharging = ref(false)
+const quickAmounts = [20, 50, 100, 200]
+
+const showLogsDialog = ref(false)
+const loadingLogs = ref(false)
+const balanceLogs = ref([])
+
+function submitRecharge() {
+  const raw = Number(rechargeAmount.value)
+  const cents = Math.round(raw * 100)
+  if (!Number.isFinite(raw) || raw <= 0 || cents / 100 > 5000 || Math.abs(cents - raw * 100) > 1e-6) {
+    ElMessage.warning(t('profile.rechargeInvalid'))
+    return
+  }
+  const amount = cents / 100
+  recharging.value = true
+  balanceApi.recharge(amount)
+    .then(() => {
+      ElMessage.success(t('profile.rechargeSuccess', { amount: amount.toFixed(2) }))
+      showRechargeDialog.value = false
+      userStore.fetchProfile()
+    })
+    .catch(() => {})
+    .finally(() => { recharging.value = false })
+}
+
+async function openLogs() {
+  showLogsDialog.value = true
+  loadingLogs.value = true
+  try {
+    const res = await balanceApi.logs()
+    balanceLogs.value = res.data || res || []
+  } finally {
+    loadingLogs.value = false
+  }
+}
+
+function logTypeLabel(type) {
+  const map = { recharge: 'profile.logRecharge', pay: 'profile.logPay', income: 'profile.logIncome', admin: 'profile.logAdmin' }
+  return t(map[type] || type)
+}
+
+/* ---------- 邮箱修改 ---------- */
 const showEmailDialog = ref(false)
 const emailForm = ref({ email: '', code: '' })
 const emailCooldown = ref(0)
@@ -113,6 +248,7 @@ let cooldownTimer = null
 
 const emailRegex = /^[\w.+-]+@[\w-]+(\.[\w-]+)+$/
 
+/* ---------- 我的发布 / 物品收藏 ---------- */
 const availableProducts = computed(() => tabData.value.filter(p => p.status === 'available'))
 const soldProducts = computed(() => tabData.value.filter(p => p.status !== 'available'))
 const filteredProducts = computed(() => productFilter.value === 'available' ? availableProducts.value : soldProducts.value)
@@ -124,8 +260,25 @@ async function loadTabData() {
       const res = await productApi.myProducts()
       tabData.value = res.data || res || []
     } else if (activeTab.value === 'favorites') {
-      const res = await bookFavoriteApi.list()
-      tabData.value = res.data || res || []
+      // 物品收藏 = 单件商品收藏 + 旧版书目收藏，兼容历史数据
+      const [pf, bf] = await Promise.all([favoriteApi.list(), bookFavoriteApi.list()])
+      const pList = Array.isArray(pf?.data) ? pf.data : (Array.isArray(pf) ? pf : [])
+      const bList = Array.isArray(bf?.data) ? bf.data : (Array.isArray(bf) ? bf : [])
+      favList.value = [
+        ...pList.filter((f) => f && f.product).map((f) => ({
+          key: `p${f.id}`,
+          kind: 'product',
+          id: f.id,
+          productId: f.productId,
+          product: f.product
+        })),
+        ...bList.filter((b) => b && b.id).map((b) => ({
+          key: `b${b.id}`,
+          kind: 'book',
+          bookId: b.id,
+          book: b
+        }))
+      ]
     }
   } finally {
     loading.value = false
@@ -133,24 +286,46 @@ async function loadTabData() {
 }
 
 function goProduct(p) {
+  if (!p?.id) return
   router.push(`/product/${p.id}`)
 }
 
-function goBoard(b) {
-  const key = b?.isbn || b?.bookTitle || b?.title
-  if (!key) return
-  router.push(`/book/${encodeURIComponent(key)}`)
+function favCover(f) {
+  if (f?.kind === 'book') return resolveImg(f.book?.bookCover) || defaultAvatar
+  const p = f?.product
+  if (!p) return defaultAvatar
+  return resolveImg(p.cover || p.bookCover || p.images?.[0]?.imagePath) || defaultAvatar
 }
 
-function coverStyle(cover) {
-  const url = resolveImg(cover)
-  if (!url) return {}
-  return { backgroundImage: `url("${url}")`, backgroundSize: 'cover', backgroundPosition: 'center' }
+function favTitle(f) {
+  return f?.kind === 'book' ? f.book?.bookTitle : (f?.product?.title || f?.product?.bookTitle)
 }
 
-async function unfavorite(b) {
+function favPrice(f) {
+  if (f?.kind === 'book') {
+    const min = Number(f.book?.minPrice) || 0
+    return min ? `¥${min}${t('common.from')}` : '—'
+  }
+  return `¥${f?.product?.price ?? '—'}`
+}
+
+function favOnSale(f) {
+  return f?.kind === 'book' ? Number(f.book?.sellerCount) > 0 : f?.product?.status === 'available'
+}
+
+function openFav(f) {
+  if (f?.kind === 'book') {
+    const key = f.book?.isbn || f.book?.bookTitle
+    if (key) router.push(`/book/${encodeURIComponent(key)}`)
+    return
+  }
+  goProduct(f?.product)
+}
+
+async function unfavorite(f) {
   try {
-    await bookFavoriteApi.toggle(b.id)
+    if (f?.kind === 'book') await bookFavoriteApi.toggle(f.bookId)
+    else await favoriteApi.toggle(f.productId)
     ElMessage.success(t('common.unfavDone'))
     loadTabData()
   } catch {}
@@ -223,23 +398,86 @@ onUnmounted(() => { if (cooldownTimer) clearInterval(cooldownTimer) })
   display: flex;
   align-items: center;
   gap: 20px;
-  background: #fff;
+  background: var(--card-bg, #fff);
   border-radius: 8px;
   padding: 24px;
   margin-bottom: 20px;
+}
+.avatar-wrap {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 .avatar {
   width: 80px;
   height: 80px;
   border-radius: 50%;
   object-fit: cover;
+  display: block;
+}
+/* 触屏设备没有 hover，头像遮罩常驻半透明，提示可以点击更换 */
+@media (hover: none) {
+  .avatar-mask {
+    opacity: 0.55;
+  }
+}
+
+.avatar-edit-badge {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #10667a;
+  border: 2px solid #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+  box-shadow: 0 2px 6px rgba(13, 59, 79, 0.3);
+  pointer-events: none;
+}
+
+.avatar-mask {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 11px;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.avatar-wrap:hover .avatar-mask {
+  opacity: 1;
+}
+.avatar-input {
+  display: none;
 }
 .profile-info h3 {
   font-size: 20px;
   margin-bottom: 4px;
 }
 .profile-info p {
-  color: #999;
+  color: var(--text-sub, #999);
+}
+.profile-balance {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.profile-balance b {
+  color: var(--accent-danger, #e53935);
+  font-size: 18px;
 }
 .user-no {
   color: #42a5f5 !important;
@@ -260,7 +498,7 @@ onUnmounted(() => { if (cooldownTimer) clearInterval(cooldownTimer) })
   padding: 8px 22px;
   border-radius: 20px;
   border: 1px solid #dcdfe6;
-  background: #fff;
+  background: var(--card-bg, #fff);
   color: #606266;
   font-size: 14px;
   cursor: pointer;
@@ -280,7 +518,7 @@ onUnmounted(() => { if (cooldownTimer) clearInterval(cooldownTimer) })
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #fff;
+  background: var(--card-bg, #fff);
   border-radius: 10px;
   padding: 12px 16px;
   gap: 12px;
@@ -322,7 +560,7 @@ onUnmounted(() => { if (cooldownTimer) clearInterval(cooldownTimer) })
 .my-product-title {
   font-size: 15px;
   font-weight: 500;
-  color: #0d2847;
+  color: var(--text-main, #0d2847);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -334,83 +572,186 @@ onUnmounted(() => { if (cooldownTimer) clearInterval(cooldownTimer) })
   align-items: center;
 }
 .my-product-price {
-  color: #e53935;
+  color: var(--accent-danger, #e53935);
   font-weight: 700;
   font-size: 16px;
 }
 .my-product-status {
   font-size: 12px;
   color: #999;
-  background: #f5f5f5;
+  background: var(--bg-light, #f5f5f5);
   padding: 2px 8px;
   border-radius: 4px;
 }
-.fav-board-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 16px;
-}
-.fav-board-card {
-  background: #fff;
-  border-radius: 12px;
-  overflow: hidden;
-  cursor: pointer;
-  transition: all 0.3s;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+.fav-products {
   display: flex;
   flex-direction: column;
+  gap: 10px;
 }
-.fav-board-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+.fav-product-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--card-bg, #fff);
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: transform 0.25s;
+}
+.fav-product-card:hover {
+  transform: translateX(4px);
 }
 .fav-cover {
-  height: 120px;
-  background: linear-gradient(135deg, #e3f2fd, #bbdefb);
-  background-size: cover;
-  background-position: center;
+  width: 48px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
 }
 .fav-info {
-  padding: 12px 16px;
   flex: 1;
+  min-width: 0;
 }
 .fav-title {
   font-size: 15px;
-  font-weight: 600;
-  color: #0d2847;
+  font-weight: 500;
+  color: var(--text-main, #0d2847);
   margin-bottom: 6px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.fav-author {
-  font-size: 13px;
-  color: #78909c;
-  margin-bottom: 8px;
-}
 .fav-meta {
   display: flex;
   gap: 10px;
-  font-size: 12px;
-}
-.fav-sellers {
-  color: #43a047;
-  font-weight: 600;
+  align-items: center;
 }
 .fav-price {
-  color: #e53935;
-  font-weight: 600;
+  color: var(--accent-danger, #e53935);
+  font-weight: 700;
+  font-size: 15px;
 }
-.fav-empty {
-  color: #bbb;
+.fav-status {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
 }
-.fav-publisher {
-  color: #90a4ae;
+.fav-status.status-on {
+  color: #43a047;
+  background: rgba(67, 160, 71, 0.12);
+}
+.fav-status.status-off {
+  color: #999;
+  background: var(--bg-light, #f5f5f5);
 }
 .code-row {
   display: flex;
   gap: 10px;
   width: 100%;
+}
+.quick-amounts {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.amount-btn {
+  flex: 1;
+  min-width: 72px;
+  padding: 10px 0;
+  border-radius: 10px;
+  border: 1px solid #dcdfe6;
+  background: var(--card-bg, #fff);
+  color: #606266;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+.amount-btn:hover {
+  border-color: #42a5f5;
+  color: #42a5f5;
+}
+.amount-btn.active {
+  background: #42a5f5;
+  border-color: #42a5f5;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(66, 165, 245, 0.35);
+}
+.log-list {
+  max-height: 380px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.log-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--border-light, #f0f0f0);
+}
+.log-item:last-child {
+  border-bottom: none;
+}
+.log-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.log-type {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 8px;
+  width: fit-content;
+}
+.log-type.recharge {
+  color: #42a5f5;
+  background: rgba(66, 165, 245, 0.12);
+}
+.log-type.pay {
+  color: #ff9800;
+  background: rgba(255, 152, 0, 0.12);
+}
+.log-type.income {
+  color: #43a047;
+  background: rgba(67, 160, 71, 0.12);
+}
+.log-type.admin {
+  color: #9c27b0;
+  background: rgba(156, 39, 176, 0.12);
+}
+.log-note {
+  font-size: 12px;
+  color: var(--text-sub, #999);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.log-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.log-amount {
+  font-weight: 700;
+  font-size: 14px;
+}
+.log-amount.plus {
+  color: #43a047;
+}
+.log-amount.minus {
+  color: var(--accent-danger, #e53935);
+}
+.log-after {
+  font-size: 12px;
+  color: var(--text-sub, #999);
 }
 
 @media (max-width: 768px) {
@@ -419,6 +760,7 @@ onUnmounted(() => { if (cooldownTimer) clearInterval(cooldownTimer) })
     gap: 14px;
     border-radius: 12px;
   }
+  .avatar-wrap,
   .avatar {
     width: 60px;
     height: 60px;
@@ -428,6 +770,9 @@ onUnmounted(() => { if (cooldownTimer) clearInterval(cooldownTimer) })
   }
   .profile-info p {
     font-size: 13px;
+  }
+  .profile-balance b {
+    font-size: 16px;
   }
   .filter-btn {
     padding: 6px 16px;
@@ -450,17 +795,23 @@ onUnmounted(() => { if (cooldownTimer) clearInterval(cooldownTimer) })
   .my-product-price {
     font-size: 15px;
   }
-  .fav-board-grid {
-    grid-template-columns: repeat(2, 1fr);
+  .fav-product-card {
+    padding: 10px 12px;
     gap: 10px;
   }
   .fav-cover {
-    height: 100px;
-  }
-  .fav-info {
-    padding: 10px 12px;
+    width: 44px;
+    height: 58px;
   }
   .fav-title {
+    font-size: 14px;
+  }
+  .quick-amounts {
+    gap: 8px;
+  }
+  .amount-btn {
+    min-width: 60px;
+    padding: 8px 0;
     font-size: 14px;
   }
 }

@@ -25,6 +25,10 @@
         <el-menu-item index="plaza" @click="switchSection('plaza')">
           <el-icon><ChatLineSquare /></el-icon><span>{{ $t('admin.plazaManage') }}</span>
         </el-menu-item>
+        <el-menu-item index="afterSales" @click="switchSection('afterSales')">
+          <el-icon><Service /></el-icon><span>{{ $t('admin.afterSales') }}</span>
+          <el-tag v-if="stats?.aftersalePending" size="small" type="danger" class="menu-badge">{{ stats.aftersalePending }}</el-tag>
+        </el-menu-item>
         <el-menu-item index="users" @click="switchSection('users')">
           <el-icon><User /></el-icon><span>{{ $t('admin.users') }}</span>
         </el-menu-item>
@@ -81,21 +85,7 @@
             </div>
           </div>
 
-          <div class="panel" v-if="homeStats && homeStats.chartData && homeStats.chartData.length">
-            <h3 class="panel-title">{{ $t('admin.trend7d') }}</h3>
-            <div class="chart-container">
-              <div class="bar-chart">
-                <div v-for="d in homeStats.chartData" :key="d.date" class="bar-item">
-                  <div class="bar-wrapper">
-                    <div class="bar-fill" :style="{ height: barHeight(d.count) + '%' }">
-                      <span class="bar-count" v-if="d.count > 0">{{ d.count }}</span>
-                    </div>
-                  </div>
-                  <span class="bar-label">{{ d.date }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          <StatsCharts v-if="chartData" :data="chartData" />
 
           <div class="panel">
             <h3 class="panel-title">{{ $t('admin.latestUsers') }}</h3>
@@ -337,6 +327,61 @@
           </div>
         </template>
 
+        <!-- ===== 售后管理 ===== -->
+        <template v-if="activeSection === 'afterSales'">
+          <div class="panel">
+            <div class="panel-toolbar">
+              <h3 class="panel-title">{{ $t('admin.afterSales') }}</h3>
+              <div class="toolbar-right">
+                <el-select v-model="aftersaleStatus" clearable :placeholder="$t('admin.afterSaleAll')" style="width: 140px" @change="loadAfterSales">
+                  <el-option :label="$t('admin.afterSalePending')" value="pending" />
+                  <el-option :label="$t('admin.afterSaleProcessing')" value="processing" />
+                  <el-option :label="$t('admin.afterSaleResolved')" value="resolved" />
+                  <el-option :label="$t('admin.afterSaleRejected')" value="rejected" />
+                </el-select>
+                <el-button size="small" @click="loadAfterSales">{{ $t('common.refresh') }}</el-button>
+              </div>
+            </div>
+            <el-table :data="afterSales" size="small">
+              <el-table-column prop="id" label="ID" width="60" />
+              <el-table-column :label="$t('admin.afterSaleOrder')" width="100">
+                <template #default="{ row }">#{{ row.orderId }}</template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.afterSaleBuyer')" width="160">
+                <template #default="{ row }">
+                  {{ row.buyer?.nickname || '—' }}
+                  <span class="muted-text" v-if="row.buyer?.userNo">（{{ row.buyer.userNo }}）</span>
+                </template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.afterSaleItems')" min-width="190">
+                <template #default="{ row }">
+                  <span class="plaza-content">{{ afterSaleItems(row) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.afterSaleReason')" min-width="180" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.reason || '—' }}</template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.afterSaleStatus')" width="100">
+                <template #default="{ row }">
+                  <el-tag size="small" :type="aftersaleTagType(row.status)">{{ aftersaleStatusLabel(row.status) }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.afterSaleTime')" width="150">
+                <template #default="{ row }">{{ formatDate(row.created_at || row.createdAt) }}</template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.afterSaleHandler')" width="120">
+                <template #default="{ row }">{{ row.admin?.nickname || '—' }}</template>
+              </el-table-column>
+              <el-table-column :label="$t('common.actions')" width="90" fixed="right">
+                <template #default="{ row }">
+                  <el-button size="small" text type="primary" @click="openAftersale(row)">{{ $t('admin.handle') }}</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            <el-empty v-if="!afterSales.length" :description="$t('admin.afterSaleEmpty')" :image-size="70" />
+          </div>
+        </template>
+
         <!-- ===== 用户管理 ===== -->
         <template v-if="activeSection === 'users'">
           <div class="panel">
@@ -410,6 +455,38 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="showAftersaleDialog" :title="$t('admin.handleAfterSale')" width="520px">
+      <div v-if="aftersaleForm.row" class="aftersale-detail">
+        <p><b>{{ $t('admin.afterSaleOrder') }}：</b>#{{ aftersaleForm.row.orderId }}</p>
+        <p><b>{{ $t('admin.afterSaleBuyer') }}：</b>{{ aftersaleForm.row.buyer?.nickname || '—' }}</p>
+        <p><b>{{ $t('admin.afterSaleItems') }}：</b>{{ afterSaleItems(aftersaleForm.row) }}</p>
+        <p><b>{{ $t('admin.afterSaleReason') }}：</b>{{ aftersaleForm.row.reason || '—' }}</p>
+      </div>
+      <el-form label-position="top">
+        <el-form-item :label="$t('admin.afterSaleStatus')">
+          <el-radio-group v-model="aftersaleForm.status">
+            <el-radio-button value="processing">{{ $t('admin.afterSaleProcessing') }}</el-radio-button>
+            <el-radio-button value="resolved">{{ $t('admin.afterSaleResolved') }}</el-radio-button>
+            <el-radio-button value="rejected">{{ $t('admin.afterSaleRejected') }}</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item :label="$t('admin.afterSaleNote')">
+          <el-input
+            v-model="aftersaleForm.note"
+            type="textarea"
+            :rows="3"
+            maxlength="500"
+            show-word-limit
+            :placeholder="$t('admin.afterSaleNotePlaceholder')"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showAftersaleDialog = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="handlingAftersale" @click="submitAftersale">{{ $t('common.save') }}</el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="showBalanceDialog" :title="$t('admin.setBalanceTitle')" width="440px">
       <p class="user-no-tip">{{ $t('common.user') }}：{{ balanceForm.nickname }}（{{ $t('admin.currentBalance') }}：¥{{ Number(balanceForm.oldBalance).toFixed(2) }}）</p>
       <el-form label-position="top">
@@ -433,16 +510,25 @@ import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus/es/components/message/index'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index'
 import {
-  DataBoard, ChatDotRound, Bell, Reading, User, Back, Box, ChatLineSquare
+  DataBoard, ChatDotRound, Bell, Reading, User, Back, Box, ChatLineSquare, Service
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { hotspotApi, notificationApi, adminApi, booksApi } from '@/api'
 import { TRADE_CATEGORIES } from '@/constants/categories'
+import StatsCharts from '@/components/StatsCharts.vue'
 import { resolveImg, imgFallback } from '@/utils/image'
 
 const userStore = useUserStore()
 const activeSection = ref('dashboard')
 const categories = TRADE_CATEGORIES
+const chartData = ref(null)
+
+async function loadCharts() {
+  try {
+    const res = await adminApi.charts()
+    chartData.value = res.data || null
+  } catch {}
+}
 const stats = ref(null)
 
 const statCards = computed(() => [
@@ -459,6 +545,7 @@ const sectionTitle = computed(() => ({
   notifications: t('admin.notifications'),
   items: t('admin.items'),
   plaza: t('admin.plazaManage'),
+  afterSales: t('admin.afterSales'),
   users: t('admin.users')
 }[activeSection.value]))
 
@@ -477,12 +564,6 @@ async function loadHomeStats() {
     homeStats.value = res.data
   } catch {}
 }
-function barHeight(count) {
-  if (!homeStats.value || !homeStats.value.chartData) return 0
-  const max = Math.max(...homeStats.value.chartData.map(d => d.count), 1)
-  return Math.max((count / max) * 100, 4)
-}
-
 /* ---- 帖子管理 ---- */
 const posts = ref([])
 async function loadPosts() {
@@ -512,7 +593,70 @@ function switchSection(name) {
   if (name === 'users') loadUsers()
   if (name === 'items') loadItems()
   if (name === 'plaza') loadPlaza()
+  if (name === 'afterSales') loadAfterSales()
+  if (name === 'dashboard') { loadStats(); loadHomeStats(); loadCharts() }
   if (name === 'notifications') loadNotifList()
+}
+
+/* ---- 售后管理 ---- */
+const afterSales = ref([])
+const aftersaleStatus = ref('')
+const showAftersaleDialog = ref(false)
+const handlingAftersale = ref(false)
+const aftersaleForm = ref({ id: null, status: 'processing', note: '', row: null })
+
+async function loadAfterSales() {
+  try {
+    const res = await adminApi.listAfterSales({ status: aftersaleStatus.value, pageSize: 100 })
+    afterSales.value = res.data?.list || []
+  } catch {
+    afterSales.value = []
+  }
+}
+
+function afterSaleItems(row) {
+  const items = row?.order?.items || []
+  return items.map((i) => i.product?.title || i.product?.bookTitle).filter(Boolean).join('、') || '—'
+}
+
+function aftersaleStatusLabel(status) {
+  const map = {
+    pending: 'admin.afterSalePending',
+    processing: 'admin.afterSaleProcessing',
+    resolved: 'admin.afterSaleResolved',
+    rejected: 'admin.afterSaleRejected'
+  }
+  return map[status] ? t(map[status]) : status
+}
+
+function aftersaleTagType(status) {
+  return { pending: 'warning', processing: 'primary', resolved: 'success', rejected: 'danger' }[status] || 'info'
+}
+
+function openAftersale(row) {
+  aftersaleForm.value = {
+    id: row.id,
+    status: row.status === 'pending' ? 'processing' : row.status,
+    note: row.adminNote || '',
+    row
+  }
+  showAftersaleDialog.value = true
+}
+
+async function submitAftersale() {
+  handlingAftersale.value = true
+  try {
+    await adminApi.handleAfterSale(aftersaleForm.value.id, {
+      status: aftersaleForm.value.status,
+      note: aftersaleForm.value.note
+    })
+    ElMessage.success(t('admin.afterSaleHandled'))
+    showAftersaleDialog.value = false
+    loadAfterSales()
+    loadStats()
+  } catch {} finally {
+    handlingAftersale.value = false
+  }
 }
 
 function formatDate(ts) {
@@ -748,6 +892,7 @@ async function submitBalance() {
 onMounted(() => {
   loadStats()
   loadHomeStats()
+  loadCharts()
 })
 </script>
 
@@ -979,6 +1124,22 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   margin-top: 14px;
+}
+.menu-badge {
+  margin-left: auto;
+  transform: scale(0.85);
+}
+.aftersale-detail {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(26, 144, 160, 0.06);
+  font-size: 13px;
+  line-height: 1.7;
+  color: #37474f;
+}
+.aftersale-detail p {
+  margin: 0;
 }
 
 .muted-text {

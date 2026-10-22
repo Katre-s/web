@@ -58,9 +58,9 @@
               <span class="panel-row-value">{{ currentLang() === 'en' ? '切换中文' : 'Switch to EN' }}</span>
             </div>
 
-            <div class="panel-row" @click="go('/cart')">
-              <el-icon class="panel-row-icon"><ShoppingCart /></el-icon>
-              <span class="panel-row-label">{{ $t('nav.cart') }}</span>
+            <div class="panel-row" @click="go('/orders')">
+              <el-icon class="panel-row-icon"><Tickets /></el-icon>
+              <span class="panel-row-label">{{ $t('nav.orders') }}</span>
               <el-icon class="panel-arrow"><ArrowRight /></el-icon>
             </div>
 
@@ -115,7 +115,7 @@ import { notificationApi, conversationApi } from '@/api'
 import { resolveImg } from '@/utils/image'
 import {
   HomeFilled, ShoppingBag, ChatLineSquare, ChatDotRound, User, Plus, MagicStick,
-  ArrowLeft, ArrowRight, ArrowDown, Bell, ShoppingCart, Setting, SwitchButton, Comment
+  ArrowLeft, ArrowRight, ArrowDown, Bell, Tickets, Setting, SwitchButton, Comment
 } from '@element-plus/icons-vue'
 
 const router = useRouter()

@@ -171,7 +171,7 @@ function fallbackReply(text, userId) {
   const nav = (path, label) => [{ type: 'navigate', path, label }]
 
   if (/购物车/.test(text)) {
-    return { intent: 'order', reply: '在「购物车」里可以改数量、移除商品和下单；也可以直接跟我说"把《书名》加入购物车"。', actions: nav('/cart', '去购物车') }
+    return { intent: 'order', reply: '在「订单信息」的购物车标签里可以移除商品、下单，确认收货后才扣余额；也可以直接跟我说"把《书名》加入购物车"。', actions: nav('/orders?tab=cart', '去订单信息') }
   }
   if (/订单|买的东西/.test(text)) {
     return { intent: 'order', reply: '在「我的订单」页面可以查看你买过/卖出的所有订单和状态。', actions: nav('/orders', '查看订单') }

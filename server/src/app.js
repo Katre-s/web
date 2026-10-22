@@ -13,10 +13,12 @@ import bookRoutes from './routes/book.js'
 import booksRoutes from './routes/books.js'
 import cartRoutes from './routes/cart.js'
 import orderRoutes from './routes/orders.js'
+import balanceRoutes from './routes/balance.js'
 import favoriteRoutes from './routes/favorites.js'
 import messageRoutes from './routes/messages.js'
 import hotspotRoutes from './routes/hotspots.js'
 import plazaRoutes from './routes/plaza.js'
+import recommendRoutes from './routes/recommend.js'
 import notificationRoutes from './routes/notifications.js'
 import adminRoutes from './routes/admin.js'
 import conversationRoutes from './routes/conversations.js'
@@ -52,10 +54,12 @@ app.use('/api/book', bookRoutes)
 app.use('/api/books', booksRoutes)
 app.use('/api/cart', cartRoutes)
 app.use('/api/orders', orderRoutes)
+app.use('/api/balance', balanceRoutes)
 app.use('/api/favorites', favoriteRoutes)
 app.use('/api/messages', messageRoutes)
 app.use('/api/hotspots', hotspotRoutes)
 app.use('/api/plaza', plazaRoutes)
+app.use('/api/recommend', recommendRoutes)
 app.use('/api/notifications', notificationRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/conversations', conversationRoutes)
@@ -78,6 +82,59 @@ async function start() {
   const syncAlter = process.env.DB_SYNC_ALTER === 'true'
   await sequelize.sync(syncAlter ? { alter: true } : {})
   console.log(`[DB] sync 完成${syncAlter ? '(alter=true)' : ''}`)
+
+  // sync() 不会给已存在的表加新列，这里手动幂等补列（orders.aftersale_status）
+  try {
+    const tableDesc = await sequelize.getQueryInterface().describeTable('orders')
+    if (!tableDesc.aftersale_status) {
+      await sequelize.getQueryInterface().addColumn('orders', 'aftersale_status', {
+        type: 'VARCHAR(20)',
+        allowNull: false,
+        defaultValue: 'none'
+      })
+      console.log('[迁移] orders 表已补充 aftersale_status 列')
+
+      // 一次性迁移：旧流程是"下单即扣款"，新的确认收货才会扣款。
+      // 把旧 pending/confirmed 订单直接置为 completed（钱在下单时已结清），避免确认收货时二次扣款
+      const { Order } = await import('./models/index.js')
+      const [affected] = await Order.update(
+        { status: 'completed' },
+        { where: { status: ['pending', 'confirmed'] } }
+      )
+      if (affected > 0) console.log(`[迁移] ${affected} 个旧流程订单已按已结清处理（转为 completed）`)
+    }
+  } catch (err) {
+    console.error('[迁移orders列] 失败:', err.message)
+  }
+
+  // 售后状态兜底：旧版本只有 applied，新流程统一为 pending / processing / resolved / rejected
+  try {
+    const { Order } = await import('./models/index.js')
+    const [affected] = await Order.update(
+      { aftersaleStatus: 'pending' },
+      { where: { aftersaleStatus: 'applied' } }
+    )
+    if (affected > 0) console.log(`[迁移] ${affected} 个旧售后状态 applied → pending`)
+  } catch (err) {
+    console.error('[迁移售后状态] 失败:', err.message)
+  }
+
+  // 余额流水表补 order_id（确认收货幂等校验要用；旧表可能没这一列）
+  try {
+    const logDesc = await sequelize.getQueryInterface().describeTable('balance_logs')
+    if (!logDesc.order_id) {
+      await sequelize.getQueryInterface().addColumn('balance_logs', 'order_id', {
+        type: 'INTEGER',
+        allowNull: true
+      })
+      console.log('[迁移] balance_logs 表已补充 order_id 列')
+    }
+  } catch (err) {
+    // 表还没建出来时忽略；sync 会按最新模型创建
+    if (!String(err.message).includes("doesn't exist")) {
+      console.error('[迁移balance_logs列] 失败:', err.message)
+    }
+  }
 
   try {
     const { Product, Book } = await import('./models/index.js')

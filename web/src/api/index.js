@@ -8,7 +8,8 @@ export const authApi = {
   resetPassword: (email, code, password) => request.post('/auth/reset-password', { email, code, password }),
   sendChangeEmailCode: (email) => request.post('/auth/send-change-email-code', { email }),
   changeEmail: (email, code) => request.post('/auth/change-email', { email, code }),
-  me: () => request.get('/auth/me')
+  me: () => request.get('/auth/me'),
+  uploadAvatar: (formData) => request.post('/auth/avatar', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
 }
 
 export const booksApi = {
@@ -49,13 +50,22 @@ export const cartApi = {
 
 export const orderApi = {
   create: (cartItemIds) => request.post('/orders/create', { cartItemIds }),
-  list: (role) => request.get('/orders', { params: { role } }),
-  updateStatus: (id, status) => request.patch(`/orders/${id}/status`, { status })
+  list: (role, status) => request.get('/orders', { params: { role, status } }),
+  updateStatus: (id, status) => request.patch(`/orders/${id}/status`, { status }),
+  confirm: (id) => request.post(`/orders/${id}/confirm`),
+  applyAftersale: (id, reason = '') => request.post(`/orders/${id}/aftersale`, { reason }),
+  contactAdmin: (id) => request.post(`/orders/${id}/contact-admin`)
+}
+
+export const balanceApi = {
+  recharge: (amount) => request.post('/balance/recharge', { amount }),
+  logs: () => request.get('/balance/logs')
 }
 
 export const favoriteApi = {
   toggle: (productId) => request.post('/favorites/toggle', { productId }),
-  list: () => request.get('/favorites')
+  list: () => request.get('/favorites'),
+  check: (productId) => request.get(`/favorites/check/${productId}`)
 }
 
 export const messageApi = {
@@ -94,9 +104,17 @@ export const adminApi = {
   listItems: (params) => request.get('/admin/items', { params }),
   updateItem: (id, data) => request.put(`/admin/items/${id}`, data),
   deleteItem: (id) => request.delete(`/admin/items/${id}`),
+  charts: () => request.get('/admin/charts'),
+  listAfterSales: (params) => request.get('/admin/after-sales', { params }),
+  handleAfterSale: (id, data) => request.put(`/admin/after-sales/${id}`, data),
   listPlaza: (params) => request.get('/admin/plaza', { params }),
   updatePlaza: (id, data) => request.put(`/admin/plaza/${id}`, data),
   deletePlaza: (id) => request.delete(`/admin/plaza/${id}`)
+}
+
+export const recommendApi = {
+  home: (params) => request.get('/recommend/home', { params }),
+  track: (data) => request.post('/recommend/event', data)
 }
 
 export const plazaApi = {
