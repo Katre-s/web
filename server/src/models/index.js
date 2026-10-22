@@ -213,6 +213,7 @@ export const Book = sequelize.define('Book', {
   bookCover: { type: DataTypes.STRING(500), field: 'book_cover', defaultValue: '' },
   edition: { type: DataTypes.STRING(50), defaultValue: '' },
   originalPrice: { type: DataTypes.DECIMAL(10, 2), field: 'original_price', defaultValue: 0 },
+  description: { type: DataTypes.TEXT, defaultValue: '' },
   viewCount: { type: DataTypes.INTEGER, defaultValue: 0, field: 'view_count' },
   createdBy: { type: DataTypes.INTEGER, field: 'created_by' }
 }, { tableName: 'books' })

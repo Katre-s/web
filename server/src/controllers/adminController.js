@@ -1,5 +1,5 @@
 import { Op, QueryTypes } from 'sequelize'
-import { sequelize, User, Product, Order, Hotspot, PlazaPost, ProductImage, Book, Notification, CartItem, Favorite, BalanceLog, AfterSale } from '../models/index.js'
+import { sequelize, User, Product, Order, OrderItem, Hotspot, PlazaPost, ProductImage, Book, Notification, CartItem, Favorite, BalanceLog, AfterSale } from '../models/index.js'
 import { success, fail } from '../utils/response.js'
 import { TRADE_CATEGORIES, normalizeCategory } from '../config/categories.js'
 
@@ -174,10 +174,11 @@ export async function deleteProduct(req, res, next) {
 /* ---- 物品管理（商品列表 + 二级分类） ---- */
 export async function listItems(req, res, next) {
   try {
-    const { keyword = '', category = '', status = '', page = 1, pageSize = 20 } = req.query
+    const { keyword = '', category = '', status = 'available', page = 1, pageSize = 20 } = req.query
     const where = {}
     if (category) where.category = category
-    if (status) where.status = status
+    // 物品管理只存未售商品；已售的进「已售物品」
+    where.status = status || 'available'
     if (keyword) {
       where[Op.or] = [
         { title: { [Op.like]: `%${keyword}%` } },
@@ -439,5 +440,124 @@ export async function charts(req, res, next) {
     }))
 
     success(res, { days, hourly, category, totalAmount })
+  } catch (err) { next(err) }
+}
+
+
+/* ---- 图书板块管理（图书种类） ---- */
+
+/** 板块列表：含在售/已售数量与封面 */
+export async function listBookBoards(req, res, next) {
+  try {
+    const { keyword = '', page = 1, pageSize = 20 } = req.query
+    const where = {}
+    if (keyword) {
+      where[Op.or] = [
+        { bookTitle: { [Op.like]: `%${keyword}%` } },
+        { bookAuthor: { [Op.like]: `%${keyword}%` } },
+        { isbn: { [Op.like]: `%${keyword}%` } }
+      ]
+    }
+    const { rows, count } = await Book.findAndCountAll({
+      where,
+      order: [['created_at', 'DESC']],
+      offset: (Number(page) - 1) * Number(pageSize),
+      limit: Number(pageSize)
+    })
+    const list = []
+    for (const b of rows) {
+      const cond = b.isbn
+        ? { isbn: b.isbn }
+        : { [Op.or]: [{ bookTitle: b.bookTitle }, { title: b.bookTitle }] }
+      const [availableCount, soldCount] = await Promise.all([
+        Product.count({ where: { ...cond, status: 'available' } }),
+        Product.count({ where: { ...cond, status: 'sold' } })
+      ])
+      list.push({ ...b.toJSON(), availableCount, soldCount })
+    }
+    success(res, { list, total: count })
+  } catch (err) { next(err) }
+}
+
+function pickBookFields(body) {
+  return {
+    isbn: String(body.isbn || '').replace(/[-\s]/g, ''),
+    bookTitle: String(body.bookTitle || '').trim(),
+    bookAuthor: String(body.bookAuthor || '').trim(),
+    bookPublisher: String(body.bookPublisher || '').trim(),
+    edition: String(body.edition || '').trim(),
+    description: String(body.description || '').trim(),
+    bookCover: String(body.bookCover || '').trim(),
+    originalPrice: Number(body.originalPrice) || 0
+  }
+}
+
+/** 新建板块 */
+export async function createBookBoard(req, res, next) {
+  try {
+    const fields = pickBookFields(req.body)
+    if (!fields.bookTitle) return fail(res, '请填写书名')
+    if (fields.isbn) {
+      const dup = await Book.findOne({ where: { isbn: fields.isbn } })
+      if (dup) return fail(res, `该 ISBN 已存在板块（#${dup.id} ${dup.bookTitle}）`)
+    }
+    const board = await Book.create({ ...fields, createdBy: req.user.id })
+    success(res, board, '板块已创建')
+  } catch (err) { next(err) }
+}
+
+/** 编辑板块信息（书名/作者/出版社/版本/ISBN/简介/封面/定价） */
+export async function updateBookBoard(req, res, next) {
+  try {
+    const board = await Book.findByPk(req.params.id)
+    if (!board) return fail(res, '板块不存在', 404)
+    const fields = pickBookFields(req.body)
+    if (!fields.bookTitle) return fail(res, '请填写书名')
+    if (fields.isbn && fields.isbn !== board.isbn) {
+      const dup = await Book.findOne({ where: { isbn: fields.isbn } })
+      if (dup) return fail(res, `该 ISBN 已存在板块（#${dup.id} ${dup.bookTitle}）`)
+    }
+    await board.update(fields)
+    success(res, board, '板块已更新')
+  } catch (err) { next(err) }
+}
+
+/** 删除板块 */
+export async function deleteBookBoard(req, res, next) {
+  try {
+    const board = await Book.findByPk(req.params.id)
+    if (!board) return fail(res, '板块不存在', 404)
+    await board.destroy()
+    success(res, {}, '板块已删除')
+  } catch (err) { next(err) }
+}
+
+/* ---- 已售物品（全部已成交订单） ---- */
+
+export async function listSoldOrders(req, res, next) {
+  try {
+    const { keyword = '', page = 1, pageSize = 20 } = req.query
+    const where = { status: 'completed' }
+    const { rows, count } = await Order.findAndCountAll({
+      where,
+      include: [
+        { model: User, as: 'buyer', attributes: ['id', 'nickname', 'userNo'] },
+        {
+          model: OrderItem,
+          as: 'items',
+          include: [{
+            model: Product,
+            as: 'product',
+            attributes: ['id', 'title', 'bookTitle', 'bookCover', 'category', 'price', 'userId'],
+            include: [{ model: User, as: 'seller', attributes: ['id', 'nickname', 'userNo'] }]
+          }]
+        }
+      ],
+      order: [['created_at', 'DESC']],
+      offset: (Number(page) - 1) * Number(pageSize),
+      limit: Number(pageSize),
+      distinct: true
+    })
+    success(res, { list: rows, total: count })
   } catch (err) { next(err) }
 }

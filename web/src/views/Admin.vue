@@ -22,6 +22,12 @@
         <el-menu-item index="items" @click="switchSection('items')">
           <el-icon><Box /></el-icon><span>{{ $t('admin.items') }}</span>
         </el-menu-item>
+        <el-menu-item index="books" @click="switchSection('books')">
+          <el-icon><Reading /></el-icon><span>{{ $t('admin.bookBoards') }}</span>
+        </el-menu-item>
+        <el-menu-item index="soldOrders" @click="switchSection('soldOrders')">
+          <el-icon><SoldOut /></el-icon><span>{{ $t('admin.soldOrders') }}</span>
+        </el-menu-item>
         <el-menu-item index="plaza" @click="switchSection('plaza')">
           <el-icon><ChatLineSquare /></el-icon><span>{{ $t('admin.plazaManage') }}</span>
         </el-menu-item>
@@ -239,18 +245,15 @@
               <el-table-column :label="$t('admin.itemPrice')" width="90">
                 <template #default="{ row }">¥{{ row.price }}</template>
               </el-table-column>
-              <el-table-column :label="$t('admin.itemSeller')" width="150">
+              <el-table-column :label="$t('admin.itemSeller')" width="140">
                 <template #default="{ row }">{{ row.seller?.nickname || '—' }}</template>
               </el-table-column>
-              <el-table-column :label="$t('admin.status')" width="90">
-                <template #default="{ row }">
-                  <el-tag size="small" :type="row.status === 'available' ? 'success' : 'info'">
-                    {{ row.status === 'available' ? t('common.available') : t('common.sold') }}
-                  </el-tag>
-                </template>
+              <el-table-column :label="$t('admin.sellerId')" width="90">
+                <template #default="{ row }">{{ row.seller?.userNo || row.seller?.id || '—' }}</template>
               </el-table-column>
-              <el-table-column :label="$t('common.actions')" width="90" fixed="right">
+              <el-table-column :label="$t('common.actions')" width="150" fixed="right">
                 <template #default="{ row }">
+                  <el-button size="small" text type="primary" @click="contactUser(row.seller?.id, row.id)">{{ $t('common.contactSeller') }}</el-button>
                   <el-button size="small" text type="danger" @click="removeItem(row)">{{ $t('common.delete') }}</el-button>
                 </template>
               </el-table-column>
@@ -263,6 +266,116 @@
                 v-model:current-page="itemPage"
                 @current-change="loadItems"
               />
+            </div>
+          </div>
+        </template>
+
+        <!-- ===== 图书种类（板块管理） ===== -->
+        <template v-if="activeSection === 'books'">
+          <div class="panel">
+            <div class="panel-toolbar">
+              <h3 class="panel-title">{{ $t('admin.bookBoards') }}</h3>
+              <div class="toolbar-right">
+                <el-input
+                  v-model="boardKeyword"
+                  :placeholder="$t('admin.boardSearchPlaceholder')"
+                  clearable style="width: 220px"
+                  @keyup.enter="loadBoards"
+                  @clear="loadBoards"
+                />
+                <el-button size="small" type="primary" @click="openBoardDialog()">{{ $t('admin.boardAdd') }}</el-button>
+                <el-button size="small" @click="loadBoards">{{ $t('common.refresh') }}</el-button>
+              </div>
+            </div>
+            <el-table :data="boardList" size="small">
+              <el-table-column prop="id" label="ID" width="60" />
+              <el-table-column :label="$t('admin.cover')" width="70">
+                <template #default="{ row }">
+                  <img v-if="row.bookCover" :src="row.bookCover" style="width:36px;height:46px;object-fit:cover;border-radius:4px" @error="imgFallback" />
+                </template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.boardTitle')" min-width="160" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.bookTitle }}</template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.boardAuthor')" width="110" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.bookAuthor || '—' }}</template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.boardPublisher')" width="130" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.bookPublisher || '—' }}</template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.boardEdition')" width="90">
+                <template #default="{ row }">{{ row.edition || '—' }}</template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.boardIsbn')" width="120">
+                <template #default="{ row }">{{ row.isbn || '—' }}</template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.boardOnSale')" width="80">
+                <template #default="{ row }">
+                  <el-tag size="small" :type="row.availableCount ? 'success' : 'info'">{{ row.availableCount }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.boardSold')" width="80">
+                <template #default="{ row }">{{ row.soldCount }}</template>
+              </el-table-column>
+              <el-table-column :label="$t('common.actions')" width="120" fixed="right">
+                <template #default="{ row }">
+                  <el-button size="small" text type="primary" @click="openBoardDialog(row)">{{ $t('common.edit') }}</el-button>
+                  <el-button size="small" text type="danger" @click="removeBoard(row)">{{ $t('common.delete') }}</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            <el-empty v-if="!boardList.length" :description="$t('admin.boardEmpty')" :image-size="70" />
+            <div class="pager" v-if="boardTotal > boardPageSize">
+              <el-pagination layout="prev, pager, next" :total="boardTotal" :page-size="boardPageSize" v-model:current-page="boardPage" @current-change="loadBoards" />
+            </div>
+          </div>
+        </template>
+
+        <!-- ===== 已售物品 ===== -->
+        <template v-if="activeSection === 'soldOrders'">
+          <div class="panel">
+            <div class="panel-toolbar">
+              <h3 class="panel-title">{{ $t('admin.soldOrders') }}</h3>
+              <el-button size="small" @click="loadSoldOrders">{{ $t('common.refresh') }}</el-button>
+            </div>
+            <el-table :data="soldOrders" size="small">
+              <el-table-column :label="$t('admin.afterSaleOrder')" width="80">
+                <template #default="{ row }">#{{ row.id }}</template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.orderItems')" min-width="190">
+                <template #default="{ row }">
+                  <span class="plaza-content">{{ orderItemsText(row) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.orderAmount')" width="100">
+                <template #default="{ row }">¥{{ row.totalPrice }}</template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.orderBuyer')" width="150">
+                <template #default="{ row }">
+                  {{ row.buyer?.nickname || '—' }}
+                  <span class="muted-text" v-if="row.buyer?.userNo">（{{ row.buyer.userNo }}）</span>
+                </template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.orderSellers')" min-width="150">
+                <template #default="{ row }">{{ orderSellersText(row) }}</template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.orderTime')" width="150">
+                <template #default="{ row }">{{ formatDate(row.created_at || row.createdAt) }}</template>
+              </el-table-column>
+              <el-table-column :label="$t('common.actions')" width="150" fixed="right">
+                <template #default="{ row }">
+                  <el-button size="small" text type="primary" @click="contactUser(row.buyer?.id)">{{ $t('admin.contactBuyerBtn') }}</el-button>
+                  <el-button
+                    v-if="firstSellerId(row)"
+                    size="small" text type="primary"
+                    @click="contactUser(firstSellerId(row), firstProductId(row))"
+                  >{{ $t('admin.contactSellerBtn') }}</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            <el-empty v-if="!soldOrders.length" :description="$t('admin.soldOrdersEmpty')" :image-size="70" />
+            <div class="pager" v-if="soldTotal > soldPageSize">
+              <el-pagination layout="prev, pager, next" :total="soldTotal" :page-size="soldPageSize" v-model:current-page="soldPage" @current-change="loadSoldOrders" />
             </div>
           </div>
         </template>
@@ -486,6 +599,43 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="boardDialog.visible" :title="boardDialog.id ? $t('admin.boardEdit') : $t('admin.boardAdd')" width="520px">
+      <el-form label-position="top">
+        <el-form-item :label="$t('admin.boardTitle')" required>
+          <el-input v-model="boardDialog.form.bookTitle" maxlength="200" />
+        </el-form-item>
+        <div class="board-form-row">
+          <el-form-item :label="$t('admin.boardAuthor')">
+            <el-input v-model="boardDialog.form.bookAuthor" maxlength="200" />
+          </el-form-item>
+          <el-form-item :label="$t('admin.boardPublisher')">
+            <el-input v-model="boardDialog.form.bookPublisher" maxlength="200" />
+          </el-form-item>
+        </div>
+        <div class="board-form-row">
+          <el-form-item :label="$t('admin.boardEdition')">
+            <el-input v-model="boardDialog.form.edition" maxlength="50" />
+          </el-form-item>
+          <el-form-item :label="$t('admin.boardIsbn')">
+            <el-input v-model="boardDialog.form.isbn" maxlength="20" />
+          </el-form-item>
+        </div>
+        <el-form-item :label="$t('admin.boardCover')">
+          <el-input v-model="boardDialog.form.bookCover" :placeholder="$t('admin.boardCoverPlaceholder')" />
+        </el-form-item>
+        <el-form-item :label="$t('admin.boardPrice')">
+          <el-input-number v-model="boardDialog.form.originalPrice" :min="0" :precision="2" :step="1" />
+        </el-form-item>
+        <el-form-item :label="$t('admin.boardDesc')">
+          <el-input v-model="boardDialog.form.description" type="textarea" :rows="3" maxlength="1000" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="boardDialog.visible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="saveBoard">{{ $t('common.save') }}</el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="showBalanceDialog" :title="$t('admin.setBalanceTitle')" width="440px">
       <p class="user-no-tip">{{ $t('common.user') }}：{{ balanceForm.nickname }}（{{ $t('admin.currentBalance') }}：¥{{ Number(balanceForm.oldBalance).toFixed(2) }}）</p>
       <el-form label-position="top">
@@ -504,15 +654,17 @@
 
 <script setup>import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
+import { useRouter } from 'vue-router'
+const router = useRouter()
 
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus/es/components/message/index'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index'
 import {
-  DataBoard, ChatDotRound, Bell, Reading, User, Back, Box, ChatLineSquare, Service
+  DataBoard, ChatDotRound, Bell, Reading, User, Back, Box, ChatLineSquare, Service, SoldOut
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
-import { hotspotApi, notificationApi, adminApi, booksApi } from '@/api'
+import { hotspotApi, notificationApi, adminApi, booksApi, conversationApi } from '@/api'
 import { TRADE_CATEGORIES } from '@/constants/categories'
 import StatsCharts from '@/components/StatsCharts.vue'
 import { resolveImg, imgFallback } from '@/utils/image'
@@ -545,6 +697,8 @@ const sectionTitle = computed(() => ({
   items: t('admin.items'),
   plaza: t('admin.plazaManage'),
   afterSales: t('admin.afterSales'),
+  books: t('admin.bookBoards'),
+  soldOrders: t('admin.soldOrders'),
   users: t('admin.users')
 }[activeSection.value]))
 
@@ -593,8 +747,122 @@ function switchSection(name) {
   if (name === 'items') loadItems()
   if (name === 'plaza') loadPlaza()
   if (name === 'afterSales') loadAfterSales()
+  if (name === 'books') loadBoards()
+  if (name === 'soldOrders') loadSoldOrders()
   if (name === 'dashboard') { loadStats(); loadHomeStats(); loadCharts() }
   if (name === 'notifications') loadNotifList()
+}
+
+/* ---- 图书板块管理 ---- */
+const boardList = ref([])
+const boardTotal = ref(0)
+const boardPage = ref(1)
+const boardPageSize = 20
+const boardKeyword = ref('')
+const boardDialog = ref({
+  visible: false,
+  id: null,
+  form: { bookTitle: '', bookAuthor: '', bookPublisher: '', edition: '', isbn: '', bookCover: '', originalPrice: 0, description: '' }
+})
+
+async function loadBoards() {
+  try {
+    const res = await adminApi.listBookBoards({ keyword: boardKeyword.value, page: boardPage.value, pageSize: boardPageSize })
+    boardList.value = res.data?.list || []
+    boardTotal.value = res.data?.total || 0
+  } catch {
+    boardList.value = []
+  }
+}
+
+function openBoardDialog(row) {
+  boardDialog.value = {
+    visible: true,
+    id: row?.id || null,
+    form: row ? {
+      bookTitle: row.bookTitle || '',
+      bookAuthor: row.bookAuthor || '',
+      bookPublisher: row.bookPublisher || '',
+      edition: row.edition || '',
+      isbn: row.isbn || '',
+      bookCover: row.bookCover || '',
+      originalPrice: Number(row.originalPrice) || 0,
+      description: row.description || ''
+    } : { bookTitle: '', bookAuthor: '', bookPublisher: '', edition: '', isbn: '', bookCover: '', originalPrice: 0, description: '' }
+  }
+}
+
+async function saveBoard() {
+  const d = boardDialog.value
+  if (!d.form.bookTitle.trim()) {
+    ElMessage.warning(t('admin.boardTitleRequired'))
+    return
+  }
+  try {
+    if (d.id) await adminApi.updateBookBoard(d.id, d.form)
+    else await adminApi.createBookBoard(d.form)
+    ElMessage.success(t('admin.boardSaved'))
+    boardDialog.value.visible = false
+    loadBoards()
+  } catch {}
+}
+
+async function removeBoard(row) {
+  try {
+    await ElMessageBox.confirm(t('admin.boardDeleteConfirm', { title: row.bookTitle }), t('common.hint'), { type: 'warning' })
+  } catch { return }
+  try {
+    await adminApi.deleteBookBoard(row.id)
+    ElMessage.success(t('admin.boardDeleted'))
+    loadBoards()
+  } catch {}
+}
+
+/* ---- 已售物品 ---- */
+const soldOrders = ref([])
+const soldTotal = ref(0)
+const soldPage = ref(1)
+const soldPageSize = 20
+
+async function loadSoldOrders() {
+  try {
+    const res = await adminApi.listSoldOrders({ page: soldPage.value, pageSize: soldPageSize })
+    soldOrders.value = res.data?.list || []
+    soldTotal.value = res.data?.total || 0
+  } catch {
+    soldOrders.value = []
+  }
+}
+
+function orderItemsText(row) {
+  const items = row?.items || []
+  return items.map((i) => i.product?.title || i.product?.bookTitle).filter(Boolean).join('、') || '—'
+}
+
+function orderSellersText(row) {
+  const ids = new Map()
+  for (const i of row?.items || []) {
+    const seller = i.product?.seller
+    if (seller && !ids.has(seller.id)) ids.set(seller.id, seller.nickname || seller.userNo)
+  }
+  return [...ids.entries()].map(([id, name]) => `${name}（${id}）`).join('、') || '—'
+}
+
+function firstSellerId(row) {
+  return (row?.items || []).map((i) => i.product?.seller?.id).find(Boolean) || null
+}
+
+function firstProductId(row) {
+  return (row?.items || []).map((i) => i.product?.id).find(Boolean) || null
+}
+
+async function contactUser(userId, productId = null) {
+  if (!userId) return
+  try {
+    const res = await conversationApi.start(userId, productId)
+    ElMessage.success(t('common.convCreated'))
+    router.push({ name: 'Chat', query: { conv: String(res?.data?.conversationId || '') } })
+  } catch {}
 }
 
 /* ---- 售后审核 ---- */
@@ -1153,6 +1421,11 @@ onMounted(() => {
 .menu-badge {
   margin-left: auto;
   transform: scale(0.85);
+}
+.board-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 14px;
 }
 .aftersale-detail {
   margin-bottom: 14px;

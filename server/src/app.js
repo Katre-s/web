@@ -143,6 +143,7 @@ async function start() {
     await ensureColumn('balance_logs', 'pending_after', { type: 'DECIMAL(10,2)', allowNull: true })
     await ensureColumn('balance_logs', 'release_at', { type: 'DATE', allowNull: true })
     await ensureColumn('balance_logs', 'released', { type: 'TINYINT(1)', allowNull: false, defaultValue: 0 })
+    await ensureColumn('books', 'description', { type: 'TEXT', allowNull: true })
 
     // 历史已完成订单补 completed_at（用更新时间兜底），保证 23h 售后窗口可判断
     const { Order, AfterSale } = await import('./models/index.js')

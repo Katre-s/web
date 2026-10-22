@@ -102,7 +102,7 @@ function getOtherUser(conv) {
 
 // 管理员客服会话：买家侧统一显示「管理员」，不暴露真实昵称；管理员本人查看时显示对方昵称
 function isAdminConv(conv) {
-  return conv?.type === 'admin' && userStore.userInfo?.id !== conv.seller?.id
+  return conv?.type === 'admin' && getOtherUser(conv)?.role === 'admin'
 }
 function convTitle(conv) {
   if (isAdminConv(conv)) return t('chat.adminTitle')

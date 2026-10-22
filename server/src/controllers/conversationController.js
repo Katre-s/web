@@ -51,6 +51,9 @@ export async function startConversation(req, res, next) {
     let isNew = false
     if (conv) {
       // 同一对用户只保留一个会话；换了商品就更新关联商品，并补一条针对新商品的开场白
+      if (req.user.role === 'admin' && conv.type !== 'admin') {
+        await conv.update({ type: 'admin' })
+      }
       if (productId && conv.productId !== productId) {
         await conv.update({ productId })
         await ChatMessage.create({
@@ -63,7 +66,9 @@ export async function startConversation(req, res, next) {
     } else {
       conv = await Conversation.create({
         buyerId, sellerId, productId,
-        lastMessageAt: new Date()
+        lastMessageAt: new Date(),
+        // 管理员主动发起的会话，对方侧统一显示「管理员」
+        type: req.user.role === 'admin' ? 'admin' : 'normal'
       })
       await ChatMessage.create({
         conversationId: conv.id,
@@ -87,8 +92,8 @@ export async function listConversations(req, res, next) {
       },
       order: [['last_message_at', 'DESC']],
       include: [
-        { model: User, as: 'buyer', attributes: ['id', 'nickname', 'avatar'] },
-        { model: User, as: 'seller', attributes: ['id', 'nickname', 'avatar'] },
+        { model: User, as: 'buyer', attributes: ['id', 'nickname', 'avatar', 'role'] },
+        { model: User, as: 'seller', attributes: ['id', 'nickname', 'avatar', 'role'] },
         { model: Product, as: 'product', attributes: ['id', 'bookTitle', 'bookCover', 'title'] }
       ]
     })

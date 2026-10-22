@@ -3,7 +3,7 @@ import { adminOnly } from '../middlewares/admin.js'
 import { adminList, adminUpdate, adminRemove } from '../controllers/plazaController.js'
 import { listAfterSales, reviewAfterSale, reviewSellerReject, reviewAppeal } from '../controllers/afterSaleController.js'
 import { upload } from '../utils/upload.js'
-import { stats, charts, users, updateUser, updateUserNo, createBook, deleteProduct, listItems, updateItem, listBoards, deleteBoard, updateBoard, updateBoardCover, listNotifications, deleteNotification } from '../controllers/adminController.js'
+import { stats, charts, users, updateUser, updateUserNo, createBook, deleteProduct, listItems, updateItem, listBoards, deleteBoard, updateBoard, updateBoardCover, listNotifications, deleteNotification, listBookBoards, createBookBoard, updateBookBoard, deleteBookBoard, listSoldOrders } from '../controllers/adminController.js'
 
 const router = Router()
 
@@ -24,6 +24,11 @@ router.delete('/boards/:id', deleteBoard)
 router.put('/boards/:id', updateBoard)
 router.post('/boards/:id/cover', upload.single('cover'), updateBoardCover)
 router.get('/after-sales', listAfterSales)
+router.get('/books', listBookBoards)
+router.post('/books', createBookBoard)
+router.put('/books/:id', updateBookBoard)
+router.delete('/books/:id', deleteBookBoard)
+router.get('/sold-orders', listSoldOrders)
 router.put('/after-sales/:id/review', reviewAfterSale)
 router.put('/after-sales/:id/seller-reject', reviewSellerReject)
 router.put('/after-sales/:id/appeal', reviewAppeal)
