@@ -1,6 +1,6 @@
 import { Op } from 'sequelize'
 import { sequelize } from '../config/database.js'
-import { CartItem, Product, Order, OrderItem, User, Conversation, ChatMessage, Notification, BalanceLog, AfterSale } from '../models/index.js'
+import { CartItem, Product, Order, OrderItem, User, Conversation, ChatMessage, Notification, BalanceLog, AfterSale, Book } from '../models/index.js'
 import { success, fail } from '../utils/response.js'
 
 // 事务锁等待/死锁自动重试：线上偶发并发时避免直接 500
@@ -47,6 +47,30 @@ export async function create(req, res, next) {
     // 反之则明细插入时 FK 检查对商品行加 S 锁（事务结束才释放），同事务再 UPDATE 需 X 锁 → MySQL5.7 Lock wait timeout
     const order = await withRetry(() => sequelize.transaction(async (tx) => {
       await Product.update({ status: 'sold' }, { where: { id: availableItems.map(i => i.productId) } }, { transaction: tx })
+      // 非图书类目：商品卖完后自动删除其书目板块（图书板块保留）
+      try {
+        const soldItems = await Product.findAll({
+          where: { id: availableItems.map(i => i.productId), category: { [Op.ne]: '图书' } },
+          attributes: ['id', 'isbn', 'bookTitle', 'title']
+        })
+        for (const sp of soldItems) {
+          const conds = []
+          if (sp.isbn) conds.push({ isbn: sp.isbn })
+          const name = sp.bookTitle || sp.title
+          if (name) conds.push({ bookTitle: name })
+          if (!conds.length) continue
+          const boards = await Book.findAll({ where: { [Op.or]: conds } })
+          for (const board of boards) {
+            const aliveCond = board.isbn
+              ? { isbn: board.isbn, status: 'available' }
+              : { [Op.or]: [{ bookTitle: board.bookTitle }, { title: board.bookTitle }], status: 'available' }
+            const alive = await Product.count({ where: aliveCond })
+            if (alive === 0) await board.destroy()
+          }
+        }
+      } catch (err) {
+        console.error('[板块清理] 失败:', err.message)
+      }
 
       const newOrder = await Order.create({ buyerId: req.user.id, totalPrice, status: 'pending' }, { transaction: tx })
       await OrderItem.bulkCreate(availableItems.map(i => ({

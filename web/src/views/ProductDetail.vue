@@ -105,7 +105,7 @@ async function addToCart() {
   }
   try {
     await cartApi.add(product.value.id)
-    ElMessage.success(t('common.addedCart'))
+    ElMessage({ type: 'success', message: t('common.addedCart'), duration: 1000 })
   } catch {}
 }
 

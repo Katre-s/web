@@ -172,24 +172,14 @@ export async function processBookList(req, res, next) {
       const isbn = String(raw).replace(/[-\s]/g, '')
       if (!isbn || !/^\d{10,14}$/.test(isbn)) { stats.skipped++; continue }
 
-      let book = await Book.findOne({ where: { isbn } })
+      // 库里没有的图书不再自动创建板块，只用外部接口补个标题用于展示
+      const book = await Book.findOne({ where: { isbn } })
+      let displayTitle = book?.bookTitle || ''
       if (!book) {
-        let info = null
-        try { info = await lookupISBN(isbn) } catch {}
-        if (info?.cover) {
-          try { info.cover = await downloadImage(info.cover) } catch {}
-        }
-        book = await Book.create({
-          isbn,
-          bookTitle: info?.title || '未知书名',
-          bookAuthor: info?.author || '未知',
-          bookPublisher: info?.publisher || '未知',
-          edition: info?.edition || '未知',
-          bookCover: info?.cover || '',
-          originalPrice: info?.originalPrice || 0,
-          createdBy: userId
-        })
-        stats.created++
+        try {
+          const info = await lookupISBN(isbn)
+          if (info?.title) displayTitle = info.title
+        } catch {}
       }
 
       const products = await Product.findAll({
@@ -198,6 +188,7 @@ export async function processBookList(req, res, next) {
       })
 
       if (products.length) {
+        // 有在售卖家：拉入购物车
         const existing = await CartItem.findAll({ where: { userId, productId: products.map(p => p.id) } })
         const existingIds = existing.map(e => e.productId)
         const newItems = products.filter(p => !existingIds.includes(p.id))
@@ -205,11 +196,11 @@ export async function processBookList(req, res, next) {
           await CartItem.bulkCreate(newItems.map(p => ({ userId, productId: p.id })))
         }
         stats.cart += newItems.length
-        cartBooks.push({ isbn, bookId: book.id, bookTitle: book.bookTitle, sellerCount: products.length })
+        cartBooks.push({ isbn, bookId: book?.id || null, bookTitle: products[0].bookTitle || displayTitle || `ISBN ${isbn}`, sellerCount: products.length })
       } else {
-        // 暂无卖家：只做记录，不再生成求购
+        // 没有的：显示「暂无该物品」
         stats.unavailable++
-        unavailableBooks.push({ isbn, bookId: book.id, bookTitle: book.bookTitle })
+        unavailableBooks.push({ isbn, bookId: book?.id || null, bookTitle: displayTitle })
       }
     }
 

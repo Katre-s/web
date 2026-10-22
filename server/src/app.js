@@ -168,6 +168,29 @@ async function start() {
     }
   }
 
+  // 启动清理：非图书类目的板块，下挂商品已全部售罄的自动移除（图书板块保留）
+  try {
+    const { Op: sqOp, Book, Product } = await import('./models/index.js')
+    const boards = await Book.findAll({ attributes: ['id', 'isbn', 'bookTitle'] })
+    let removedBoards = 0
+    for (const board of boards) {
+      const prodCond = board.isbn
+        ? { isbn: board.isbn }
+        : { [sqOp.or]: [{ bookTitle: board.bookTitle }, { title: board.bookTitle }] }
+      const prods = await Product.findAll({ where: prodCond, attributes: ['category', 'status'] })
+      if (!prods.length || prods.some(p => p.category === '图书')) continue
+      if (!prods.some(p => p.status === 'available')) {
+        await board.destroy()
+        removedBoards++
+      }
+    }
+    if (removedBoards) console.log(`[迁移] 清理了 ${removedBoards} 个已售罄的非图书板块`)
+  } catch (err) {
+    if (!String(err.message).includes("doesn't exist")) {
+      console.error('[清理非图书板块] 失败:', err.message)
+    }
+  }
+
   // 待存余额解冻：确认收货 24h 后自动从待存转入账户余额（每分钟扫描一次，幂等）
   async function releaseEscrow() {
     try {

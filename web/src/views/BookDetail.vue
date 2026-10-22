@@ -149,7 +149,7 @@ async function toggleFavorite() {
 async function addToCart(seller) {
   try {
     await cartApi.add(seller.id)
-    ElMessage.success(t('common.addedCart'))
+    ElMessage({ type: 'success', message: t('common.addedCart'), duration: 1000 })
   } catch {}
 }
 

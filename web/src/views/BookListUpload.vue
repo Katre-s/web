@@ -34,11 +34,6 @@
           <div class="stat-num">{{ result.stats.unavailable }}</div>
           <div class="stat-label">{{ $t('booklist.unavailable') }}</div>
         </div>
-        <div class="result-stat stat-created">
-          <div class="stat-icon">📚</div>
-          <div class="stat-num">{{ result.stats.created }}</div>
-          <div class="stat-label">{{ $t('booklist.newBoard') }}</div>
-        </div>
         <div class="result-stat stat-skipped">
           <div class="stat-icon">⏭</div>
           <div class="stat-num">{{ result.stats.skipped }}</div>

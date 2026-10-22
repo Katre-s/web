@@ -199,7 +199,8 @@ export async function bookDetail(req, res, next) {
       originalPrice: Number(bookRecord.originalPrice) || 0
     }
 
-    const sellers = products.map((p) => ({
+    // 同一个板块只保留一条卖家信息（取最新上架的在售记录）
+    const sellers = products.slice(0, 1).map((p) => ({
       id: p.id,
       price: Number(p.price),
       condition: p.condition,
