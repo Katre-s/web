@@ -12,7 +12,9 @@ export const User = sequelize.define('User', {
   campus: { type: DataTypes.STRING(100), defaultValue: '' },
   role: { type: DataTypes.STRING(20), defaultValue: 'user' },
   status: { type: DataTypes.STRING(20), defaultValue: 'active' },
-  balance: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 }
+  balance: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 },
+  // 待存余额：卖出收入先进这里，买家确认收货 24h 后自动解冻到 balance
+  pendingBalance: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0, field: 'pending_balance' }
 }, { tableName: 'users' })
 
 export const Hotspot = sequelize.define('Hotspot', {
@@ -70,8 +72,9 @@ export const Order = sequelize.define('Order', {
   buyerId: { type: DataTypes.INTEGER, allowNull: false, field: 'buyer_id' },
   totalPrice: { type: DataTypes.DECIMAL(10, 2), allowNull: false, field: 'total_price' },
   status: { type: DataTypes.STRING(20), defaultValue: 'pending' },
-  // 售后状态：none 未申请 / applied 已申请
-  aftersaleStatus: { type: DataTypes.STRING(20), defaultValue: 'none', field: 'aftersale_status' }
+  // 售后状态与 AfterSale.status 保持同步
+  aftersaleStatus: { type: DataTypes.STRING(20), defaultValue: 'none', field: 'aftersale_status' },
+  completedAt: { type: DataTypes.DATE, field: 'completed_at' }
 }, { tableName: 'orders' })
 
 export const OrderItem = sequelize.define('OrderItem', {
@@ -86,11 +89,21 @@ export const AfterSale = sequelize.define('AfterSale', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   orderId: { type: DataTypes.INTEGER, allowNull: false, field: 'order_id' },
   buyerId: { type: DataTypes.INTEGER, allowNull: false, field: 'buyer_id' },
+  sellerId: { type: DataTypes.INTEGER, field: 'seller_id' },
+  // refund_only 仅退款 / return_refund 退货退款
+  type: { type: DataTypes.STRING(20), defaultValue: 'refund_only' },
+  amount: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 },
   reason: { type: DataTypes.TEXT },
-  // pending 待处理 / processing 处理中 / resolved 已解决 / rejected 已驳回
-  status: { type: DataTypes.STRING(20), defaultValue: 'pending' },
+  // pending 待管理员审核 / rejected 管理员已驳回 / seller_pending 待卖家处理
+  // seller_rejected 卖家已拒绝待管理员审核 / seller_reject_approved 管理员同意卖家拒绝（买家可申诉一次）
+  // appealed 买家申诉中 / refunded 已退款 / closed 终局（申诉被驳回）
+  status: { type: DataTypes.STRING(30), defaultValue: 'pending' },
   adminId: { type: DataTypes.INTEGER, field: 'admin_id' },
   adminNote: { type: DataTypes.STRING(500), defaultValue: '', field: 'admin_note' },
+  rejectReason: { type: DataTypes.STRING(500), defaultValue: '', field: 'reject_reason' },
+  appealReason: { type: DataTypes.TEXT, field: 'appeal_reason' },
+  appealed: { type: DataTypes.BOOLEAN, defaultValue: false },
+  refundedAt: { type: DataTypes.DATE, field: 'refunded_at' },
   handledAt: { type: DataTypes.DATE, field: 'handled_at' }
 }, { tableName: 'after_sales' })
 
@@ -145,7 +158,11 @@ export const BalanceLog = sequelize.define('BalanceLog', {
   amount: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
   balanceAfter: { type: DataTypes.DECIMAL(10, 2), allowNull: false, field: 'balance_after' },
   orderId: { type: DataTypes.INTEGER, field: 'order_id', allowNull: true },
-  note: { type: DataTypes.STRING(255), defaultValue: '' }
+  note: { type: DataTypes.STRING(255), defaultValue: '' },
+  // 待存解冻用：pending_after 记录待存余额快照，release_at 到达时间，released 是否已解冻
+  pendingAfter: { type: DataTypes.DECIMAL(10, 2), field: 'pending_after' },
+  releaseAt: { type: DataTypes.DATE, field: 'release_at' },
+  released: { type: DataTypes.BOOLEAN, defaultValue: false }
 }, { tableName: 'balance_logs' })
 User.hasMany(BalanceLog, { foreignKey: 'user_id', as: 'balanceLogs' })
 BalanceLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' })
@@ -211,7 +228,9 @@ export const Conversation = sequelize.define('Conversation', {
   buyerId: { type: DataTypes.INTEGER, allowNull: false, field: 'buyer_id' },
   sellerId: { type: DataTypes.INTEGER, allowNull: false, field: 'seller_id' },
   productId: { type: DataTypes.INTEGER, field: 'product_id' },
-  lastMessageAt: { type: DataTypes.DATE, field: 'last_message_at' }
+  lastMessageAt: { type: DataTypes.DATE, field: 'last_message_at' },
+  // normal 普通对话 / admin 联系管理员的客服对话（前端显示「管理员」）
+  type: { type: DataTypes.STRING(10), defaultValue: 'normal' }
 }, { tableName: 'conversations' })
 
 export const ChatMessage = sequelize.define('ChatMessage', {

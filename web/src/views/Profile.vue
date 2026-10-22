@@ -16,6 +16,7 @@
         <p>{{ $t('profile.email') }}：{{ userStore.userInfo?.email }} <el-button text type="primary" size="small" @click="showEmailDialog = true">{{ $t('profile.change') }}</el-button></p>
         <p class="profile-balance">
           {{ $t('profile.balance') }}：<b>¥{{ Number(userStore.userInfo?.balance ?? 0).toFixed(2) }}</b>
+          <span class="pending-balance">{{ $t('profile.pendingBalance') }}：<b>¥{{ Number(userStore.userInfo?.pendingBalance ?? 0).toFixed(2) }}</b></span>
           <el-button type="primary" size="small" round @click="showRechargeDialog = true">{{ $t('profile.rechargeTitle') }}</el-button>
           <el-button size="small" round @click="openLogs">{{ $t('profile.balanceLogs') }}</el-button>
         </p>
@@ -36,6 +37,41 @@
           <button class="filter-btn" :class="{ active: productFilter === 'sold' }" @click="productFilter = 'sold'">
             {{ $t('profile.soldCount', { n: soldProducts.length }) }}
           </button>
+          <button class="filter-btn aftersale-btn" :class="{ active: productFilter === 'aftersales' }" @click="openSellerAftersales">
+            {{ $t('profile.sellerAftersales') }}
+            <em v-if="sellerAftersalePending" class="aftersale-dot">{{ sellerAftersalePending }}</em>
+          </button>
+        </div>
+
+        <!-- 卖家售后处理 -->
+        <div v-if="productFilter === 'aftersales'" class="seller-aftersales" v-loading="loadingSellerAftersales">
+          <div v-for="rec in sellerAftersales" :key="rec.id" class="seller-aftersale-item">
+            <div class="sa-head">
+              <span class="sa-order">{{ $t('orders.idPrefix') }}{{ rec.orderId }}</span>
+              <span class="sa-type">{{ rec.type === 'return_refund' ? $t('orders.typeReturnRefund') : $t('orders.typeRefundOnly') }}</span>
+              <el-tag size="small" :type="saTagType(rec.status)">{{ saStatusLabel(rec.status) }}</el-tag>
+              <span class="sa-amount">¥{{ Number(rec.amount || 0).toFixed(2) }}</span>
+            </div>
+            <p class="sa-buyer">{{ $t('admin.afterSaleBuyer') }}：{{ rec.buyer?.nickname || rec.buyer?.userNo || '—' }}</p>
+            <p class="sa-reason"><b>{{ $t('orders.aftersaleReason') }}：</b>{{ rec.reason || '—' }}</p>
+            <p v-if="rec.adminNote" class="sa-admin"><b>{{ $t('orders.aftersaleNote') }}：</b>{{ rec.adminNote }}</p>
+            <div class="sa-actions">
+              <!-- 退货退款：确认收货并退款 -->
+              <el-button
+                v-if="rec.status === 'seller_pending' && rec.type === 'return_refund'"
+                type="primary" size="small" round
+                @click="handleSellerAftersale(rec, 'confirm')"
+              >{{ $t('profile.confirmReturnRefund') }}</el-button>
+              <!-- 仅退款：同意 / 拒绝 -->
+              <template v-if="rec.status === 'seller_pending' && rec.type === 'refund_only'">
+                <el-button type="primary" size="small" round @click="handleSellerAftersale(rec, 'agree')">{{ $t('profile.agreeRefund') }}</el-button>
+                <el-button type="danger" size="small" round @click="rejectSellerAftersale(rec)">{{ $t('profile.rejectRefund') }}</el-button>
+              </template>
+              <span v-if="rec.status === 'seller_rejected'" class="sa-wait">{{ $t('profile.waitAdminReview') }}</span>
+              <span v-if="rec.status === 'seller_reject_approved' && rec.appealed" class="sa-wait">{{ $t('profile.buyerAppealed') }}</span>
+            </div>
+          </div>
+          <el-empty v-if="!sellerAftersales.length && !loadingSellerAftersales" :description="$t('profile.noSellerAftersales')" :image-size="60" />
         </div>
         <div v-for="p in filteredProducts" :key="p.id" class="my-product-item">
           <div class="my-product-info" @click="goProduct(p)">
@@ -149,7 +185,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus/es/components/message/index'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index'
-import { productApi, favoriteApi, bookFavoriteApi, authApi, balanceApi, conversationApi } from '@/api'
+import { productApi, favoriteApi, bookFavoriteApi, authApi, balanceApi, conversationApi, aftersaleApi } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { resolveImg } from '@/utils/image'
 
@@ -234,8 +270,85 @@ async function openLogs() {
 }
 
 function logTypeLabel(type) {
-  const map = { recharge: 'profile.logRecharge', pay: 'profile.logPay', income: 'profile.logIncome', admin: 'profile.logAdmin' }
+  const map = {
+    recharge: 'profile.logRecharge',
+    pay: 'profile.logPay',
+    income: 'profile.logIncome',
+    admin: 'profile.logAdmin',
+    refund: 'profile.logRefund',
+    refund_hold: 'profile.logRefundHold',
+    income_escrow: 'profile.logIncomeEscrow',
+    escrow_release: 'profile.logEscrowRelease'
+  }
   return t(map[type] || type)
+}
+
+/* ---------- 卖家售后处理 ---------- */
+const sellerAftersales = ref([])
+const loadingSellerAftersales = ref(false)
+const sellerAftersalePending = computed(() =>
+  sellerAftersales.value.filter(r => r.status === 'seller_pending').length
+)
+
+async function openSellerAftersales() {
+  productFilter.value = 'aftersales'
+  loadingSellerAftersales.value = true
+  try {
+    const res = await aftersaleApi.sellerList()
+    sellerAftersales.value = res.data || res || []
+  } catch {
+    sellerAftersales.value = []
+  } finally {
+    loadingSellerAftersales.value = false
+  }
+}
+
+function saStatusLabel(status) {
+  const map = {
+    pending: 'orders.aftersalePending',
+    seller_pending: 'orders.aftersaleSellerPending',
+    seller_rejected: 'orders.aftersaleSellerRejected',
+    seller_reject_approved: 'orders.aftersaleRejectApproved',
+    appealed: 'orders.aftersaleAppealed',
+    refunded: 'orders.aftersaleRefunded',
+    rejected: 'orders.aftersaleRejected',
+    closed: 'orders.aftersaleClosed'
+  }
+  return map[status] ? t(map[status]) : status
+}
+
+function saTagType(status) {
+  return {
+    pending: 'warning', seller_pending: 'primary', seller_rejected: 'danger',
+    seller_reject_approved: 'info', appealed: 'warning', refunded: 'success',
+    rejected: 'info', closed: 'info'
+  }[status] || 'info'
+}
+
+async function handleSellerAftersale(rec, action) {
+  try {
+    await aftersaleApi.sellerHandle(rec.id, { action })
+    ElMessage.success(action === 'confirm' ? t('profile.confirmReturnRefundDone') : t('profile.agreeRefundDone'))
+    openSellerAftersales()
+  } catch {}
+}
+
+async function rejectSellerAftersale(rec) {
+  let reason = ''
+  try {
+    const { value } = await ElMessageBox.prompt(t('profile.rejectReasonTip'), t('profile.rejectRefund'), {
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel'),
+      inputType: 'textarea',
+      inputPlaceholder: t('profile.rejectReasonPlaceholder')
+    })
+    reason = String(value || '').trim()
+  } catch { return }
+  try {
+    await aftersaleApi.sellerHandle(rec.id, { action: 'reject', reason })
+    ElMessage.success(t('profile.rejectSubmitted'))
+    openSellerAftersales()
+  } catch {}
 }
 
 /* ---------- 邮箱修改 ---------- */
@@ -468,6 +581,65 @@ onUnmounted(() => { if (cooldownTimer) clearInterval(cooldownTimer) })
 }
 .profile-info p {
   color: var(--text-sub, #999);
+}
+.pending-balance {
+  margin-left: 14px;
+  color: #8d6e63;
+}
+.pending-balance b {
+  color: #b3591a;
+}
+.seller-aftersales {
+  margin-top: 14px;
+}
+.seller-aftersale-item {
+  padding: 12px 14px;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  background: var(--card-bg);
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+.sa-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sa-order {
+  font-weight: 700;
+  color: var(--text-main);
+}
+.sa-type {
+  color: #10667a;
+}
+.sa-amount {
+  margin-left: auto;
+  font-weight: 800;
+  color: #e5484d;
+}
+.sa-buyer, .sa-reason, .sa-admin {
+  margin: 6px 0 0;
+  color: #5d7b87;
+  line-height: 1.6;
+}
+.sa-actions {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sa-wait {
+  font-size: 12px;
+  color: #b3591a;
+}
+.aftersale-dot {
+  font-style: normal;
+  margin-left: 4px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #e5484d;
+  color: #fff;
+  font-size: 11px;
 }
 .profile-balance {
   display: flex;

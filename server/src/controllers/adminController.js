@@ -11,7 +11,7 @@ export async function stats(req, res, next) {
       Order.count(),
       Hotspot.count({ where: { status: 'active' } }),
       PlazaPost.count({ where: { status: 'active' } }),
-      AfterSale.count({ where: { status: ['pending', 'processing'] } }),
+      AfterSale.count({ where: { status: ['pending', 'seller_rejected', 'appealed'] } }),
       User.count({ where: { status: 'banned' } })
     ])
     const recentUsers = await User.findAll({ order: [['id', 'DESC']], limit: 5, attributes: ['id', 'email', 'nickname', 'campus', 'role', 'status', ['created_at', 'created_at']] })

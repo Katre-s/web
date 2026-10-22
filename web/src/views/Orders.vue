@@ -65,8 +65,13 @@
                 >{{ $t('common.contactSeller') }}</el-button>
               </div>
             </div>
-            <div class="aftersale-box" v-if="order.aftersale && (order.aftersale.reason || order.aftersale.adminNote)">
+            <div class="aftersale-box" v-if="order.aftersale">
+              <p v-if="order.aftersale.type">
+                <b>{{ $t('orders.aftersaleType') }}：</b>{{ order.aftersale.type === 'return_refund' ? $t('orders.typeReturnRefund') : $t('orders.typeRefundOnly') }}
+              </p>
               <p v-if="order.aftersale.reason"><b>{{ $t('orders.aftersaleReason') }}：</b>{{ order.aftersale.reason }}</p>
+              <p v-if="order.aftersale.rejectReason" class="reject-note"><b>{{ $t('orders.sellerRejectReason') }}：</b>{{ order.aftersale.rejectReason }}</p>
+              <p v-if="order.aftersale.appealReason"><b>{{ $t('orders.appealReason') }}：</b>{{ order.aftersale.appealReason }}</p>
               <p v-if="order.aftersale.adminNote" class="admin-note"><b>{{ $t('orders.aftersaleNote') }}：</b>{{ order.aftersale.adminNote }}</p>
             </div>
             <div class="order-footer">
@@ -77,9 +82,13 @@
               </div>
               <div class="order-actions" v-else>
                 <el-button
-                  v-if="!order.aftersaleStatus || order.aftersaleStatus === 'none' || order.aftersaleStatus === 'rejected'"
-                  size="small" round @click="applyAftersale(order)"
-                >{{ order.aftersaleStatus === 'rejected' ? $t('orders.reapplyAftersale') : $t('orders.applyAftersale') }}</el-button>
+                  v-if="canApply(order)"
+                  size="small" round @click="openApply(order)"
+                >{{ order.aftersaleStatus === 'rejected' || order.aftersaleStatus === 'closed' ? $t('orders.reapplyAftersale') : $t('orders.applyAftersale') }}</el-button>
+                <el-button
+                  v-if="order.aftersaleStatus === 'seller_reject_approved' && order.aftersale && !order.aftersale.appealed"
+                  size="small" round type="danger" @click="appealAftersale(order)"
+                >{{ $t('orders.appeal') }}</el-button>
                 <el-button size="small" round type="warning" @click="contactAdmin(order)">{{ $t('orders.contactAdmin') }}</el-button>
               </div>
             </div>
@@ -87,6 +96,33 @@
         </div>
         <el-empty v-else :description="$t('orders.empty')" />
       </template>
+
+      <!-- 申请售后弹窗：原因 + 类型 -->
+      <el-dialog v-model="applyDialog.visible" :title="$t('orders.applyAftersale')" width="440px">
+        <el-form label-position="top">
+          <el-form-item :label="$t('orders.aftersaleType')">
+            <el-radio-group v-model="applyDialog.type">
+              <el-radio value="refund_only">{{ $t('orders.typeRefundOnly') }}</el-radio>
+              <el-radio value="return_refund">{{ $t('orders.typeReturnRefund') }}</el-radio>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item :label="$t('orders.aftersaleReason')">
+            <el-input
+              v-model="applyDialog.reason"
+              type="textarea"
+              :rows="3"
+              maxlength="500"
+              show-word-limit
+              :placeholder="$t('orders.aftersaleReasonPlaceholder')"
+            />
+          </el-form-item>
+        </el-form>
+        <p class="apply-tip">{{ $t('orders.aftersaleWindowTip') }}</p>
+        <template #footer>
+          <el-button @click="applyDialog.visible = false">{{ $t('common.cancel') }}</el-button>
+          <el-button type="primary" :disabled="!applyDialog.reason.trim()" @click="submitApply">{{ $t('orders.submitAftersale') }}</el-button>
+        </template>
+      </el-dialog>
     </div>
   </div>
 </template>
@@ -98,7 +134,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus/es/components/message/index'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index'
-import { cartApi, orderApi, conversationApi } from '@/api'
+import { cartApi, orderApi, conversationApi, aftersaleApi } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { resolveImg, imgFallback } from '@/utils/image'
 
@@ -261,27 +297,63 @@ async function cancelOrder(order) {
 function aftersaleLabel(status) {
   const map = {
     pending: 'orders.aftersalePending',
-    processing: 'orders.aftersaleProcessing',
-    resolved: 'orders.aftersaleResolved',
-    rejected: 'orders.aftersaleRejected'
+    seller_pending: 'orders.aftersaleSellerPending',
+    seller_rejected: 'orders.aftersaleSellerRejected',
+    seller_reject_approved: 'orders.aftersaleRejectApproved',
+    appealed: 'orders.aftersaleAppealed',
+    refunded: 'orders.aftersaleRefunded',
+    rejected: 'orders.aftersaleRejected',
+    closed: 'orders.aftersaleClosed',
+    processing: 'orders.aftersaleSellerPending',
+    resolved: 'orders.aftersaleRefunded'
   }
   return map[status] ? t(map[status]) : status
 }
 
-async function applyAftersale(order) {
+// 确认收货后 23 小时内可申请售后；已退款/终局不可再申请
+const AFTERSALE_WINDOW_MS = 23 * 3600 * 1000
+function canApply(order) {
+  const st = order.aftersaleStatus
+  if (['refunded', 'appealed', 'seller_pending', 'seller_rejected', 'pending', 'processing', 'resolved'].includes(st)) return false
+  if (st === 'seller_reject_approved') return false
+  if (order.aftersale?.appealed) return false
+  if (order.completedAt) {
+    return Date.now() - new Date(order.completedAt).getTime() <= AFTERSALE_WINDOW_MS
+  }
+  return true
+}
+
+const applyDialog = ref({ visible: false, orderId: null, reason: '', type: 'refund_only' })
+
+function openApply(order) {
+  applyDialog.value = { visible: true, orderId: order.id, reason: '', type: 'refund_only' }
+}
+
+async function submitApply() {
+  const d = applyDialog.value
+  if (!d.reason.trim()) return
+  try {
+    await orderApi.applyAftersale(d.orderId, d.reason.trim(), d.type)
+    ElMessage.success(t('orders.aftersaleApplied'))
+    applyDialog.value.visible = false
+    loadOrders()
+  } catch {}
+}
+
+async function appealAftersale(order) {
   let reason = ''
   try {
-    const { value } = await ElMessageBox.prompt(t('orders.aftersaleReasonTip'), t('orders.applyAftersale'), {
-      confirmButtonText: t('orders.submitAftersale'),
+    const { value } = await ElMessageBox.prompt(t('orders.appealReasonTip'), t('orders.appeal'), {
+      confirmButtonText: t('orders.submitAppeal'),
       cancelButtonText: t('common.cancel'),
       inputType: 'textarea',
-      inputPlaceholder: t('orders.aftersaleReasonPlaceholder')
+      inputPlaceholder: t('orders.appealReasonPlaceholder')
     })
     reason = String(value || '').trim()
   } catch { return }
   try {
-    await orderApi.applyAftersale(order.id, reason)
-    ElMessage.success(t('orders.aftersaleApplied'))
+    await aftersaleApi.appeal(order.aftersale.id, reason)
+    ElMessage.success(t('orders.appealSubmitted'))
     loadOrders()
   } catch {}
 }
@@ -419,6 +491,14 @@ onMounted(onTabChange)
 .aftersale-box .admin-note {
   margin-top: 4px;
   color: #10667a;
+}
+.aftersale-box .reject-note {
+  color: #b3591a;
+}
+.apply-tip {
+  margin: 0;
+  font-size: 12px;
+  color: #9db2ba;
 }
 .order-items {
   display: flex;

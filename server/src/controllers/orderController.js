@@ -137,8 +137,9 @@ export async function confirmReceipt(req, res, next) {
       return fail(res, `余额不足，当前余额 ¥${Number(buyer.balance).toFixed(2)}，本单需 ¥${totalPrice.toFixed(2)}，请先充值`)
     }
 
-    const sellers = await User.findAll({ where: { id: [...sellerGain.keys()] }, attributes: ['id', 'balance'] })
+    const sellers = await User.findAll({ where: { id: [...sellerGain.keys()] }, attributes: ['id', 'balance', 'pendingBalance'] })
     const sellerBalance = new Map(sellers.map(s => [s.id, Number(s.balance)]))
+    const sellerPending = new Map(sellers.map(s => [s.id, Number(s.pendingBalance) || 0]))
 
     await withRetry(() => sequelize.transaction(async (tx) => {
       await User.update(
@@ -154,22 +155,28 @@ export async function confirmReceipt(req, res, next) {
         note: `订单 #${order.id} 确认收货扣款`
       }, { transaction: tx })
 
+      const releaseAt = new Date(Date.now() + 24 * 3600 * 1000)
       for (const [sellerId, gain] of sellerGain) {
+        // 卖家收入先进「待存余额」，24h 后由定时任务解冻到账户余额
         await User.update(
-          { balance: sequelize.literal(`balance + ${gain}`) },
+          { pendingBalance: sequelize.literal(`pending_balance + ${gain}`) },
           { where: { id: sellerId }, transaction: tx }
         )
         await BalanceLog.create({
           userId: sellerId,
-          type: 'income',
+          type: 'income_escrow',
           amount: gain,
-          balanceAfter: (sellerBalance.get(sellerId) || 0) + gain,
+          balanceAfter: sellerBalance.get(sellerId) || 0,
+          pendingAfter: (sellerPending.get(sellerId) || 0) + gain,
+          releaseAt,
+          released: false,
           orderId: order.id,
-          note: `订单 #${order.id} 售出收入`
+          note: `订单 #${order.id} 售出收入（待存，${releaseAt.toLocaleString('zh-CN')} 自动到账）`
         }, { transaction: tx })
       }
 
       order.status = 'completed'
+      order.completedAt = new Date()
       await order.save({ transaction: tx })
     }))
 
@@ -177,11 +184,11 @@ export async function confirmReceipt(req, res, next) {
       await Notification.create({
         userId: sellerId,
         type: 'order',
-        content: `订单 #${order.id} 买家已确认收货，¥${gain.toFixed(2)} 已入余额`
+        content: `订单 #${order.id} 买家已确认收货，¥${gain.toFixed(2)} 已入待存余额，24 小时后自动到账`
       })
     }
 
-    success(res, order, '确认收货成功，款项已从余额扣除')
+    success(res, order, '确认收货成功，款项已从余额扣除，卖家收入进入待存')
   } catch (err) { next(err) }
 }
 
@@ -230,6 +237,9 @@ export async function updateStatus(req, res, next) {
 }
 
 // 申请售后：买家对已完成订单发起（被驳回后允许重新申请）
+// 确认收货后 23 小时内可申请售后（给 24h 待存解冻留 1 小时缓冲）
+const AFTERSALE_WINDOW_MS = 23 * 3600 * 1000
+
 export async function applyAftersale(req, res, next) {
   try {
     const order = await Order.findByPk(req.params.id)
@@ -237,39 +247,61 @@ export async function applyAftersale(req, res, next) {
     if (order.buyerId !== req.user.id) return fail(res, '只能操作自己的订单', 403)
     if (order.status !== 'completed') return fail(res, '只有已完成的订单可以申请售后')
 
-    const reason = String(req.body.reason || '').trim().slice(0, 500)
-    const existing = await AfterSale.findOne({ where: { orderId: order.id } })
-    if (existing && existing.status !== 'rejected') {
-      return fail(res, '该订单已在售后处理中，请勿重复申请')
+    const completedAt = order.completedAt ? new Date(order.completedAt).getTime() : null
+    if (completedAt && Date.now() - completedAt > AFTERSALE_WINDOW_MS) {
+      return fail(res, '已超过确认收货后 23 小时，售后窗口已关闭（款项即将解冻给卖家）')
     }
 
+    const reason = String(req.body.reason || '').trim().slice(0, 500)
+    if (!reason) return fail(res, '请填写售后原因')
+    const type = req.body.type === 'return_refund' ? 'return_refund' : 'refund_only'
+    const typeText = type === 'return_refund' ? '退货退款' : '仅退款'
+
+    const items = await OrderItem.findAll({ where: { orderId: order.id }, attributes: ['sellerId'] })
+    const sellerId = items.map(it => it.sellerId).find(id => id && id !== order.buyerId) || null
+
+    const existing = await AfterSale.findOne({ where: { orderId: order.id } })
+    const allowedReapply = ['rejected', 'seller_reject_approved', 'closed']
+    if (existing && !allowedReapply.includes(existing.status)) {
+      return fail(res, '该订单已在售后处理中，请勿重复申请')
+    }
+    if (existing && existing.appealed) {
+      return fail(res, '申诉已处理完毕，无法再次申请售后')
+    }
+
+    const fields = {
+      reason,
+      type,
+      amount: order.totalPrice,
+      sellerId,
+      status: 'pending',
+      adminId: null,
+      adminNote: '',
+      rejectReason: '',
+      appealReason: null,
+      refundedAt: null,
+      handledAt: null
+    }
+    let aftersale
     if (existing) {
-      await existing.update({
-        reason,
-        status: 'pending',
-        adminId: null,
-        adminNote: '',
-        handledAt: null
-      })
+      await existing.update(fields)
+      aftersale = existing
     } else {
-      await AfterSale.create({ orderId: order.id, buyerId: req.user.id, reason, status: 'pending' })
+      aftersale = await AfterSale.create({ orderId: order.id, buyerId: req.user.id, ...fields })
     }
 
     order.aftersaleStatus = 'pending'
     await order.save()
 
-    const items = await OrderItem.findAll({ where: { orderId: order.id }, attributes: ['sellerId'] })
-    const sellerIds = [...new Set(items.map(it => it.sellerId))]
-    for (const sellerId of sellerIds) {
-      if (sellerId === order.buyerId) continue
+    if (sellerId) {
       await Notification.create({
         userId: sellerId,
         type: 'aftersale',
-        content: `买家对订单 #${order.id} 发起了售后申请，请及时与买家沟通处理`
+        content: `买家对订单 #${order.id} 发起了${typeText}售后申请，待管理员审核，请留意卖家中心的售后处理`
       })
     }
 
-    success(res, order, '售后申请已提交')
+    success(res, order, `${typeText}申请已提交，等待管理员审核`)
   } catch (err) { next(err) }
 }
 
@@ -287,19 +319,8 @@ export async function contactAdmin(req, res, next) {
     })
     if (!admins.length) return fail(res, '暂无可用管理员，请稍后再试', 404)
 
-    // 统计每个管理员名下的会话量，挑最"空闲"的一个
-    const adminIds = admins.map(a => a.id)
-    const convRows = await Conversation.findAll({
-      where: { [Op.or]: [{ buyerId: adminIds }, { sellerId: adminIds }] },
-      attributes: ['buyerId', 'sellerId'],
-      raw: true
-    })
-    const loadMap = new Map(adminIds.map(id => [id, 0]))
-    for (const row of convRows) {
-      if (loadMap.has(row.buyerId)) loadMap.set(row.buyerId, loadMap.get(row.buyerId) + 1)
-      if (loadMap.has(row.sellerId)) loadMap.set(row.sellerId, loadMap.get(row.sellerId) + 1)
-    }
-    const admin = [...admins].sort((a, b) => (loadMap.get(a.id) || 0) - (loadMap.get(b.id) || 0))[0]
+    // 从管理员中随机挑选一位接待
+    const admin = admins[Math.floor(Math.random() * admins.length)]
 
     const buyerId = order.buyerId
     let conv = await Conversation.findOne({
@@ -312,7 +333,9 @@ export async function contactAdmin(req, res, next) {
       order: [['last_message_at', 'DESC']]
     })
     if (!conv) {
-      conv = await Conversation.create({ buyerId, sellerId: admin.id, productId: null, lastMessageAt: new Date() })
+      conv = await Conversation.create({ buyerId, sellerId: admin.id, productId: null, lastMessageAt: new Date(), type: 'admin' })
+    } else if (conv.type !== 'admin') {
+      await conv.update({ type: 'admin' })
     }
     const reason = order.aftersaleStatus === 'applied'
       ? `我对订单 #${order.id} 申请了售后，请管理员协助处理`
@@ -333,6 +356,6 @@ export async function contactAdmin(req, res, next) {
     success(res, {
       conversationId: conv.id,
       admin: { id: admin.id, nickname: admin.nickname }
-    }, `已为您分配管理员（${admin.nickname}），请查看对话`)
+    }, '已为您接入管理员客服，请在对话中查看')
   } catch (err) { next(err) }
 }

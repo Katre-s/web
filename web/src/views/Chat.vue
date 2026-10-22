@@ -12,11 +12,11 @@
             @click="selectConv(conv)"
           >
             <div class="conv-avatar">
-              {{ getOtherUser(conv)?.nickname?.charAt(0) || '?' }}
+              {{ convAvatar(conv) }}
             </div>
             <div class="conv-info">
               <div class="conv-top">
-                <span class="conv-name">{{ getOtherUser(conv)?.nickname || t('common.unknown') }}</span>
+                <span class="conv-name">{{ convTitle(conv) }}</span>
                 <span class="conv-time">{{ formatTime(conv.lastMessageAt) }}</span>
               </div>
               <div class="conv-bottom">
@@ -32,7 +32,7 @@
             <button v-if="isMobile" class="chat-back" @click="backToList">
               <el-icon><ArrowLeft /></el-icon>
             </button>
-            <span>{{ getOtherUser(activeConv)?.nickname || t('chat.title') }}</span>
+            <span>{{ convTitle(activeConv) }}</span>
             <span class="chat-product" v-if="activeConv.product?.bookTitle">
               {{ activeConv.product.bookTitle }}
             </span>
@@ -98,6 +98,19 @@ function onResize() {
 function getOtherUser(conv) {
   if (!conv) return null
   return conv.buyer?.id === userStore.userInfo?.id ? conv.seller : conv.buyer
+}
+
+// 管理员客服会话：买家侧统一显示「管理员」，不暴露真实昵称；管理员本人查看时显示对方昵称
+function isAdminConv(conv) {
+  return conv?.type === 'admin' && userStore.userInfo?.id !== conv.seller?.id
+}
+function convTitle(conv) {
+  if (isAdminConv(conv)) return t('chat.adminTitle')
+  return getOtherUser(conv)?.nickname || t('common.unknown')
+}
+function convAvatar(conv) {
+  if (isAdminConv(conv)) return t('chat.adminTitle').charAt(0)
+  return getOtherUser(conv)?.nickname?.charAt(0) || '?'
 }
 
 function formatTime(time) {

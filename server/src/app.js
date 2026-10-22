@@ -14,6 +14,7 @@ import booksRoutes from './routes/books.js'
 import cartRoutes from './routes/cart.js'
 import orderRoutes from './routes/orders.js'
 import balanceRoutes from './routes/balance.js'
+import aftersaleRoutes from './routes/aftersale.js'
 import favoriteRoutes from './routes/favorites.js'
 import messageRoutes from './routes/messages.js'
 import hotspotRoutes from './routes/hotspots.js'
@@ -55,6 +56,7 @@ app.use('/api/books', booksRoutes)
 app.use('/api/cart', cartRoutes)
 app.use('/api/orders', orderRoutes)
 app.use('/api/balance', balanceRoutes)
+app.use('/api/aftersale', aftersaleRoutes)
 app.use('/api/favorites', favoriteRoutes)
 app.use('/api/messages', messageRoutes)
 app.use('/api/hotspots', hotspotRoutes)
@@ -118,6 +120,95 @@ async function start() {
   } catch (err) {
     console.error('[迁移售后状态] 失败:', err.message)
   }
+
+  // 托管体系补列：users.pending_balance / orders.completed_at / after_sales 新字段 / conversations.type / balance_logs 解冻三列
+  async function ensureColumn(table, column, ddl) {
+    const desc = await sequelize.getQueryInterface().describeTable(table)
+    if (!desc[column]) {
+      await sequelize.getQueryInterface().addColumn(table, column, ddl)
+      console.log(`[迁移] ${table} 表已补充 ${column} 列`)
+    }
+  }
+  try {
+    await ensureColumn('users', 'pending_balance', { type: 'DECIMAL(10,2)', allowNull: false, defaultValue: 0 })
+    await ensureColumn('orders', 'completed_at', { type: 'DATE', allowNull: true })
+    await ensureColumn('after_sales', 'seller_id', { type: 'INTEGER', allowNull: true })
+    await ensureColumn('after_sales', 'type', { type: 'VARCHAR(20)', allowNull: false, defaultValue: 'refund_only' })
+    await ensureColumn('after_sales', 'amount', { type: 'DECIMAL(10,2)', allowNull: false, defaultValue: 0 })
+    await ensureColumn('after_sales', 'reject_reason', { type: 'VARCHAR(500)', allowNull: false, defaultValue: '' })
+    await ensureColumn('after_sales', 'appeal_reason', { type: 'TEXT', allowNull: true })
+    await ensureColumn('after_sales', 'appealed', { type: 'TINYINT(1)', allowNull: false, defaultValue: 0 })
+    await ensureColumn('after_sales', 'refunded_at', { type: 'DATE', allowNull: true })
+    await ensureColumn('conversations', 'type', { type: 'VARCHAR(10)', allowNull: false, defaultValue: 'normal' })
+    await ensureColumn('balance_logs', 'pending_after', { type: 'DECIMAL(10,2)', allowNull: true })
+    await ensureColumn('balance_logs', 'release_at', { type: 'DATE', allowNull: true })
+    await ensureColumn('balance_logs', 'released', { type: 'TINYINT(1)', allowNull: false, defaultValue: 0 })
+
+    // 历史已完成订单补 completed_at（用更新时间兜底），保证 23h 售后窗口可判断
+    const { Order, AfterSale } = await import('./models/index.js')
+    await Order.update(
+      { completedAt: sequelize.literal('updated_at') },
+      { where: { status: 'completed', completed_at: null } }
+    )
+    // 旧售后记录统一挂到订单卖家名下并补金额
+    const legacy = await AfterSale.findAll({ where: { seller_id: null } })
+    for (const rec of legacy) {
+      const order = await Order.findByPk(rec.orderId)
+      if (!order) continue
+      const item = await (await import('./models/index.js')).OrderItem.findOne({ where: { orderId: order.id } })
+      await rec.update({ sellerId: item?.sellerId || null, amount: order.totalPrice })
+    }
+    // 旧售后状态映射到新状态机
+    await AfterSale.update({ status: 'seller_pending' }, { where: { status: 'processing' } })
+    await AfterSale.update({ status: 'refunded' }, { where: { status: 'resolved' } })
+    if (legacy.length) console.log(`[迁移] ${legacy.length} 条旧售后记录已补卖家与金额`)
+  } catch (err) {
+    if (!String(err.message).includes("doesn't exist")) {
+      console.error('[迁移托管体系] 失败:', err.message)
+    }
+  }
+
+  // 待存余额解冻：确认收货 24h 后自动从待存转入账户余额（每分钟扫描一次，幂等）
+  async function releaseEscrow() {
+    try {
+      const { Op } = await import('sequelize')
+      const { BalanceLog, User, sequelize: sq } = await import('./models/index.js')
+      const dueLogs = await BalanceLog.findAll({
+        where: { type: 'income_escrow', released: false, releaseAt: { [Op.lte]: new Date() } },
+        limit: 200
+      })
+      for (const log of dueLogs) {
+        // 抢占式置 released，避免并发双发
+        const [affected] = await BalanceLog.update(
+          { released: true },
+          { where: { id: log.id, released: false } }
+        )
+        if (!affected) continue
+        const amount = Number(log.amount)
+        await sq.transaction(async (tx) => {
+          await User.update(
+            { pendingBalance: sq.literal(`GREATEST(pending_balance - ${amount}, 0)`), balance: sq.literal(`balance + ${amount}`) },
+            { where: { id: log.userId }, transaction: tx }
+          )
+          const user = await User.findByPk(log.userId, { attributes: ['id', 'balance'], transaction: tx })
+          await BalanceLog.create({
+            userId: log.userId,
+            type: 'escrow_release',
+            amount,
+            balanceAfter: Number(user.balance),
+            orderId: log.orderId,
+            note: `订单 #${log.orderId || ''} 待存解冻到账`.replace(' # ', ' #'),
+            released: true
+          }, { transaction: tx })
+        })
+      }
+      if (dueLogs.length) console.log(`[待存解冻] 本轮解冻 ${dueLogs.length} 笔`)
+    } catch (err) {
+      console.error('[待存解冻] 失败:', err.message)
+    }
+  }
+  setInterval(releaseEscrow, 60 * 1000)
+  setTimeout(releaseEscrow, 5 * 1000)
 
   // 余额流水表补 order_id（确认收货幂等校验要用；旧表可能没这一列）
   try {

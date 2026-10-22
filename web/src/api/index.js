@@ -53,7 +53,7 @@ export const orderApi = {
   list: (role, status) => request.get('/orders', { params: { role, status } }),
   updateStatus: (id, status) => request.patch(`/orders/${id}/status`, { status }),
   confirm: (id) => request.post(`/orders/${id}/confirm`),
-  applyAftersale: (id, reason = '') => request.post(`/orders/${id}/aftersale`, { reason }),
+  applyAftersale: (id, reason = '', type = 'refund_only') => request.post(`/orders/${id}/aftersale`, { reason, type }),
   contactAdmin: (id) => request.post(`/orders/${id}/contact-admin`)
 }
 
@@ -106,10 +106,19 @@ export const adminApi = {
   deleteItem: (id) => request.delete(`/admin/items/${id}`),
   charts: () => request.get('/admin/charts'),
   listAfterSales: (params) => request.get('/admin/after-sales', { params }),
-  handleAfterSale: (id, data) => request.put(`/admin/after-sales/${id}`, data),
+  reviewAfterSale: (id, data) => request.put(`/admin/after-sales/${id}/review`, data),
+  reviewSellerReject: (id, data) => request.put(`/admin/after-sales/${id}/seller-reject`, data),
+  reviewAppeal: (id, data) => request.put(`/admin/after-sales/${id}/appeal`, data),
   listPlaza: (params) => request.get('/admin/plaza', { params }),
   updatePlaza: (id, data) => request.put(`/admin/plaza/${id}`, data),
   deletePlaza: (id) => request.delete(`/admin/plaza/${id}`)
+}
+
+export const aftersaleApi = {
+  mine: () => request.get('/aftersale/mine'),
+  appeal: (id, reason) => request.post(`/aftersale/${id}/appeal`, { reason }),
+  sellerList: () => request.get('/aftersale/seller'),
+  sellerHandle: (id, data) => request.put(`/aftersale/seller/${id}`, data)
 }
 
 export const recommendApi = {

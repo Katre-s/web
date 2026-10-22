@@ -327,54 +327,85 @@
           </div>
         </template>
 
-        <!-- ===== 售后管理 ===== -->
+        <!-- ===== 售后审核 ===== -->
         <template v-if="activeSection === 'afterSales'">
           <div class="panel">
             <div class="panel-toolbar">
               <h3 class="panel-title">{{ $t('admin.afterSales') }}</h3>
               <div class="toolbar-right">
-                <el-select v-model="aftersaleStatus" clearable :placeholder="$t('admin.afterSaleAll')" style="width: 140px" @change="loadAfterSales">
-                  <el-option :label="$t('admin.afterSalePending')" value="pending" />
-                  <el-option :label="$t('admin.afterSaleProcessing')" value="processing" />
-                  <el-option :label="$t('admin.afterSaleResolved')" value="resolved" />
-                  <el-option :label="$t('admin.afterSaleRejected')" value="rejected" />
+                <el-select v-model="aftersaleStatus" clearable :placeholder="$t('admin.afterSaleAll')" style="width: 170px" @change="loadAfterSales">
+                  <el-option :label="$t('admin.asPending')" value="pending" />
+                  <el-option :label="$t('admin.asSellerPending')" value="seller_pending" />
+                  <el-option :label="$t('admin.asSellerRejected')" value="seller_rejected" />
+                  <el-option :label="$t('admin.asAppealed')" value="appealed" />
+                  <el-option :label="$t('admin.asRefunded')" value="refunded" />
+                  <el-option :label="$t('admin.asRejected')" value="rejected" />
+                  <el-option :label="$t('admin.asClosed')" value="closed" />
                 </el-select>
                 <el-button size="small" @click="loadAfterSales">{{ $t('common.refresh') }}</el-button>
               </div>
             </div>
             <el-table :data="afterSales" size="small">
-              <el-table-column prop="id" label="ID" width="60" />
-              <el-table-column :label="$t('admin.afterSaleOrder')" width="100">
+              <el-table-column prop="id" label="ID" width="56" />
+              <el-table-column :label="$t('admin.afterSaleOrder')" width="80">
                 <template #default="{ row }">#{{ row.orderId }}</template>
               </el-table-column>
-              <el-table-column :label="$t('admin.afterSaleBuyer')" width="160">
+              <el-table-column :label="$t('admin.afterSaleType')" width="90">
+                <template #default="{ row }">
+                  <el-tag size="small" :type="row.type === 'return_refund' ? 'warning' : 'primary'">
+                    {{ row.type === 'return_refund' ? $t('orders.typeReturnRefund') : $t('orders.typeRefundOnly') }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.afterSaleBuyer')" width="130">
                 <template #default="{ row }">
                   {{ row.buyer?.nickname || '—' }}
                   <span class="muted-text" v-if="row.buyer?.userNo">（{{ row.buyer.userNo }}）</span>
                 </template>
               </el-table-column>
-              <el-table-column :label="$t('admin.afterSaleItems')" min-width="190">
+              <el-table-column :label="$t('admin.afterSaleSeller')" width="130">
+                <template #default="{ row }">{{ row.seller?.nickname || '—' }}</template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.afterSaleItems')" min-width="150">
                 <template #default="{ row }">
                   <span class="plaza-content">{{ afterSaleItems(row) }}</span>
                 </template>
               </el-table-column>
-              <el-table-column :label="$t('admin.afterSaleReason')" min-width="180" show-overflow-tooltip>
+              <el-table-column :label="$t('admin.afterSaleAmount')" width="90">
+                <template #default="{ row }">¥{{ Number(row.amount || 0).toFixed(2) }}</template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.afterSaleReason')" min-width="150" show-overflow-tooltip>
                 <template #default="{ row }">{{ row.reason || '—' }}</template>
               </el-table-column>
-              <el-table-column :label="$t('admin.afterSaleStatus')" width="100">
+              <el-table-column :label="$t('admin.asSellerReject')" min-width="140" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.rejectReason || '—' }}</template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.asAppeal')" min-width="140" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.appealReason || '—' }}</template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.afterSaleStatus')" width="110">
                 <template #default="{ row }">
                   <el-tag size="small" :type="aftersaleTagType(row.status)">{{ aftersaleStatusLabel(row.status) }}</el-tag>
                 </template>
               </el-table-column>
-              <el-table-column :label="$t('admin.afterSaleTime')" width="150">
+              <el-table-column :label="$t('admin.afterSaleTime')" width="140">
                 <template #default="{ row }">{{ formatDate(row.created_at || row.createdAt) }}</template>
               </el-table-column>
-              <el-table-column :label="$t('admin.afterSaleHandler')" width="120">
-                <template #default="{ row }">{{ row.admin?.nickname || '—' }}</template>
-              </el-table-column>
-              <el-table-column :label="$t('common.actions')" width="90" fixed="right">
+              <el-table-column :label="$t('common.actions')" width="180" fixed="right">
                 <template #default="{ row }">
-                  <el-button size="small" text type="primary" @click="openAftersale(row)">{{ $t('admin.handle') }}</el-button>
+                  <template v-if="row.status === 'pending'">
+                    <el-button size="small" type="success" @click="reviewAfterSale(row, 'approve')">{{ $t('admin.asApprove') }}</el-button>
+                    <el-button size="small" type="danger" plain @click="reviewAfterSale(row, 'reject')">{{ $t('admin.asReject') }}</el-button>
+                  </template>
+                  <template v-else-if="row.status === 'seller_rejected'">
+                    <el-button size="small" type="success" @click="reviewSellerReject(row, 'approve')">{{ $t('admin.asAgreeReject') }}</el-button>
+                    <el-button size="small" type="danger" @click="reviewSellerReject(row, 'reject')">{{ $t('admin.asRefundBuyer') }}</el-button>
+                  </template>
+                  <template v-else-if="row.status === 'appealed'">
+                    <el-button size="small" type="success" @click="reviewAppeal(row, 'approve')">{{ $t('admin.asAppealApprove') }}</el-button>
+                    <el-button size="small" type="danger" plain @click="reviewAppeal(row, 'reject')">{{ $t('admin.asAppealReject') }}</el-button>
+                  </template>
+                  <span v-else class="muted-text">—</span>
                 </template>
               </el-table-column>
             </el-table>
@@ -452,38 +483,6 @@
       <template #footer>
         <el-button @click="showUserNoDialog = false">{{ $t('common.cancel') }}</el-button>
         <el-button type="primary" @click="submitUserNo">{{ $t('profile.confirmChange') }}</el-button>
-      </template>
-    </el-dialog>
-
-    <el-dialog v-model="showAftersaleDialog" :title="$t('admin.handleAfterSale')" width="520px">
-      <div v-if="aftersaleForm.row" class="aftersale-detail">
-        <p><b>{{ $t('admin.afterSaleOrder') }}：</b>#{{ aftersaleForm.row.orderId }}</p>
-        <p><b>{{ $t('admin.afterSaleBuyer') }}：</b>{{ aftersaleForm.row.buyer?.nickname || '—' }}</p>
-        <p><b>{{ $t('admin.afterSaleItems') }}：</b>{{ afterSaleItems(aftersaleForm.row) }}</p>
-        <p><b>{{ $t('admin.afterSaleReason') }}：</b>{{ aftersaleForm.row.reason || '—' }}</p>
-      </div>
-      <el-form label-position="top">
-        <el-form-item :label="$t('admin.afterSaleStatus')">
-          <el-radio-group v-model="aftersaleForm.status">
-            <el-radio-button value="processing">{{ $t('admin.afterSaleProcessing') }}</el-radio-button>
-            <el-radio-button value="resolved">{{ $t('admin.afterSaleResolved') }}</el-radio-button>
-            <el-radio-button value="rejected">{{ $t('admin.afterSaleRejected') }}</el-radio-button>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item :label="$t('admin.afterSaleNote')">
-          <el-input
-            v-model="aftersaleForm.note"
-            type="textarea"
-            :rows="3"
-            maxlength="500"
-            show-word-limit
-            :placeholder="$t('admin.afterSaleNotePlaceholder')"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showAftersaleDialog = false">{{ $t('common.cancel') }}</el-button>
-        <el-button type="primary" :loading="handlingAftersale" @click="submitAftersale">{{ $t('common.save') }}</el-button>
       </template>
     </el-dialog>
 
@@ -598,12 +597,9 @@ function switchSection(name) {
   if (name === 'notifications') loadNotifList()
 }
 
-/* ---- 售后管理 ---- */
+/* ---- 售后审核 ---- */
 const afterSales = ref([])
 const aftersaleStatus = ref('')
-const showAftersaleDialog = ref(false)
-const handlingAftersale = ref(false)
-const aftersaleForm = ref({ id: null, status: 'processing', note: '', row: null })
 
 async function loadAfterSales() {
   try {
@@ -621,42 +617,71 @@ function afterSaleItems(row) {
 
 function aftersaleStatusLabel(status) {
   const map = {
-    pending: 'admin.afterSalePending',
-    processing: 'admin.afterSaleProcessing',
-    resolved: 'admin.afterSaleResolved',
-    rejected: 'admin.afterSaleRejected'
+    pending: 'admin.asPending',
+    seller_pending: 'admin.asSellerPending',
+    seller_rejected: 'admin.asSellerRejected',
+    seller_reject_approved: 'admin.asRejectApproved',
+    appealed: 'admin.asAppealed',
+    refunded: 'admin.asRefunded',
+    rejected: 'admin.asRejected',
+    closed: 'admin.asClosed',
+    processing: 'admin.asSellerPending',
+    resolved: 'admin.asRefunded'
   }
   return map[status] ? t(map[status]) : status
 }
 
 function aftersaleTagType(status) {
-  return { pending: 'warning', processing: 'primary', resolved: 'success', rejected: 'danger' }[status] || 'info'
+  return {
+    pending: 'warning', seller_pending: 'primary', seller_rejected: 'danger',
+    seller_reject_approved: 'info', appealed: 'warning', refunded: 'success',
+    rejected: 'info', closed: 'info'
+  }[status] || 'info'
 }
 
-function openAftersale(row) {
-  aftersaleForm.value = {
-    id: row.id,
-    status: row.status === 'pending' ? 'processing' : row.status,
-    note: row.adminNote || '',
-    row
-  }
-  showAftersaleDialog.value = true
-}
-
-async function submitAftersale() {
-  handlingAftersale.value = true
+async function notePrompt(titleKey, placeholderKey) {
   try {
-    await adminApi.handleAfterSale(aftersaleForm.value.id, {
-      status: aftersaleForm.value.status,
-      note: aftersaleForm.value.note
+    const { value } = await ElMessageBox.prompt(t(placeholderKey), t(titleKey), {
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel'),
+      inputType: 'textarea',
+      inputPlaceholder: t(placeholderKey)
     })
+    return String(value || '').trim()
+  } catch { return null }
+}
+
+async function reviewAfterSale(row, action) {
+  const note = action === 'approve' ? '' : await notePrompt('admin.asReject', 'admin.asReviewNotePlaceholder')
+  if (action === 'reject' && note === null) return
+  try {
+    await adminApi.reviewAfterSale(row.id, { action, note })
     ElMessage.success(t('admin.afterSaleHandled'))
-    showAftersaleDialog.value = false
     loadAfterSales()
     loadStats()
-  } catch {} finally {
-    handlingAftersale.value = false
-  }
+  } catch {}
+}
+
+async function reviewSellerReject(row, action) {
+  const note = await notePrompt('admin.asSellerRejectReview', 'admin.asReviewNotePlaceholder')
+  if (note === null) return
+  try {
+    await adminApi.reviewSellerReject(row.id, { action, note })
+    ElMessage.success(t('admin.afterSaleHandled'))
+    loadAfterSales()
+    loadStats()
+  } catch {}
+}
+
+async function reviewAppeal(row, action) {
+  const note = await notePrompt('admin.asAppealReview', 'admin.asReviewNotePlaceholder')
+  if (note === null) return
+  try {
+    await adminApi.reviewAppeal(row.id, { action, note })
+    ElMessage.success(t('admin.afterSaleHandled'))
+    loadAfterSales()
+    loadStats()
+  } catch {}
 }
 
 function formatDate(ts) {
