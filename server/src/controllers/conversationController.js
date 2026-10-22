@@ -2,6 +2,23 @@ import { Op } from 'sequelize'
 import { sequelize, Conversation, ChatMessage, User, Product } from '../models/index.js'
 import { success, fail } from '../utils/response.js'
 
+// 生成带商品信息的开场白：不同商品不再是同一句话
+async function buildGreeting(productId) {
+  const fallback = '你好，我在小咸鱼上看到你，可以聊聊吗'
+  if (!productId) return fallback
+  try {
+    const p = await Product.findByPk(productId, {
+      attributes: ['id', 'title', 'bookTitle', 'price']
+    })
+    const name = p?.title || p?.bookTitle
+    if (!name) return fallback
+    const price = p?.price != null && p.price !== '' ? `（¥${p.price}）` : ''
+    return `你好！我想要你的「${name}」${price}，请问还在出售吗？想和你聊聊～`
+  } catch {
+    return fallback
+  }
+}
+
 export async function startConversation(req, res, next) {
   try {
     const buyerId = req.user.id
@@ -33,9 +50,15 @@ export async function startConversation(req, res, next) {
 
     let isNew = false
     if (conv) {
-      // 同一对用户只保留一个会话；换了商品就更新关联商品，保证聊天页顶部展示的是当前这本书
+      // 同一对用户只保留一个会话；换了商品就更新关联商品，并补一条针对新商品的开场白
       if (productId && conv.productId !== productId) {
         await conv.update({ productId })
+        await ChatMessage.create({
+          conversationId: conv.id,
+          senderId: buyerId,
+          content: await buildGreeting(productId)
+        })
+        await conv.update({ lastMessageAt: new Date() })
       }
     } else {
       conv = await Conversation.create({
@@ -45,7 +68,7 @@ export async function startConversation(req, res, next) {
       await ChatMessage.create({
         conversationId: conv.id,
         senderId: buyerId,
-        content: '你好，我要购买你的书，我们可以聊聊吗'
+        content: await buildGreeting(productId)
       })
       isNew = true
     }
