@@ -1,5 +1,5 @@
 import { Op } from 'sequelize'
-import { Product, ProductImage, User, Favorite, Book, Order, OrderItem, CartItem } from '../models/index.js'
+import { Product, ProductImage, User, Favorite, Book, Order, OrderItem, CartItem, AfterSale } from '../models/index.js'
 import { success, fail } from '../utils/response.js'
 import { normalizeCategory, isBookCategory } from '../config/categories.js'
 
@@ -176,6 +176,7 @@ export async function myProducts(req, res, next) {
 
     const soldIds = products.filter(p => p.status === 'sold').map(p => p.id)
     const buyerMap = new Map()
+    const aftersaleProductIds = new Set()
     if (soldIds.length) {
       const orderItems = await OrderItem.findAll({
         where: { productId: soldIds },
@@ -192,15 +193,35 @@ export async function myProducts(req, res, next) {
           buyerMap.set(item.productId, buyerInfoMap.get(item.order.buyerId) || null)
         }
       }
+
+      // 有售后记录的已售商品不进「已售出」，统一展示在「售后处理」
+      const orderIds = [...new Set(orderItems.map(i => i.order?.id).filter(Boolean))]
+      if (orderIds.length) {
+        const sales = await AfterSale.findAll({
+          where: { orderId: orderIds },
+          attributes: ['orderId'],
+          raw: true
+        })
+        const itemByOrder = new Map()
+        for (const item of orderItems) {
+          if (item.order?.id && !itemByOrder.has(item.order.id)) itemByOrder.set(item.order.id, item.productId)
+        }
+        for (const rec of sales) {
+          const pid = itemByOrder.get(rec.orderId)
+          if (pid) aftersaleProductIds.add(pid)
+        }
+      }
     }
 
-    const result = products.map(p => {
-      const json = p.toJSON()
-      if (json.status === 'sold') {
-        json.buyer = buyerMap.get(p.id) || null
-      }
-      return json
-    })
+    const result = products
+      .filter(p => !(p.status === 'sold' && aftersaleProductIds.has(p.id)))
+      .map(p => {
+        const json = p.toJSON()
+        if (json.status === 'sold') {
+          json.buyer = buyerMap.get(p.id) || null
+        }
+        return json
+      })
     success(res, result)
   } catch (err) { next(err) }
 }
