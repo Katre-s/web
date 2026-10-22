@@ -2,7 +2,7 @@
   <div class="publish-page">
     <h2 class="page-title">{{ $t('publish.title') }}</h2>
 
-    <div class="isbn-section">
+    <div class="isbn-section" v-if="isBook">
       <div class="isbn-row">
         <el-input v-model="isbn" :placeholder="$t('publish.isbnPlaceholder')" style="width: 300px" @keyup.enter="handleIsbnLookup" />
         <el-button type="primary" :loading="looking" @click="handleIsbnLookup">{{ $t('publish.autoDetect') }}</el-button>
@@ -10,6 +10,9 @@
         <input ref="scanInput" type="file" accept="image/*" style="display: none" @change="onScanFile" />
       </div>
       <p class="isbn-tip" v-if="!bookInfo">{{ $t('publish.isbnTip') }}</p>
+    </div>
+    <div class="isbn-section" v-else>
+      <p class="goods-tip">{{ $t('publish.goodsTip') }}</p>
     </div>
 
     <!-- 两步识别: 第一步/第二步拍摄引导 -->
@@ -47,9 +50,8 @@
           <p><span class="lbl">ISBN</span><el-input v-model="scanBook.isbn" size="small" /></p>
         </div>
       </div>
-      <div class="market-match" v-if="marketMatches.sellingCount > 0 || marketMatches.wishCount > 0">
-        <p v-if="marketMatches.sellingCount > 0">📦 {{ $t('common.marketHas') }} <b>{{ marketMatches.sellingCount }}</b>{{ $t('trade.sellers') }}</p>
-        <p v-if="marketMatches.wishCount > 0">🔍 {{ $t('common.marketWish') }} <b>{{ marketMatches.wishCount }}</b>{{ $t('trade.wishes') }}</p>
+      <div class="market-match" v-if="marketMatches.sellingCount > 0">
+        <p>📦 {{ $t('common.marketHas') }} <b>{{ marketMatches.sellingCount }}</b>{{ $t('trade.sellers') }}</p>
       </div>
       <p class="confirm-tip">{{ $t('common.confirmTip') }}</p>
       <template #footer>
@@ -99,7 +101,7 @@
     </el-dialog>
 
     <el-form :model="form" label-position="top" class="publish-form">
-      <div class="book-preview" v-if="bookInfo">
+      <div class="book-preview" v-if="bookInfo && isBook">
         <img :src="resolveImg(bookInfo.cover)" v-if="bookInfo.cover" class="book-cover" @error="bookInfo.cover = ''" />
         <div class="book-info-text">
           <h3>{{ form.bookTitle }}</h3>
@@ -109,36 +111,49 @@
         </div>
       </div>
 
-      <el-form-item :label="$t('publish.bookTitle')">
-        <el-input v-model="form.bookTitle" :placeholder="$t('publish.placeholderTitle')" />
+      <el-form-item :label="$t('home.category')">
+        <el-radio-group v-model="form.category" class="cat-picker">
+          <el-radio-button v-for="c in categories" :key="c.value" :value="c.value">
+            {{ c.icon }} {{ $t('tradeCat.' + c.key) }}
+          </el-radio-button>
+        </el-radio-group>
       </el-form-item>
-      <el-form-item :label="$t('publish.author')">
-        <el-input v-model="form.bookAuthor" :placeholder="$t('publish.placeholderAuthor')" />
+
+      <el-form-item :label="isBook ? $t('publish.bookTitle') : $t('publish.goodsTitle')" required>
+        <el-input
+          v-if="isBook"
+          v-model="form.bookTitle"
+          :placeholder="$t('publish.placeholderTitle')"
+        />
+        <el-input
+          v-else
+          v-model="form.title"
+          maxlength="60"
+          show-word-limit
+          :placeholder="$t('publish.goodsTitlePlaceholder')"
+        />
       </el-form-item>
-      <el-form-item :label="$t('publish.publisher')">
-        <el-input v-model="form.bookPublisher" :placeholder="$t('publish.placeholderPublisher')" />
-      </el-form-item>
-      <el-form-item :label="$t('publish.salePrice')">
+      <template v-if="isBook">
+        <el-form-item :label="$t('publish.author')">
+          <el-input v-model="form.bookAuthor" :placeholder="$t('publish.placeholderAuthor')" />
+        </el-form-item>
+        <el-form-item :label="$t('publish.publisher')">
+          <el-input v-model="form.bookPublisher" :placeholder="$t('publish.placeholderPublisher')" />
+        </el-form-item>
+      </template>
+      <el-form-item :label="$t('publish.salePrice')" required>
         <el-input-number v-model="form.price" :min="0" :precision="2" />
       </el-form-item>
-      <el-form-item :label="$t('publish.edition')">
+      <el-form-item :label="$t('publish.edition')" v-if="isBook">
         <el-input v-model="form.edition" :placeholder="$t('publish.editionPlaceholder')" style="width: 240px" />
       </el-form-item>
-      <el-form-item :label="$t('publish.condition')">
+      <el-form-item :label="$t('publish.condition')" v-if="form.category !== '租房'">
         <el-select v-model="form.condition" style="width: 200px">
           <el-option :label="$t('publish.condNew')" value="全新" />
           <el-option :label="$t('publish.cond90')" value="九成新" />
           <el-option :label="$t('publish.cond80')" value="八成新" />
           <el-option :label="$t('publish.cond70')" value="七成新" />
           <el-option :label="$t('publish.condNormal')" value="一般" />
-        </el-select>
-      </el-form-item>
-      <el-form-item :label="$t('home.category')">
-        <el-select v-model="form.category" style="width: 200px">
-          <el-option :label="$t('publish.catTextbook')" value="教材" />
-          <el-option :label="$t('publish.catNovel')" value="小说" />
-          <el-option :label="$t('publish.catKaoyan')" value="考研" />
-          <el-option :label="$t('publish.catOther')" value="其他" />
         </el-select>
       </el-form-item>
       <el-form-item :label="$t('publish.deliverableLabel')">
@@ -148,7 +163,12 @@
         </el-radio-group>
       </el-form-item>
       <el-form-item :label="$t('publish.description')">
-        <el-input v-model="form.description" type="textarea" :rows="3" :placeholder="$t('publish.descriptionPlaceholder')" />
+        <el-input
+          v-model="form.description"
+          type="textarea"
+          :rows="3"
+          :placeholder="isBook ? $t('publish.descriptionPlaceholder') : $t('publish.goodsDescPlaceholder')"
+        />
       </el-form-item>
       <el-form-item :label="$t('publish.photos')">
         <el-upload list-type="picture-card" accept="image/*" :auto-upload="false" :on-change="onImagesChange" :file-list="fileList">
@@ -163,16 +183,18 @@
 <script setup>import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus/es/components/message/index'
 import { Plus, Notebook } from '@element-plus/icons-vue'
 import { bookApi, productApi } from '@/api'
 import { resolveImg } from '@/utils/image'
 import { DRAFT_KEYS, takeDraft } from '@/utils/agentAction'
+import { TRADE_CATEGORIES, DEFAULT_CATEGORY, isValidCategory } from '@/constants/categories'
 
 const router = useRouter()
 const route = useRoute()
+const categories = TRADE_CATEGORIES
 const isbn = ref('')
 const looking = ref(false)
 const scanning = ref(false)
@@ -191,20 +213,23 @@ const scanGuideVisible = ref(false)
 const confirmVisible = ref(false)
 const frontInfo = ref(null)
 const coverFile = ref(null)
-const marketMatches = ref({ sellingCount: 0, wishCount: 0 })
+const marketMatches = ref({ sellingCount: 0 })
 
 const form = reactive({
+  title: '',
   bookTitle: '',
   bookAuthor: '',
   bookPublisher: '',
   price: null,
   edition: '',
   condition: '九成新',
-  category: '教材',
+  category: DEFAULT_CATEGORY,
   delivery: true,
   description: '',
   originalPrice: 0
 })
+
+const isBook = computed(() => form.category === '图书')
 
 async function handleIsbnLookup() {
   if (!isbn.value) {
@@ -216,6 +241,7 @@ async function handleIsbnLookup() {
     const res = await bookApi.isbnLookup(isbn.value)
     const data = res.data || res
     bookInfo.value = data
+    form.category = '图书'
     form.bookTitle = data.title || ''
     form.bookAuthor = data.author || ''
     form.bookPublisher = data.publisher || ''
@@ -239,7 +265,7 @@ function openScan() {
   frontInfo.value = null
   scanBook.value = null
   coverFile.value = null
-  marketMatches.value = { sellingCount: 0, wishCount: 0 }
+  marketMatches.value = { sellingCount: 0 }
   scanGuideVisible.value = true
 }
 
@@ -277,7 +303,7 @@ async function onScanFile(e) {
     const res = await bookApi.scanBook(fd)
     const data = res.data || res
     const book = data.book || {}
-    const mm = data.marketMatches || { sellingCount: 0, wishCount: 0 }
+    const mm = data.marketMatches || { sellingCount: 0 }
 
     if (scanPhase.value === 'back') {
       // 第二步(背面ISBN)完成 → 合并两次识别 → 核对弹窗
@@ -292,10 +318,9 @@ async function onScanFile(e) {
       }
       scanBook.value = merged
       // 市场匹配取两步中较大值(正面按书名/背面按ISBN)
-      const fmm = frontInfo.value?.matches || { sellingCount: 0, wishCount: 0 }
+      const fmm = frontInfo.value?.matches || { sellingCount: 0 }
       marketMatches.value = {
-        sellingCount: Math.max(fmm.sellingCount || 0, mm.sellingCount || 0),
-        wishCount: Math.max(fmm.wishCount || 0, mm.wishCount || 0)
+        sellingCount: Math.max(fmm.sellingCount || 0, mm.sellingCount || 0)
       }
       // 识别照片自动作为封面(需求: 可更换)
       if (!coverFile.value) {
@@ -325,6 +350,7 @@ function confirmScan() {
   const book = scanBook.value || {}
   bookInfo.value = book
   isbn.value = book.isbn || ''
+  form.category = '图书'
   form.bookTitle = book.title || ''
   form.bookAuthor = book.author || ''
   form.bookPublisher = book.publisher || ''
@@ -342,8 +368,9 @@ async function handleSubmitFromDialog() {
 }
 
 async function handleSubmit() {
-  if (!form.bookTitle) {
-    ElMessage.warning(t('publish.needTitle'))
+  const title = isBook.value ? form.bookTitle.trim() : form.title.trim()
+  if (!title) {
+    ElMessage.warning(isBook.value ? t('publish.needTitle') : t('publish.needGoodsTitle'))
     return
   }
   if (!form.price) {
@@ -353,23 +380,27 @@ async function handleSubmit() {
   submitting.value = true
   try {
     const fd = new FormData()
-    fd.append('isbn', isbn.value)
-    fd.append('bookTitle', form.bookTitle)
-    fd.append('bookAuthor', form.bookAuthor)
-    fd.append('bookPublisher', form.bookPublisher)
-    fd.append('bookCover', bookInfo.value?.cover || '')
-    fd.append('originalPrice', form.originalPrice || '')
-    fd.append('price', form.price)
-    fd.append('edition', form.edition)
-    fd.append('delivery', form.delivery)
-    fd.append('condition', form.condition)
+    fd.append('title', title)
     fd.append('category', form.category)
+    fd.append('price', form.price)
+    fd.append('condition', form.category === '租房' ? '' : form.condition)
+    fd.append('delivery', form.delivery)
     fd.append('description', form.description)
+
+    if (isBook.value) {
+      fd.append('isbn', isbn.value)
+      fd.append('bookTitle', title)
+      fd.append('bookAuthor', form.bookAuthor)
+      fd.append('bookPublisher', form.bookPublisher)
+      fd.append('bookCover', bookInfo.value?.cover || '')
+      fd.append('originalPrice', form.originalPrice || '')
+      fd.append('edition', form.edition)
+    }
     images.value.forEach((img) => fd.append('images', img))
 
     await productApi.create(fd)
     ElMessage.success(t('publish.success'))
-    router.push('/trade')
+    router.push({ path: '/trade', query: { category: form.category } })
   } finally {
     submitting.value = false
   }
@@ -385,7 +416,7 @@ function applyPublishDraft(draft) {
   form.edition = draft.edition || ''
   if (draft.price) form.price = Number(draft.price)
   if (draft.condition) form.condition = draft.condition
-  if (draft.category) form.category = draft.category
+  form.category = isValidCategory(draft.category) ? draft.category : '图书'
   bookInfo.value = {
     cover: draft.bookCover || '',
     bookTitle: draft.bookTitle || '',
@@ -401,6 +432,9 @@ function onAiAction(e) {
 
 onMounted(() => {
   window.addEventListener('ai-action', onAiAction)
+  // 从交易页带类目进来：发布表单直接锁定该类目
+  const qCategory = route.query.category
+  if (qCategory && isValidCategory(String(qCategory))) form.category = String(qCategory)
   if (route.query.from !== 'ai') return
   applyPublishDraft(takeDraft(DRAFT_KEYS.publish))
 })
@@ -425,6 +459,21 @@ onUnmounted(() => {
   color: #999;
   font-size: 13px;
   margin-top: 8px;
+}
+.goods-tip {
+  color: #607d8b;
+  font-size: 13px;
+  line-height: 1.7;
+  margin: 0;
+}
+.cat-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cat-picker :deep(.el-radio-button__inner) {
+  border-radius: 10px;
+  border-left: 1px solid var(--el-border-color);
 }
 .scan-book-preview {
   display: flex;

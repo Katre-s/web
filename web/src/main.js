@@ -23,12 +23,13 @@ app.use(router)
 app.use(i18n)
 // 应用已保存的主题（data-theme 属性），避免刷新后闪烁
 useThemeStore().init()
-app.mount('#app')
+// 等路由解析完成再挂载：避免登录页首次渲染时闪出导航栏并触发 `/api/notifications` 等无用请求
+router.isReady().then(() => app.mount('#app'))
 
 // 桌面客户端（Electron 壳）标记：用于宽屏布局与"关于/版本"等桌面专属能力
 if (window.wenhengDesktop?.isDesktop) {
   document.documentElement.classList.add('is-desktop')
-  document.title = '文衡 - 校园二手书籍交易'
+  document.title = '徐工院小咸鱼 - 校园二手好物集市'
 }
 
 // 安卓 App：优先加载线上最新版本，服务器不可达时继续用内置包（离线兜底）。

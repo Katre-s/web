@@ -7,6 +7,7 @@ const routes = [
   { path: '/forgot-password', name: 'ForgotPassword', component: () => import('@/views/ForgotPassword.vue') },
   { path: '/', name: 'Home', component: () => import('@/views/Home.vue'), meta: { auth: true } },
   { path: '/trade', name: 'Trade', component: () => import('@/views/Trade.vue'), meta: { auth: true } },
+  { path: '/plaza', name: 'Plaza', component: () => import('@/views/Plaza.vue'), meta: { auth: true } },
   { path: '/book/:key', name: 'BookDetail', component: () => import('@/views/BookDetail.vue'), meta: { auth: true } },
   { path: '/chat', name: 'Chat', component: () => import('@/views/Chat.vue'), meta: { auth: true } },
   { path: '/ai-chat', name: 'AiChat', component: () => import('@/views/AiChat.vue'), meta: { auth: true } },

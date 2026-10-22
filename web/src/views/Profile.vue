@@ -14,7 +14,6 @@
     <el-tabs v-model="activeTab" @tab-change="loadTabData">
       <el-tab-pane :label="$t('profile.myProducts')" name="products" />
       <el-tab-pane :label="$t('profile.favorites')" name="favorites" />
-      <el-tab-pane :label="$t('profile.wishlist')" name="wishlist" />
     </el-tabs>
 
     <div v-loading="loading">
@@ -61,21 +60,6 @@
           <el-button text type="danger" size="small" @click.stop="unfavorite(b)">{{ $t('common.unfav') }}</el-button>
         </div>
       </div>
-      <div v-else-if="activeTab === 'wishlist'" class="fav-board-grid">
-        <div v-for="w in tabData" :key="w.id" class="fav-board-card" @click="goBoard(w.book || w)">
-          <div class="fav-cover" :style="coverStyle(w.book?.bookCover)"></div>
-          <div class="fav-info">
-            <h4 class="fav-title">{{ w.book?.bookTitle || w.title || (w.isbn ? `ISBN ${w.isbn}` : t('common.unknownBook')) }}</h4>
-            <p class="fav-author" v-if="w.book?.bookAuthor">{{ w.book.bookAuthor }}</p>
-            <p class="fav-author" v-else-if="w.author">{{ w.author }}</p>
-            <div class="fav-meta">
-              <span v-if="w.sellerCount" class="fav-sellers">{{ w.sellerCount }}{{ $t('profile.sellersActive') }}</span>
-              <span v-else class="fav-empty">{{ $t('common.noSellers') }}</span>
-              <span class="fav-publisher" v-if="w.book?.bookPublisher">{{ w.book.bookPublisher }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
       <el-empty v-if="!tabData.length && activeTab !== 'products'" :description="t('common.empty')" />
     </div>
 
@@ -108,7 +92,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus/es/components/message/index'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index'
-import { productApi, wishlistApi, bookFavoriteApi, authApi, conversationApi } from '@/api'
+import { productApi, bookFavoriteApi, authApi, conversationApi } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { resolveImg } from '@/utils/image'
 
@@ -141,9 +125,6 @@ async function loadTabData() {
       tabData.value = res.data || res || []
     } else if (activeTab.value === 'favorites') {
       const res = await bookFavoriteApi.list()
-      tabData.value = res.data || res || []
-    } else if (activeTab.value === 'wishlist') {
-      const res = await wishlistApi.list()
       tabData.value = res.data || res || []
     }
   } finally {

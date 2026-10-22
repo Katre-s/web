@@ -1,12 +1,13 @@
 {
-  "name": "campus-trade-server",
+  "name": "xiaoxianyu-server",
   "version": "1.0.0",
-  "description": "文衡 - 校园书籍交易平台后端 API",
+  "description": "徐工院小咸鱼 - 校园二手交易平台后端 API",
   "type": "module",
   "scripts": {
     "start": "node src/app.js",
     "dev": "node src/app.js",
-    "db:init": "node src/scripts/init-db.js"
+    "db:init": "node src/scripts/init-db.js",
+    "admin:create": "node src/scripts/create-admin.js"
   },
   "dependencies": {
     "express": "^4.19.2",

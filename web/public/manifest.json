@@ -1,13 +1,13 @@
 {
-  "name": "文衡 - 校园二手书籍交易",
-  "short_name": "文衡",
-  "description": "文聚学府，百事通达 —— 校园二手书籍交易平台",
+  "name": "徐工院小咸鱼 - 校园二手好物集市",
+  "short_name": "小咸鱼",
+  "description": "徐州工程学院自己的二手小池塘 —— 让闲置游起来",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#f7f3ea",
-  "theme_color": "#1e88e5",
+  "background_color": "#f2fbf9",
+  "theme_color": "#0d3b4f",
   "lang": "zh-CN",
   "icons": [
     {

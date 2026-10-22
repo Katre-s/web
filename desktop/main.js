@@ -1,4 +1,4 @@
-// 文衡 - 校园二手书籍交易平台 · Windows 桌面客户端
+// 徐工院小咸鱼 - 校园二手集市 · Windows 桌面客户端
 // 主进程：用自定义协议 app:// 承载打包好的 web/dist，保留前端 history 路由，避免 file:// 的各种限制
 const { app, BrowserWindow, Menu, protocol, shell, session, ipcMain } = require('electron')
 const path = require('node:path')
@@ -128,7 +128,7 @@ function createWindow() {
     minHeight: 680,
     show: false,
     backgroundColor: '#f7f3ea',
-    title: '文衡 - 校园二手书籍交易',
+    title: '徐工院小咸鱼 - 校园二手好物集市',
     icon: path.join(__dirname, 'build', 'icon.png'),
     autoHideMenuBar: true,
     webPreferences: {

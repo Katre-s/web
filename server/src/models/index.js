@@ -95,14 +95,15 @@ export const Message = sequelize.define('Message', {
   isRead: { type: DataTypes.BOOLEAN, defaultValue: false, field: 'is_read' }
 }, { tableName: 'messages' })
 
-export const Wishlist = sequelize.define('Wishlist', {
+export const PlazaPost = sequelize.define('PlazaPost', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   userId: { type: DataTypes.INTEGER, allowNull: false, field: 'user_id' },
-  title: { type: DataTypes.STRING(200), defaultValue: '' },
-  author: { type: DataTypes.STRING(200), defaultValue: '' },
-  isbn: { type: DataTypes.STRING(20), defaultValue: '' },
-  cover: { type: DataTypes.STRING(500), defaultValue: '' }
-}, { tableName: 'wishlists' })
+  content: { type: DataTypes.TEXT },
+  // 图片路径数组，JSON 字符串存储（最多 6 张）
+  // 注意：MySQL 5.7 的 TEXT 列不支持 DEFAULT，默认值在控制器里兜底
+  images: { type: DataTypes.TEXT },
+  status: { type: DataTypes.STRING(20), defaultValue: 'active' }
+}, { tableName: 'plaza_posts' })
 
 export const Notification = sequelize.define('Notification', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
@@ -129,15 +130,15 @@ User.hasMany(Favorite, { foreignKey: 'user_id', as: 'favorites' })
 Favorite.belongsTo(User, { foreignKey: 'user_id', as: 'user' })
 Favorite.belongsTo(Product, { foreignKey: 'product_id', as: 'product' })
 
-User.hasMany(Wishlist, { foreignKey: 'user_id', as: 'wishlists' })
-Wishlist.belongsTo(User, { foreignKey: 'user_id', as: 'user' })
-
 User.hasMany(Message, { foreignKey: 'sender_id', as: 'sentMessages' })
 User.hasMany(Message, { foreignKey: 'receiver_id', as: 'receivedMessages' })
 Message.belongsTo(Product, { foreignKey: 'product_id', as: 'product' })
 
 User.hasMany(Hotspot, { foreignKey: 'user_id', as: 'hotspots' })
 Hotspot.belongsTo(User, { foreignKey: 'user_id', as: 'user' })
+
+User.hasMany(PlazaPost, { foreignKey: 'user_id', as: 'plazaPosts' })
+PlazaPost.belongsTo(User, { foreignKey: 'user_id', as: 'author' })
 
 export const Book = sequelize.define('Book', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },

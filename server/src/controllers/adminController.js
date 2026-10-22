@@ -1,18 +1,20 @@
 import { Op } from 'sequelize'
-import { sequelize, User, Product, Order, Hotspot, ProductImage, Book, Notification, Wishlist, CartItem, Favorite } from '../models/index.js'
+import { sequelize, User, Product, Order, Hotspot, PlazaPost, ProductImage, Book, Notification, CartItem, Favorite } from '../models/index.js'
 import { success, fail } from '../utils/response.js'
+import { TRADE_CATEGORIES, normalizeCategory } from '../config/categories.js'
 
 export async function stats(req, res, next) {
   try {
-    const [userCount, productCount, orderCount, hotspotCount, bannedCount] = await Promise.all([
+    const [userCount, productCount, orderCount, hotspotCount, plazaCount, bannedCount] = await Promise.all([
       User.count(),
       Product.count(),
       Order.count(),
       Hotspot.count({ where: { status: 'active' } }),
+      PlazaPost.count({ where: { status: 'active' } }),
       User.count({ where: { status: 'banned' } })
     ])
     const recentUsers = await User.findAll({ order: [['id', 'DESC']], limit: 5, attributes: ['id', 'email', 'nickname', 'campus', 'role', 'status', ['created_at', 'created_at']] })
-    success(res, { userCount, productCount, orderCount, hotspotCount, bannedCount, recentUsers })
+    success(res, { userCount, productCount, orderCount, hotspotCount, plazaCount, bannedCount, recentUsers })
   } catch (err) { next(err) }
 }
 
@@ -158,6 +160,75 @@ export async function deleteProduct(req, res, next) {
     success(res, null, '商品已删除')
   } catch (err) { next(err) }
 }
+/* ---- 物品管理（商品列表 + 二级分类） ---- */
+export async function listItems(req, res, next) {
+  try {
+    const { keyword = '', category = '', status = '', page = 1, pageSize = 20 } = req.query
+    const where = {}
+    if (category) where.category = category
+    if (status) where.status = status
+    if (keyword) {
+      where[Op.or] = [
+        { title: { [Op.like]: `%${keyword}%` } },
+        { bookTitle: { [Op.like]: `%${keyword}%` } },
+        { description: { [Op.like]: `%${keyword}%` } },
+        { isbn: { [Op.like]: `%${keyword}%` } }
+      ]
+    }
+    const { rows, count } = await Product.findAndCountAll({
+      where,
+      include: [
+        { model: ProductImage, as: 'images' },
+        { model: User, as: 'seller', attributes: ['id', 'nickname', 'userNo', 'campus'] }
+      ],
+      order: [['created_at', 'DESC']],
+      offset: (Number(page) - 1) * Number(pageSize),
+      limit: Number(pageSize),
+      distinct: true
+    })
+    success(res, { list: rows, total: count, categories: TRADE_CATEGORIES })
+  } catch (err) { next(err) }
+}
+
+export async function updateItem(req, res, next) {
+  try {
+    const item = await Product.findByPk(req.params.id)
+    if (!item) return fail(res, '物品不存在', 404)
+
+    const { category, status } = req.body
+    if (category !== undefined && category !== '') {
+      const next = normalizeCategory(category)
+      if (!TRADE_CATEGORIES.includes(next)) return fail(res, '无效的类目')
+      item.category = next
+      if (next === '图书') {
+        // 归到图书时补齐书目板块，否则交易页「图书」聚合视图看不到它
+        item.bookTitle = item.bookTitle || item.title
+        const exists = await Book.findOne({
+          where: item.isbn ? { isbn: item.isbn } : { bookTitle: item.bookTitle }
+        })
+        if (!exists) {
+          await Book.create({
+            isbn: item.isbn || '',
+            bookTitle: item.bookTitle,
+            bookAuthor: item.bookAuthor || '',
+            bookPublisher: item.bookPublisher || '',
+            bookCover: item.bookCover || '',
+            edition: item.edition || '',
+            originalPrice: item.originalPrice || 0,
+            createdBy: item.userId
+          })
+        }
+      }
+    }
+    if (status) {
+      if (!['available', 'sold', 'off'].includes(status)) return fail(res, '无效的状态')
+      item.status = status
+    }
+    await item.save()
+    success(res, item.toJSON(), '已更新')
+  } catch (err) { next(err) }
+}
+
 export async function listBoards(req, res, next) {
   try {
     const { keyword } = req.query
@@ -295,39 +366,5 @@ export async function deleteNotification(req, res, next) {
       where: { type: target.type, content: target.content }
     })
     success(res, null, `已删除${count}条通知`)
-  } catch (err) { next(err) }
-}
-
-/* ---- 求购管理 ---- */
-export async function listWishlists(req, res, next) {
-  try {
-    const { keyword = '' } = req.query
-    const where = {}
-    if (keyword) {
-      where[Op.or] = [
-        { title: { [Op.like]: `%${keyword}%` } },
-        { author: { [Op.like]: `%${keyword}%` } },
-        { isbn: { [Op.like]: `%${keyword}%` } }
-      ]
-    }
-    const items = await Wishlist.findAll({
-      where,
-      order: [['created_at', 'DESC']],
-      limit: 200,
-      include: [{ model: User, as: 'user', attributes: ['id', 'userNo', 'nickname', 'email', 'campus'] }]
-    })
-    success(res, items.map(w => {
-      const json = w.toJSON()
-      return { ...json, user: json.user || null }
-    }))
-  } catch (err) { next(err) }
-}
-
-export async function deleteWishlist(req, res, next) {
-  try {
-    const item = await Wishlist.findByPk(req.params.id)
-    if (!item) return fail(res, '求购条目不存在', 404)
-    await item.destroy()
-    success(res, null, '求购已删除')
   } catch (err) { next(err) }
 }

@@ -29,10 +29,10 @@
           <div class="stat-num">{{ result.stats.cart }}</div>
           <div class="stat-label">{{ $t('common.addCart') }}</div>
         </div>
-        <div class="result-stat stat-wishlist">
-          <div class="stat-icon">📝</div>
-          <div class="stat-num">{{ result.stats.wishlist }}</div>
-          <div class="stat-label">{{ $t('booklist.addedWishlist') }}</div>
+        <div class="result-stat stat-unavailable">
+          <div class="stat-icon">📭</div>
+          <div class="stat-num">{{ result.stats.unavailable }}</div>
+          <div class="stat-label">{{ $t('booklist.unavailable') }}</div>
         </div>
         <div class="result-stat stat-created">
           <div class="stat-icon">📚</div>
@@ -55,10 +55,10 @@
         </div>
       </div>
 
-      <div v-if="result.wishlistBooks && result.wishlistBooks.length" class="result-section">
-        <h4 class="section-subtitle">{{ $t('booklist.wishBooks') }}</h4>
+      <div v-if="result.unavailableBooks && result.unavailableBooks.length" class="result-section">
+        <h4 class="section-subtitle">{{ $t('booklist.unavailableBooks') }}</h4>
         <div class="book-tags">
-          <el-tag v-for="b in result.wishlistBooks" :key="b.isbn" type="warning" class="book-tag">
+          <el-tag v-for="b in result.unavailableBooks" :key="b.isbn" type="info" class="book-tag">
             {{ b.bookTitle || `ISBN ${b.isbn}` }}
           </el-tag>
         </div>
@@ -66,7 +66,7 @@
 
       <div class="result-actions">
         <el-button type="primary" round @click="$router.push('/cart')">{{ $t('booklist.viewCart') }}</el-button>
-        <el-button round @click="$router.push('/profile')">{{ $t('booklist.viewWishlist') }}</el-button>
+        <el-button round @click="$router.push('/trade')">{{ $t('tabbar.trade') }}</el-button>
       </div>
     </div>
   </div>
@@ -185,7 +185,7 @@ async function processList() {
   margin-top: 4px;
 }
 .stat-cart { background: rgba(76, 175, 80, 0.08); }
-.stat-wishlist { background: rgba(255, 152, 0, 0.08); }
+.stat-unavailable { background: rgba(158, 158, 158, 0.08); }
 .stat-created { background: rgba(33, 150, 243, 0.08); }
 .stat-skipped { background: rgba(158, 158, 158, 0.08); }
 .result-section {

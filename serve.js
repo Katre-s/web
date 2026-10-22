@@ -61,6 +61,6 @@ const server = http.createServer((req, res) => {
 })
 
 server.listen(port, '0.0.0.0', () => {
-  console.log(`文衡本地预览: http://localhost:${port}`)
+  console.log(`徐工院小咸鱼本地预览: http://localhost:${port}`)
   console.log(`API 代理: ${API_TARGET}`)
 })

@@ -2,8 +2,8 @@
   "name": "wenheng-desktop",
   "version": "1.0.0",
   "private": true,
-  "description": "文衡 - 校园二手书籍交易平台 Windows 客户端",
-  "author": "文衡团队",
+  "description": "徐工院小咸鱼 - 校园二手集市 Windows 客户端",
+  "author": "小咸鱼团队",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -19,8 +19,8 @@
   },
   "build": {
     "appId": "com.wenheng.desktop",
-    "productName": "Wenheng",
-    "copyright": "Copyright © 2026 Wenheng",
+    "productName": "Xiaoxianyu",
+    "copyright": "Copyright © 2026 Xiaoxianyu",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -52,7 +52,7 @@
           ]
         }
       ],
-      "artifactName": "Wenheng-${version}-${arch}.${ext}"
+      "artifactName": "Xiaoxianyu-${version}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -60,11 +60,11 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "文衡",
-      "artifactName": "Wenheng-Setup-${version}.${ext}"
+      "shortcutName": "小咸鱼",
+      "artifactName": "Xiaoxianyu-Setup-${version}.${ext}"
     },
     "portable": {
-      "artifactName": "Wenheng-Portable-${version}.${ext}"
+      "artifactName": "Xiaoxianyu-Portable-${version}.${ext}"
     }
   }
 }

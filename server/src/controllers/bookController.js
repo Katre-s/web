@@ -1,5 +1,5 @@
 import { Op } from 'sequelize'
-import { Product, Book, CartItem, Wishlist } from '../models/index.js'
+import { Product, Book, CartItem } from '../models/index.js'
 import { lookupISBN } from '../services/isbnService.js'
 import { recognizeImage } from '../services/ocrService.js'
 import { parseBookList, scanBookImage } from '../services/aiService.js'
@@ -70,16 +70,13 @@ export async function scanBook(req, res, next) {
       try { enriched = await enrichBookInfo(isbn) } catch (err) { console.error('ISBN补全失败:', err.message) }
     }
 
-    // 市场匹配: 同 ISBN/书名的在售商品数与求购数
+    // 市场匹配: 同 ISBN/书名的在售商品数
     let sellingCount = 0
-    let wishCount = 0
     try {
       if (isbn) {
         sellingCount = await Product.count({ where: { isbn, status: 'available' } })
-        wishCount = await Wishlist.count({ where: { isbn } })
       } else if (info.title) {
         sellingCount = await Product.count({ where: { bookTitle: info.title, status: 'available' } })
-        wishCount = await Wishlist.count({ where: { title: info.title } })
       }
     } catch (err) { console.error('市场匹配统计失败:', err.message) }
 
@@ -94,7 +91,7 @@ export async function scanBook(req, res, next) {
       source: enriched?.source || 'ai'
     }
 
-    success(res, { book, marketMatches: { sellingCount, wishCount } }, '识别成功')
+    success(res, { book, marketMatches: { sellingCount } }, '识别成功')
   } catch (err) { next(err) }
 }
 
@@ -167,9 +164,9 @@ export async function processBookList(req, res, next) {
     const userId = req.user.id
     if (!isbns || !isbns.length) return fail(res, '请提供ISBN列表')
 
-    const stats = { cart: 0, wishlist: 0, created: 0, skipped: 0 }
+    const stats = { cart: 0, created: 0, skipped: 0, unavailable: 0 }
     const cartBooks = []
-    const wishlistBooks = []
+    const unavailableBooks = []
 
     for (const raw of isbns) {
       const isbn = String(raw).replace(/[-\s]/g, '')
@@ -210,18 +207,13 @@ export async function processBookList(req, res, next) {
         stats.cart += newItems.length
         cartBooks.push({ isbn, bookId: book.id, bookTitle: book.bookTitle, sellerCount: products.length })
       } else {
-        const wExists = await Wishlist.findOne({ where: { userId, isbn } })
-        if (!wExists) {
-          await Wishlist.create({ userId, title: book.bookTitle, isbn })
-          stats.wishlist++
-        } else {
-          stats.wishlist++
-        }
-        wishlistBooks.push({ isbn, bookId: book.id, bookTitle: book.bookTitle })
+        // 暂无卖家：只做记录，不再生成求购
+        stats.unavailable++
+        unavailableBooks.push({ isbn, bookId: book.id, bookTitle: book.bookTitle })
       }
     }
 
-    success(res, { stats, cartBooks, wishlistBooks }, `处理完成`)
+    success(res, { stats, cartBooks, unavailableBooks }, `处理完成`)
   } catch (err) { next(err) }
 }
 

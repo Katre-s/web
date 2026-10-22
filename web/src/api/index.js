@@ -53,12 +53,6 @@ export const orderApi = {
   updateStatus: (id, status) => request.patch(`/orders/${id}/status`, { status })
 }
 
-export const wishlistApi = {
-  add: (data) => request.post('/wishlist/add', data),
-  list: () => request.get('/wishlist'),
-  publicList: (params) => request.get('/wishlist/public', { params })
-}
-
 export const favoriteApi = {
   toggle: (productId) => request.post('/favorites/toggle', { productId }),
   list: () => request.get('/favorites')
@@ -97,8 +91,18 @@ export const adminApi = {
   updateBoardCover: (id, formData) => request.post(`/admin/boards/${id}/cover`, formData),
   listNotifications: () => request.get('/admin/notifications'),
   deleteNotification: (id) => request.delete(`/admin/notifications/${id}`),
-  listWishlists: (params) => request.get('/admin/wishlists', { params }),
-  deleteWishlist: (id) => request.delete(`/admin/wishlists/${id}`)
+  listItems: (params) => request.get('/admin/items', { params }),
+  updateItem: (id, data) => request.put(`/admin/items/${id}`, data),
+  deleteItem: (id) => request.delete(`/admin/items/${id}`),
+  listPlaza: (params) => request.get('/admin/plaza', { params }),
+  updatePlaza: (id, data) => request.put(`/admin/plaza/${id}`, data),
+  deletePlaza: (id) => request.delete(`/admin/plaza/${id}`)
+}
+
+export const plazaApi = {
+  list: (params) => request.get('/plaza', { params }),
+  create: (formData) => request.post('/plaza', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  remove: (id) => request.delete(`/plaza/${id}`)
 }
 
 export const conversationApi = {

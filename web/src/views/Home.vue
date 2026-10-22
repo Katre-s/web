@@ -1,157 +1,146 @@
 <template>
-  <div class="home-page">
-    <div class="hero-banner" :class="[period, weatherClass]">
-      <div class="sky-effects" :class="weatherClass">
-        <div class="clouds"><i></i><i></i><i></i></div>
-        <div class="rain-layer"></div>
-        <div class="snow-layer"></div>
-        <div class="fog-layer"></div>
-        <div class="flash-layer"></div>
+  <div class="home">
+    <!-- ===== Hero ===== -->
+    <section class="hero">
+      <div class="hero-deco" aria-hidden="true">
+        <span class="deco-bubble b1"></span>
+        <span class="deco-bubble b2"></span>
+        <span class="deco-bubble b3"></span>
+        <span class="deco-bubble b4"></span>
+        <div class="deco-wave"></div>
+        <div class="deco-fish"><BrandLogo :size="280" /></div>
       </div>
-      <div class="sun-moon" :class="period"></div>
-      <div class="hero-overlay">
-        <div class="greeting">
-          <h1 class="greeting-text">{{ greeting }}，{{ userStore.userInfo?.nickname || t('home.student') }}</h1>
-          <p class="greeting-sub">{{ greetingSub }}</p>
-          <p class="sun-times" v-if="weather && weather.sunrise">
+
+      <div class="hero-main">
+        <p class="hero-tag">
+          <span class="dot"></span>
+          {{ $t('home.tagline') }}
+        </p>
+        <h1 class="hero-title">
+          {{ greeting }}，{{ userStore.userInfo?.nickname || t('home.student') }}
+        </h1>
+        <p class="hero-sub">{{ greetingSub }}<span class="sep">·</span>{{ $t('home.heroSub') }}</p>
+
+        <div class="hero-actions">
+          <button class="btn primary" @click="goTrade()">
+            {{ $t('home.goTrade') }}<span class="arrow">→</span>
+          </button>
+          <button class="btn ghost" @click="goPublish">{{ $t('home.publishIdle') }}</button>
+        </div>
+
+        <div class="hero-stats">
+          <div class="hs">
+            <b>{{ stats ? stats.todayBooks : '—' }}</b>
+            <span>{{ $t('home.todayNew') }}</span>
+          </div>
+          <i></i>
+          <div class="hs">
+            <b>{{ hotBoards.length }}</b>
+            <span>{{ $t('home.hotItems') }}</span>
+          </div>
+          <i></i>
+          <div class="hs">
+            <b>{{ categories.length }}</b>
+            <span>{{ $t('home.catCount') }}</span>
+          </div>
+        </div>
+      </div>
+
+      <aside class="hero-side">
+        <div class="mascot">
+          <BrandLogo :size="132" />
+        </div>
+
+        <div class="weather-card" v-if="weather" :title="weatherSource">
+          <div class="wc-top">
+            <span class="wc-icon">{{ weatherIcon }}</span>
+            <div class="wc-temp">
+              <b>{{ Math.round(weather.temperature) }}°</b>
+              <span>{{ t(`home.weatherScene.${weather.scene}`) }}</span>
+            </div>
+            <span class="wc-city">{{ weather.city }}</span>
+          </div>
+          <div class="wc-sun" v-if="weather.sunrise">
             <span>🌅 {{ t('home.sunrise') }} {{ timeOfDay(weather.sunrise) }}</span>
             <span>🌇 {{ t('home.sunset') }} {{ timeOfDay(weather.sunset) }}</span>
-          </p>
+          </div>
         </div>
-      </div>
-      <div class="weather-chip" v-if="weather" :title="weatherSource">
-        <span class="wc-icon">{{ weatherIcon }}</span>
-        <span class="wc-temp">{{ Math.round(weather.temperature) }}°</span>
-        <span class="wc-text">{{ t(`home.weatherScene.${weather.scene}`) }}</span>
-        <span class="wc-city" v-if="weather.city">{{ weather.city }}</span>
-      </div>
+        <div class="weather-card skeleton" v-else>
+          <div class="wc-top">
+            <span class="wc-icon">🌤️</span>
+            <div class="wc-temp"><b>--°</b><span>{{ $t('common.loading') }}</span></div>
+          </div>
+        </div>
+      </aside>
+    </section>
 
-      <!-- 主题装饰层：随主题切换填充 hero 空白（默认纸飞机/书本、可爱爱心气球、科技粒子圆环） -->
-      <div class="theme-decor" aria-hidden="true">
-        <i class="de de-glow"></i>
-        <i class="de de-paper"></i>
-        <i class="de de-book"></i>
-        <i class="de de-pen"></i>
-        <span class="de de-emoji de-heart">💗</span>
-        <span class="de de-emoji de-balloon">🎈</span>
-        <span class="de de-emoji de-star">⭐</span>
-        <span class="de de-emoji de-cloud">☁️</span>
-        <i class="de de-ring"></i>
-        <i class="de de-ring de-ring2"></i>
-        <i class="de de-particle"></i>
-        <i class="de de-particle de-p2"></i>
-        <i class="de de-particle de-p3"></i>
-        <i class="de de-particle de-p4"></i>
-        <i class="de de-particle de-p5"></i>
-        <i class="de de-dot"></i>
-        <i class="de de-dot de-d2"></i>
-        <i class="de de-dot de-d3"></i>
-        <i class="de de-dot de-d4"></i>
+    <!-- ===== 类目入口 ===== -->
+    <section class="block">
+      <div class="block-head">
+        <div>
+          <h2>{{ $t('home.exploreCats') }}</h2>
+          <p>{{ $t('home.exploreCatsSub') }}</p>
+        </div>
+        <button class="head-link" @click="goTrade()">{{ $t('home.viewAll') }}<span>→</span></button>
       </div>
+      <div class="cat-grid">
+        <button
+          v-for="c in categories"
+          :key="c.value"
+          class="cat-card"
+          @click="goTrade(c.value)"
+        >
+          <span class="cat-emoji">{{ c.icon }}</span>
+          <span class="cat-name">{{ $t('tradeCat.' + c.key) }}</span>
+          <span class="cat-desc">{{ $t('tradeCatHint.' + c.key) }}</span>
+        </button>
+      </div>
+    </section>
 
-      <!-- 平台速览：玻璃卡片填充 hero 右侧空白 -->
-      <div class="hero-stats" v-if="stats">
-        <div class="hs-item">
-          <b>{{ stats.todayBoards }}</b>
-          <span>{{ $t('home.newBoards') }}</span>
+    <!-- ===== 今日热销 ===== -->
+    <section class="block" v-if="hotBoards.length">
+      <div class="block-head">
+        <div>
+          <h2>{{ $t('home.hotToday') }}</h2>
+          <p>{{ $t('home.hotTodaySub') }}</p>
         </div>
-        <div class="hs-item">
-          <b>{{ stats.todayBooks }}</b>
-          <span>{{ $t('home.newBooks') }}</span>
-        </div>
-        <div class="hs-item">
-          <b>{{ stats.hotBoards?.length || 0 }}</b>
-          <span>{{ $t('home.hotToday') }}</span>
-        </div>
+        <button class="head-link" @click="goTrade()">{{ $t('home.viewAll') }}<span>→</span></button>
       </div>
 
-      <div class="hero-bottom-gradient"></div>
-    </div>
-
-    <!-- 当日热销（第二位，位于校园热点上方） -->
-    <div class="content-section" v-if="stats && stats.hotBoards && stats.hotBoards.length">
-      <h2 class="section-title">{{ $t('home.hotToday') }}</h2>
-      <div class="hot-board-grid">
-        <div
-          v-for="b in stats.hotBoards.slice(0, 10)"
+      <div class="hot-grid">
+        <article
+          v-for="b in hotBoards"
           :key="b.id"
-          class="hot-board-card"
+          class="hot-card"
           @click="goDetail(b)"
         >
-          <div class="hb-cover" :style="coverStyle(b.bookCover)"></div>
-          <div class="hb-info">
-            <h3 class="hb-title">{{ b.bookTitle }}</h3>
-            <p class="hb-author" v-if="b.bookAuthor">{{ b.bookAuthor }}</p>
-            <div class="hb-meta">
-              <span class="hb-sellers">🧑 {{ b.sellerCount }}{{ $t('common.seller') }}</span>
-              <span class="hb-views">👁 {{ b.viewCount }}{{ $t('home.views') }}</span>
+          <div class="hot-cover" :style="coverStyle(b.bookCover)">
+            <span class="hot-rank" v-if="b.sellerCount > 0">{{ b.sellerCount }} 人在卖</span>
+          </div>
+          <div class="hot-info">
+            <h3>{{ b.bookTitle }}</h3>
+            <p class="hot-author" v-if="b.bookAuthor">{{ b.bookAuthor }}</p>
+            <div class="hot-meta">
+              <span class="hot-price" v-if="b.minPrice">¥{{ b.minPrice }}<em>起</em></span>
+              <span class="hot-price empty" v-else>{{ $t('home.noSeller') }}</span>
+              <span class="hot-views">👁 {{ b.viewCount }}</span>
             </div>
           </div>
-        </div>
+        </article>
       </div>
-    </div>
+    </section>
 
-    <div class="content-section">
-      <div class="section-header">
-        <h2 class="section-title">{{ $t('home.hotspots') }}</h2>
-        <el-button type="primary" round size="small" @click="showPostDialog = true">{{ $t('home.submit') }}</el-button>
+    <!-- ===== 发布 CTA ===== -->
+    <section class="cta">
+      <div class="cta-fish"><BrandLogo :size="96" /></div>
+      <div class="cta-text">
+        <h3>{{ $t('home.ctaTitle') }}</h3>
+        <p>{{ $t('home.ctaDesc') }}</p>
       </div>
-      <div class="hotspot-list">
-        <div v-for="item in hotspots" :key="item.id" class="hotspot-card">
-          <div class="hotspot-tag">{{ item.tag }}</div>
-          <h3 class="hotspot-title">{{ item.title }}</h3>
-          <p class="hotspot-desc">{{ item.description }}</p>
-          <div class="hotspot-meta">
-            <span>{{ item.author }}</span>
-            <span>{{ formatTime(item.time) }}</span>
-          </div>
-        </div>
-        <el-empty v-if="!hotspots.length" :description="$t('home.noHotspots')" />
-      </div>
-    </div>
-
-    <div class="content-section" v-if="stats">
-      <h2 class="section-title">{{ $t('home.latest') }}</h2>
-      <div class="today-stats">
-        <div class="stat-card stat-boards">
-          <div class="stat-icon">📚</div>
-          <div class="stat-info">
-            <div class="stat-num">{{ stats.todayBoards }}</div>
-            <div class="stat-label">{{ $t('home.newBoards') }}</div>
-          </div>
-        </div>
-        <div class="stat-card stat-books">
-          <div class="stat-icon">📖</div>
-          <div class="stat-info">
-            <div class="stat-num">{{ stats.todayBooks }}</div>
-            <div class="stat-label">{{ $t('home.newBooks') }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <el-dialog v-model="showPostDialog" :title="$t('home.postTitle')" width="500px">
-      <el-form label-position="top">
-        <el-form-item :label="$t('home.title')">
-          <el-input v-model="postForm.title" :placeholder="$t('home.placeholderTitle')" />
-        </el-form-item>
-        <el-form-item :label="$t('home.category')">
-          <el-select v-model="postForm.tag" :placeholder="$t('home.selectCategory')" style="width: 100%">
-            <el-option :label="$t('home.catActivity')" value="活动" />
-            <el-option :label="$t('home.catNotice')" value="通知" />
-            <el-option :label="$t('home.catDiscuss')" value="讨论" />
-            <el-option :label="$t('home.catShare')" value="分享" />
-          </el-select>
-        </el-form-item>
-        <el-form-item :label="$t('home.content')">
-          <el-input v-model="postForm.description" type="textarea" :rows="4" :placeholder="$t('home.placeholderContent')" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showPostDialog = false">{{ $t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="submitPost">{{ $t('home.publish') }}</el-button>
-      </template>
-    </el-dialog>
+      <button class="btn light" @click="goPublish">
+        {{ $t('home.publishIdle') }}<span class="arrow">→</span>
+      </button>
+    </section>
   </div>
 </template>
 
@@ -160,17 +149,18 @@ const { t } = useI18n()
 
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus/es/components/message/index'
 import { useUserStore } from '@/stores/user'
-import { hotspotApi, booksApi, weatherApi } from '@/api'
+import { booksApi, weatherApi } from '@/api'
 import { resolveImg } from '@/utils/image'
+import BrandLogo from '@/components/BrandLogo.vue'
+import { TRADE_CATEGORIES } from '@/constants/categories'
 
 const userStore = useUserStore()
 const router = useRouter()
+const categories = TRADE_CATEGORIES
 
 /* ------------------------------ 实时天气 ------------------------------ */
 const weather = ref(null)
-const weatherClass = computed(() => (weather.value ? `w-${weather.value.scene}` : ''))
 let weatherTimer = null
 
 // 时间段优先按天气接口给的真实日出日落算，拿不到再退回固定时段
@@ -253,40 +243,19 @@ async function loadWeather() {
     const data = res?.data || res
     if (data && data.scene) weather.value = data
   } catch {
-    // 天气失败不影响首页，保持原有时间背景
+    // 天气失败不影响首页
   }
 }
 
-const hotspots = ref([])
+/* ------------------------------ 热销数据 ------------------------------ */
 const stats = ref(null)
-
-const showPostDialog = ref(false)
-const postForm = ref({ title: '', tag: '', description: '' })
-
-async function loadHotspots() {
-  try {
-    const res = await hotspotApi.list()
-    hotspots.value = res.data || []
-  } catch {}
-}
+const hotBoards = computed(() => (stats.value?.hotBoards || []).slice(0, 8))
 
 async function loadStats() {
   try {
     const res = await booksApi.homeStats()
     stats.value = res.data
   } catch {}
-}
-
-function formatTime(time) {
-  if (!time) return ''
-  const d = new Date(time)
-  const now = Date.now()
-  const diff = Math.floor((now - d.getTime()) / 1000)
-  if (diff < 60) return t('common.justNow')
-  if (diff < 3600) return `${Math.floor(diff / 60)}${t('common.minutesAgo')}`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}${t('common.hoursAgo')}`
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getMonth() + 1}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 function coverStyle(cover) {
@@ -300,22 +269,15 @@ function goDetail(b) {
   router.push(`/book/${encodeURIComponent(key)}`)
 }
 
-async function submitPost() {
-  if (!postForm.value.title || !postForm.value.tag || !postForm.value.description) {
-    ElMessage.warning(t('home.fillAll'))
-    return
-  }
-  try {
-    await hotspotApi.create(postForm.value)
-    ElMessage.success(t('home.postSuccess'))
-    postForm.value = { title: '', tag: '', description: '' }
-    showPostDialog.value = false
-    loadHotspots()
-  } catch {}
+function goTrade(category) {
+  router.push(category ? { path: '/trade', query: { category } } : '/trade')
+}
+
+function goPublish() {
+  router.push('/publish')
 }
 
 onMounted(() => {
-  loadHotspots()
   loadStats()
   loadWeather()
   // 每 30 分钟刷新一次，长时间挂着页面也能跟上天气变化
@@ -328,895 +290,609 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.home-page {
-  padding-bottom: 40px;
+.home {
+  padding-bottom: 36px;
+  --ink: #0b2f3f;
+  --ink-soft: #5d7b87;
+  --pond: #1a90a0;
+  --pond-deep: #10667a;
+  --coral: #ff9a5a;
 }
 
-.hero-banner {
+/* ================= Hero ================= */
+.hero {
   position: relative;
-  height: 320px;
-  border-radius: 16px;
   overflow: hidden;
-  margin-bottom: 32px;
-  transition: background 1s ease;
+  display: flex;
+  gap: 28px;
+  padding: 42px 44px;
+  margin-bottom: 30px;
+  border-radius: 28px;
+  border: 1px solid rgba(26, 144, 160, 0.12);
+  background:
+    radial-gradient(60% 90% at 92% 6%, rgba(255, 154, 90, 0.3), transparent 62%),
+    radial-gradient(55% 80% at 4% 96%, rgba(122, 217, 196, 0.42), transparent 62%),
+    linear-gradient(125deg, #effbf8 0%, #e3f4f4 48%, #eef8fc 100%);
+  box-shadow: 0 24px 60px -40px rgba(11, 47, 63, 0.5);
 }
-.hero-banner.morning {
-  background: linear-gradient(180deg, #ff8a65 0%, #ffb74d 30%, #fff3e0 60%, #e3f2fd 100%);
-}
-.hero-banner.day {
-  background: linear-gradient(180deg, #64b5f6 0%, #90caf9 40%, #e3f2fd 70%, #f5f9ff 100%);
-}
-.hero-banner.evening {
-  background: linear-gradient(180deg, #5c6bc0 0%, #7e57c2 25%, #ff8a65 55%, #ffb74d 80%, #fff8e1 100%);
-}
-.hero-banner.night {
-  background: linear-gradient(180deg, #0a1929 0%, #102a43 40%, #1a3a5c 70%, #283593 100%);
-}
-
-/* ---------------- 实时天气视觉层 ---------------- */
-.sky-effects {
+.hero-deco {
   position: absolute;
   inset: 0;
-  z-index: 0;
-  overflow: hidden;
   pointer-events: none;
 }
-/* 天气色调：叠在原有时间段渐变之上，只改"阴晴"，不破坏早晚配色 */
-.sky-effects::before {
-  content: '';
+.deco-bubble {
   position: absolute;
-  inset: 0;
-  opacity: 0;
-  transition: opacity 0.9s ease;
-}
-.sky-effects.w-partly::before {
-  background: linear-gradient(180deg, #7d93a8, #c9d6e2);
-  opacity: 0.32;
-}
-.sky-effects.w-cloudy::before {
-  background: linear-gradient(180deg, #5b6b7c, #8fa0b0);
-  opacity: 0.52;
-}
-.sky-effects.w-fog::before {
-  background: linear-gradient(180deg, #7c8a96, #cfd8e0);
-  opacity: 0.5;
-}
-.sky-effects.w-drizzle::before {
-  background: linear-gradient(180deg, #4a5a6b, #7a8a9a);
-  opacity: 0.46;
-}
-.sky-effects.w-rain::before {
-  background: linear-gradient(180deg, #3f4f60, #6a7a8a);
-  opacity: 0.56;
-}
-.sky-effects.w-snow::before {
-  background: linear-gradient(180deg, #9fb3c4, #e6eef5);
-  opacity: 0.45;
-}
-.sky-effects.w-thunder::before {
-  background: linear-gradient(180deg, #2b3644, #4a5768);
-  opacity: 0.66;
-}
-
-/* 云 */
-.clouds {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  transition: opacity 0.9s ease;
-}
-.w-partly .clouds,
-.w-cloudy .clouds,
-.w-drizzle .clouds,
-.w-rain .clouds,
-.w-snow .clouds,
-.w-thunder .clouds {
-  opacity: 1;
-}
-.clouds i {
-  position: absolute;
-  display: block;
-  background: rgba(255, 255, 255, 0.72);
   border-radius: 50%;
-  filter: blur(16px);
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.15) 68%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+  animation: bob 8s ease-in-out infinite;
 }
-.clouds i:nth-child(1) {
-  width: 260px;
-  height: 78px;
-  top: 12%;
-  left: -18%;
-  animation: cloud-drift 44s linear infinite;
-}
-.clouds i:nth-child(2) {
-  width: 190px;
-  height: 58px;
-  top: 34%;
-  left: -30%;
-  opacity: 0.8;
-  animation: cloud-drift 58s linear infinite 8s;
-}
-.clouds i:nth-child(3) {
-  width: 320px;
-  height: 88px;
-  top: 2%;
-  left: -40%;
-  opacity: 0.6;
-  animation: cloud-drift 72s linear infinite 20s;
-}
-@keyframes cloud-drift {
-  from { transform: translateX(0); }
-  to { transform: translateX(180vw); }
-}
-
-/* 雨 */
-.rain-layer {
-  position: absolute;
-  inset: -20% 0;
-  opacity: 0;
-  background-image: repeating-linear-gradient(100deg, rgba(255, 255, 255, 0.55) 0 1px, transparent 1px 9px);
-  background-size: 100% 160px;
-  animation: rain-fall 0.6s linear infinite;
-  transition: opacity 0.6s ease;
-}
-.w-rain .rain-layer,
-.w-thunder .rain-layer {
-  opacity: 0.5;
-}
-.w-drizzle .rain-layer {
-  opacity: 0.26;
-  animation-duration: 1.1s;
-}
-@keyframes rain-fall {
-  from { background-position: 0 0; }
-  to { background-position: -40px 160px; }
-}
-
-/* 雪 */
-.snow-layer {
-  position: absolute;
-  inset: -10%;
-  opacity: 0;
-  background-image:
-    radial-gradient(2.2px 2.2px at 20px 30px, rgba(255, 255, 255, 0.95), transparent),
-    radial-gradient(1.8px 1.8px at 92px 82px, rgba(255, 255, 255, 0.85), transparent),
-    radial-gradient(2.4px 2.4px at 150px 42px, rgba(255, 255, 255, 0.9), transparent),
-    radial-gradient(1.6px 1.6px at 62px 132px, rgba(255, 255, 255, 0.8), transparent);
-  background-size: 180px 180px;
-  animation: snow-fall 14s linear infinite;
-  transition: opacity 0.8s ease;
-}
-.w-snow .snow-layer {
-  opacity: 0.85;
-}
-@keyframes snow-fall {
-  from { background-position: 0 0; }
-  to { background-position: 40px 360px; }
-}
-
-/* 雾 */
-.fog-layer {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.72));
-  transition: opacity 1s ease;
-}
-.w-fog .fog-layer {
-  opacity: 0.9;
-  animation: fog-breathe 11s ease-in-out infinite alternate;
-}
-@keyframes fog-breathe {
-  from { opacity: 0.75; }
-  to { opacity: 0.95; }
-}
-
-/* 闪电 */
-.flash-layer {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  background: #fff;
-}
-.w-thunder .flash-layer {
-  animation: lightning 8s ease-in-out infinite;
-}
-@keyframes lightning {
-  0%, 90%, 100% { opacity: 0; }
-  91% { opacity: 0.5; }
-  92% { opacity: 0; }
-  93.5% { opacity: 0.32; }
-  94.5% { opacity: 0; }
-}
-
-/* 阴雨天把太阳/月亮压暗，避免"暴雨配烈日" */
-.hero-banner.w-cloudy .sun-moon,
-.hero-banner.w-drizzle .sun-moon,
-.hero-banner.w-rain .sun-moon,
-.hero-banner.w-thunder .sun-moon {
-  opacity: 0.3;
-  filter: blur(2px);
-}
-.hero-banner.w-fog .sun-moon {
-  opacity: 0.38;
-  filter: blur(4px);
-}
-.hero-banner.w-snow .sun-moon {
-  opacity: 0.55;
-}
-
-.sun-times {
-  margin-top: 10px;
-  display: flex;
-  gap: 16px;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.74);
-  letter-spacing: 0.5px;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.28);
-}
-
-.weather-chip {
-  position: absolute;
-  left: 136px;
-  right: auto;
-  bottom: 14px;
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 14px;
-  border-radius: 999px;
-  background: rgba(13, 40, 71, 0.32);
-  border: 1px solid rgba(255, 255, 255, 0.26);
-  backdrop-filter: blur(10px);
-  color: #fff;
-  font-size: 13px;
-  line-height: 1;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-}
-.wc-icon {
-  font-size: 15px;
-}
-.wc-temp {
-  font-size: 16px;
-  font-weight: 700;
-}
-.wc-city {
-  opacity: 0.82;
-  margin-left: 2px;
-  padding-left: 8px;
-  border-left: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.sun-moon {
-  position: absolute;
-  z-index: 1;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  top: 40px;
-  right: 80px;
-  animation: celestial-float 6s ease-in-out infinite;
-}
-.sun-moon.morning {
-  background: radial-gradient(circle, #fff176, #ffb74d);
-  box-shadow: 0 0 40px rgba(255, 183, 77, 0.6);
-}
-.sun-moon.day {
-  background: radial-gradient(circle, #fffde7, #fff9c4);
-  box-shadow: 0 0 50px rgba(255, 249, 196, 0.8);
-}
-.sun-moon.evening {
-  background: radial-gradient(circle, #ffab91, #ff7043);
-  box-shadow: 0 0 40px rgba(255, 112, 67, 0.6);
-}
-.sun-moon.night {
-  background: radial-gradient(circle, #e3f2fd, #90caf9);
-  box-shadow: 0 0 30px rgba(144, 202, 249, 0.4);
-}
-@keyframes celestial-float {
+.b1 { width: 54px; height: 54px; right: 34%; top: 14%; animation-delay: 0.4s; }
+.b2 { width: 22px; height: 22px; right: 28%; top: 30%; animation-delay: 1.6s; }
+.b3 { width: 14px; height: 14px; left: 42%; bottom: 20%; animation-delay: 2.4s; }
+.b4 { width: 34px; height: 34px; left: 8%; top: 16%; animation-delay: 3.2s; opacity: 0.7; }
+@keyframes bob {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-15px); }
+  50% { transform: translateY(-14px); }
+}
+.deco-wave {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  bottom: -92px;
+  height: 180px;
+  border-radius: 48% 52% 0 0 / 70% 70% 0 0;
+  background: rgba(26, 144, 160, 0.07);
+}
+.deco-fish {
+  position: absolute;
+  right: -70px;
+  bottom: -60px;
+  opacity: 0.09;
+  transform: rotate(-8deg);
 }
 
-.hero-overlay {
-  position: absolute;
+.hero-main {
+  position: relative;
   z-index: 2;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  display: flex;
-  align-items: flex-start;
-  padding: 32px;
-  /* 阴/雾/雪天背景偏亮，压一层暗角保证白字可读 */
-  background: linear-gradient(120deg, rgba(10, 25, 41, 0.26) 0%, rgba(10, 25, 41, 0) 62%);
+  flex: 1;
+  min-width: 0;
 }
-.greeting-text {
-  font-size: 32px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.85);
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
-  margin-bottom: 8px;
-  letter-spacing: 2px;
-}
-.greeting-sub {
-  font-size: 16px;
-  color: rgba(255, 255, 255, 0.6);
-  letter-spacing: 1px;
-}
-.hero-bottom-gradient {
-  position: absolute;
-  z-index: 1;
-  bottom: 0; left: 0; right: 0;
-  height: 60px;
-  background: linear-gradient(180deg, transparent, rgba(248, 251, 255, 0.5));
-}
-
-/* ================ 主题装饰层（填充 hero 空白，随主题变化） ================ */
-.theme-decor {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-  overflow: hidden;
-}
-.theme-decor .de {
-  display: none;
-  position: absolute;
-}
-
-/* —— 默认主题：纸飞机 / 书本 / 钢笔，低饱和线条风 —— */
-[data-theme='default'] .theme-decor .de-paper,
-[data-theme='default'] .theme-decor .de-book,
-[data-theme='default'] .theme-decor .de-pen,
-[data-theme='default'] .theme-decor .de-glow { display: block; }
-
-.de-glow {
-  left: 12%;
-  top: 8%;
-  width: 220px;
-  height: 150px;
-  border-radius: 50%;
-  background: radial-gradient(ellipse, rgba(255, 255, 255, 0.28), transparent 70%);
-  filter: blur(2px);
-  animation: glow-breathe 6s ease-in-out infinite;
-}
-@keyframes glow-breathe {
-  0%, 100% { opacity: 0.5; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.12); }
-}
-
-.de-paper {
-  left: 16%;
-  top: 16%;
-  width: 64px;
-  height: 46px;
-  opacity: 0.85;
-  filter: drop-shadow(0 4px 14px rgba(30, 136, 229, 0.35));
-  animation: float-y 7s ease-in-out infinite;
-}
-.de-paper::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  clip-path: polygon(0 38%, 100% 0, 46% 100%, 38% 58%);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.35));
-}
-.de-book {
-  right: 12%;
-  top: 24%;
-  width: 52px;
-  height: 40px;
-  opacity: 0.8;
-  animation: float-y 9s ease-in-out infinite 1.2s;
-}
-.de-book::before,
-.de-book::after {
-  content: '';
-  position: absolute;
-  width: 22px;
-  height: 34px;
-  border-radius: 3px 8px 8px 3px;
-  background: rgba(255, 255, 255, 0.5);
-}
-.de-book::before { left: 0; transform: skewY(-8deg); }
-.de-book::after { right: 0; transform: skewY(8deg); }
-.de-pen {
-  right: 30%;
-  bottom: 18%;
-  width: 40px;
-  height: 8px;
-  opacity: 0.45;
-  transform: rotate(-32deg);
-  border-radius: 6px;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.25));
-  animation: float-y 8s ease-in-out infinite 0.6s;
-}
-
-/* —— 可爱主题：爱心 / 气球 / 星星 / 云朵 —— */
-[data-theme='cute'] .theme-decor .de-emoji { display: block; }
-.de-heart {
-  left: 15%;
-  top: 18%;
-  font-size: 30px;
-  animation: float-y 5.5s ease-in-out infinite;
-  filter: drop-shadow(0 6px 14px rgba(255, 107, 157, 0.4));
-}
-.de-balloon {
-  right: 13%;
-  top: 15%;
-  font-size: 36px;
-  animation: float-y 6.5s ease-in-out infinite 0.8s;
-  filter: drop-shadow(0 6px 16px rgba(167, 139, 250, 0.45));
-}
-.de-star {
-  left: 30%;
-  bottom: 20%;
-  font-size: 22px;
-  animation: twinkle 3.4s ease-in-out infinite;
-}
-.de-cloud {
-  right: 32%;
-  top: 30%;
-  font-size: 30px;
-  opacity: 0.9;
-  animation: cloud-bob 9s ease-in-out infinite 1.6s;
-}
-
-/* —— 科技主题：发光圆环 + 粒子 + 点阵 —— */
-[data-theme='tech'] .theme-decor .de-ring,
-[data-theme='tech'] .theme-decor .de-particle,
-[data-theme='tech'] .theme-decor .de-dot { display: block; }
-.de-ring {
-  right: 14%;
-  top: 16%;
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  border: 2px solid rgba(103, 232, 249, 0.4);
-  box-shadow: 0 0 24px rgba(34, 211, 238, 0.35), inset 0 0 24px rgba(167, 139, 250, 0.25);
-  animation: ring-spin 14s linear infinite;
-}
-.de-ring::before {
-  content: '';
-  position: absolute;
-  inset: 14px;
-  border-radius: 50%;
-  border: 1px dashed rgba(167, 139, 250, 0.5);
-  animation: ring-spin 10s linear infinite reverse;
-}
-.de-ring2 {
-  left: 14%;
-  bottom: 14%;
-  width: 70px;
-  height: 70px;
-  animation-duration: 18s;
-  animation-direction: reverse;
-}
-.de-particle {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #67e8f9;
-  box-shadow: 0 0 10px #22d3ee;
-  animation: particle-rise 6s ease-in-out infinite;
-}
-.de-p2 { left: 22%; top: 30%; animation-delay: 1.4s; }
-.de-p3 { right: 26%; top: 40%; animation-delay: 2.6s; }
-.de-p4 { left: 40%; top: 22%; animation-delay: 3.8s; }
-.de-p5 { right: 20%; bottom: 30%; animation-delay: 5s; }
-.de-dot {
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: rgba(167, 139, 250, 0.7);
-  animation: twinkle 4s ease-in-out infinite;
-}
-.de-d2 { left: 10%; top: 42%; animation-delay: 0.8s; }
-.de-d3 { right: 8%; top: 50%; animation-delay: 1.6s; }
-.de-d4 { left: 26%; bottom: 26%; animation-delay: 2.4s; }
-
-@keyframes float-y {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-16px) rotate(4deg); }
-}
-@keyframes cloud-bob {
-  0%, 100% { transform: translateX(0) translateY(0); }
-  50% { transform: translateX(-14px) translateY(-8px); }
-}
-@keyframes twinkle {
-  0%, 100% { opacity: 0.35; transform: scale(0.9); }
-  50% { opacity: 1; transform: scale(1.15); }
-}
-@keyframes ring-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-@keyframes particle-rise {
-  0% { transform: translateY(0) scale(0.7); opacity: 0.3; }
-  50% { transform: translateY(-34px) scale(1.2); opacity: 1; }
-  100% { transform: translateY(0) scale(0.7); opacity: 0.3; }
-}
-
-/* —— hero 平台速览玻璃卡 —— */
-.hero-stats {
-  position: absolute;
-  z-index: 3;
-  right: 28px;
-  bottom: 26px;
-  display: flex;
-  gap: 16px;
-  padding: 14px 22px;
-  border-radius: 14px;
-  background: rgba(10, 25, 41, 0.32);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
-}
-.hs-item {
-  text-align: center;
-  min-width: 64px;
-}
-.hs-item b {
-  display: block;
-  font-size: 21px;
-  font-weight: 700;
-  color: #fff;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-}
-.hs-item span {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.72);
-  letter-spacing: 0.5px;
-}
-
-.content-section {
-  margin-bottom: 36px;
-}
-.section-title {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--text-main);
-  margin-bottom: 20px;
+.hero-tag {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-}
-.section-title::before {
-  content: '';
-  width: 5px;
-  height: 20px;
-  border-radius: 3px;
-  background: linear-gradient(180deg, var(--accent), var(--accent-2));
-  box-shadow: 0 0 10px var(--accent-soft);
-}
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-.section-header .section-title {
-  margin-bottom: 0;
-}
-
-.hotspot-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.hotspot-card {
-  background: var(--card-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-radius: var(--radius-md);
-  padding: 20px 24px;
-  box-shadow: var(--card-shadow);
-  transition: all 0.3s ease;
-  border-left: 4px solid var(--accent);
-  border: 1px solid var(--card-border);
-  border-left-width: 4px;
-}
-.hotspot-card:hover {
-  transform: translateX(4px);
-  box-shadow: var(--card-shadow-hover);
-}
-.hotspot-tag {
-  display: inline-block;
-  padding: 3px 12px;
-  border-radius: 10px;
+  padding: 6px 14px 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(26, 144, 160, 0.16);
   font-size: 12px;
   font-weight: 600;
-  color: var(--accent);
-  background: var(--accent-soft);
-  margin-bottom: 10px;
+  letter-spacing: 1px;
+  color: var(--pond-deep);
+  backdrop-filter: blur(6px);
 }
-.hotspot-title {
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--text-main);
-  margin-bottom: 8px;
+.hero-tag .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--coral);
+  box-shadow: 0 0 0 4px rgba(255, 154, 90, 0.18);
 }
-.hotspot-desc {
+.hero-title {
+  margin: 16px 0 8px;
+  font-size: 36px;
+  line-height: 1.25;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--ink);
+}
+.hero-sub {
   font-size: 14px;
-  color: var(--text-sub);
-  line-height: 1.6;
-  margin-bottom: 12px;
+  color: var(--ink-soft);
+  letter-spacing: 0.5px;
 }
-.hotspot-meta {
-  display: flex;
-  gap: 16px;
-  font-size: 13px;
-  color: var(--text-sub);
-  opacity: 0.85;
+.hero-sub .sep {
+  margin: 0 8px;
+  color: rgba(26, 144, 160, 0.5);
 }
 
-.today-stats {
+.hero-actions {
   display: flex;
-  gap: 20px;
+  gap: 12px;
+  margin-top: 24px;
+  flex-wrap: wrap;
 }
-.stat-card {
-  flex: 1;
-  background: var(--card-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius-lg);
-  padding: 28px 32px;
+.btn {
+  height: 46px;
+  padding: 0 24px;
+  border-radius: 14px;
+  font-size: 14.5px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.25s ease;
+}
+.btn.primary {
+  color: #fff;
+  background: linear-gradient(135deg, #0e5568, #1a90a0 70%, #23a7a5);
+  box-shadow: 0 14px 26px -12px rgba(16, 102, 122, 0.8);
+}
+.btn.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 32px -12px rgba(16, 102, 122, 0.9);
+}
+.btn.ghost {
+  color: var(--pond-deep);
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(26, 144, 160, 0.24);
+}
+.btn.ghost:hover {
+  background: #fff;
+  border-color: var(--pond);
+  transform: translateY(-2px);
+}
+.btn .arrow {
+  transition: transform 0.25s;
+}
+.btn:hover .arrow {
+  transform: translateX(4px);
+}
+
+.hero-stats {
   display: flex;
   align-items: center;
   gap: 20px;
-  box-shadow: var(--card-shadow);
-  transition: all 0.3s ease;
+  margin-top: 28px;
 }
-.stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--card-shadow-hover);
-}
-.stat-boards {
-  border-left: 4px solid var(--accent);
-}
-.stat-books {
-  border-left: 4px solid var(--btn-bg);
-}
-.stat-icon {
-  font-size: 40px;
-}
-.stat-num {
-  font-size: 36px;
-  font-weight: 700;
-  color: var(--text-main);
-  line-height: 1.2;
-}
-.stat-label {
-  font-size: 14px;
-  color: #78909c;
-  margin-top: 4px;
-}
-
-.chart-container {
-  background: #fff;
-  border-radius: 16px;
-  padding: 28px 24px;
-  box-shadow: 0 2px 12px rgba(13, 40, 71, 0.06);
-}
-.bar-chart {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-around;
-  height: 200px;
-  gap: 12px;
-}
-.bar-item {
-  flex: 1;
+.hero-stats .hs {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  height: 100%;
+  gap: 2px;
 }
-.bar-wrapper {
-  flex: 1;
-  width: 100%;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
+.hero-stats b {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.1;
 }
-.bar-fill {
-  width: 70%;
-  max-width: 48px;
-  background: linear-gradient(180deg, #42a5f5, #1e88e5);
-  border-radius: 8px 8px 0 0;
-  transition: all 0.5s ease;
-  position: relative;
-  min-height: 4px;
+.hero-stats span {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  letter-spacing: 0.5px;
 }
-.bar-fill:hover {
-  background: linear-gradient(180deg, #64b5f6, #42a5f5);
-  transform: scaleY(1.05);
-}
-.bar-count {
-  position: absolute;
-  top: -22px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 13px;
-  font-weight: 600;
-  color: #1e88e5;
-}
-.bar-label {
-  margin-top: 8px;
-  font-size: 13px;
-  color: #78909c;
+.hero-stats i {
+  width: 1px;
+  height: 26px;
+  background: rgba(11, 47, 63, 0.1);
 }
 
-.hot-board-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+/* 右侧：吉祥物 + 天气 */
+.hero-side {
+  position: relative;
+  z-index: 2;
+  width: 250px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
   gap: 16px;
 }
-.hot-board-card {
-  background: var(--card-bg);
+.mascot {
+  margin-right: 6px;
+  animation: mascot-float 6s ease-in-out infinite;
+  filter: drop-shadow(0 18px 26px rgba(11, 47, 63, 0.18));
+}
+@keyframes mascot-float {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50% { transform: translateY(-10px) rotate(4deg); }
+}
+.weather-card {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 14px 30px -18px rgba(11, 47, 63, 0.45);
   backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+}
+.wc-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.wc-icon {
+  font-size: 26px;
+  line-height: 1;
+}
+.wc-temp {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+.wc-temp b {
+  font-size: 22px;
+  color: var(--ink);
+}
+.wc-temp span {
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+.wc-city {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--pond-deep);
+  background: rgba(26, 144, 160, 0.1);
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.wc-sun {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px dashed rgba(11, 47, 63, 0.1);
+  font-size: 10.5px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.weather-card.skeleton .wc-temp b {
+  color: #b9ccd2;
+}
+
+/* ================= 通用区块 ================= */
+.block {
+  margin-bottom: 30px;
+}
+.block-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.block-head h2 {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: 1px;
+}
+.block-head p {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-sub);
+}
+.head-link {
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 12.5px;
+  color: var(--pond-deep);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+}
+.head-link span {
+  transition: transform 0.22s;
+}
+.head-link:hover span {
+  transform: translateX(3px);
+}
+
+/* 类目 */
+.cat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 12px;
+}
+.cat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-radius: var(--radius-md);
+  box-shadow: var(--card-shadow);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: all 0.24s ease;
+}
+.cat-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(26, 144, 160, 0.35);
+  box-shadow: 0 16px 30px -18px rgba(16, 102, 122, 0.5);
+}
+.cat-emoji {
+  font-size: 24px;
+  line-height: 1.3;
+}
+.cat-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.cat-desc {
+  font-size: 10.5px;
+  color: var(--text-sub);
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* 热销 */
+.hot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+.hot-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
   overflow: hidden;
   cursor: pointer;
-  transition: all 0.3s ease;
   box-shadow: var(--card-shadow);
+  transition: all 0.3s ease;
 }
-.hot-board-card:hover {
-  transform: translateY(-6px);
-  box-shadow: var(--card-shadow-hover);
+.hot-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 18px 34px -20px rgba(16, 102, 122, 0.55);
 }
-.hb-cover {
-  height: 140px;
-  background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+.hot-cover {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background: linear-gradient(135deg, #e6f4f2, #d9edf3);
   background-size: cover;
   background-position: center;
 }
-.hb-info {
-  padding: 14px 16px;
+.hot-rank {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  color: #fff;
+  background: rgba(11, 47, 63, 0.55);
+  backdrop-filter: blur(4px);
 }
-.hb-title {
-  font-size: 15px;
-  font-weight: 600;
+.hot-info {
+  padding: 12px 14px 14px;
+}
+.hot-info h3 {
+  font-size: 14.5px;
+  font-weight: 700;
   color: var(--text-main);
-  margin-bottom: 6px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-height: 40px;
 }
-.hb-author {
-  font-size: 13px;
+.hot-author {
+  margin-top: 4px;
+  font-size: 11.5px;
   color: var(--text-sub);
-  margin-bottom: 8px;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
-.hb-meta {
+.hot-meta {
   display: flex;
-  gap: 12px;
-  font-size: 12px;
-  color: var(--text-sub);
-  opacity: 0.9;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
 }
-.hb-sellers {
-  color: #43a047;
-  font-weight: 600;
+.hot-price {
+  font-size: 17px;
+  font-weight: 800;
+  color: #e5484d;
 }
-.hb-views {
-  color: #fb8c00;
+.hot-price em {
+  font-style: normal;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: #9db2ba;
+  margin-left: 2px;
+}
+.hot-price.empty {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #9db2ba;
+}
+.hot-views {
+  font-size: 11px;
+  color: #9db2ba;
+}
+
+/* CTA */
+.cta {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 26px 32px;
+  border-radius: 24px;
+  color: #f4fbfa;
+  background:
+    radial-gradient(70% 120% at 100% 0%, rgba(255, 154, 90, 0.35), transparent 60%),
+    linear-gradient(120deg, #0b2f3f 0%, #0e4f61 60%, #126f7e 100%);
+  box-shadow: 0 22px 44px -30px rgba(11, 47, 63, 0.9);
+}
+.cta-fish {
+  flex-shrink: 0;
+  opacity: 0.95;
+  animation: mascot-float 7s ease-in-out infinite;
+}
+.cta-text {
+  flex: 1;
+  min-width: 0;
+}
+.cta-text h3 {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+.cta-text p {
+  margin-top: 5px;
+  font-size: 12.5px;
+  color: rgba(244, 251, 250, 0.62);
+}
+.btn.light {
+  flex-shrink: 0;
+  color: #0b2f3f;
+  background: #fff;
+  box-shadow: 0 10px 24px -12px rgba(0, 0, 0, 0.5);
+}
+.btn.light:hover {
+  transform: translateY(-2px);
+  background: #fff7ee;
+}
+
+/* ================= 响应式 ================= */
+@media (max-width: 1024px) {
+  .hero {
+    padding: 32px;
+  }
+  .hero-side {
+    width: 210px;
+  }
+  .hero-title {
+    font-size: 30px;
+  }
 }
 
 @media (max-width: 768px) {
-  .hero-banner {
-    height: 190px;
-    border-radius: 12px;
-    margin-bottom: 20px;
+  .hero {
+    flex-direction: column;
+    padding: 24px 20px;
+    border-radius: 22px;
+    margin-bottom: 22px;
+    gap: 18px;
   }
-  .hero-stats {
+  .hero-deco .deco-fish {
     display: none;
   }
-  .de-paper { left: 10%; top: 14%; transform: scale(0.7); }
-  .de-book { right: 6%; top: 20%; transform: scale(0.7); }
-  .de-balloon { right: 8%; top: 12%; font-size: 26px; }
-  .de-heart { left: 8%; top: 16%; font-size: 22px; }
-  .de-ring { right: 8%; top: 12%; width: 84px; height: 84px; }
-  .sun-moon {
-    width: 42px;
-    height: 42px;
-    top: 18px;
-    right: 20px;
-  }
-  .hero-overlay {
-    padding: 18px;
-  }
-  .greeting-text {
-    font-size: 21px;
-    letter-spacing: 1px;
-    margin-bottom: 4px;
-  }
-  .greeting-sub {
-    font-size: 13px;
-  }
-  .sun-times {
-    margin-top: 6px;
-    gap: 10px;
+  .hero-tag {
     font-size: 11px;
   }
-  .weather-chip {
-    left: auto;
-    right: 12px;
-    bottom: 12px;
-    padding: 5px 10px;
-    font-size: 12px;
-    gap: 4px;
+  .hero-title {
+    font-size: 23px;
+    margin: 12px 0 6px;
   }
-  .wc-temp {
-    font-size: 14px;
+  .hero-sub {
+    font-size: 12.5px;
+    line-height: 1.7;
   }
-  .wc-icon {
-    font-size: 13px;
+  .hero-actions {
+    margin-top: 18px;
+    gap: 10px;
   }
-  .content-section {
-    margin-bottom: 22px;
+  .btn {
+    height: 42px;
+    padding: 0 18px;
+    font-size: 13.5px;
+    flex: 1;
+    justify-content: center;
   }
-  .section-title {
-    font-size: 18px;
-    margin-bottom: 14px;
+  .hero-stats {
+    margin-top: 20px;
+    gap: 16px;
   }
-  .hotspot-card {
-    padding: 14px 16px;
-    border-radius: 12px;
+  .hero-stats b {
+    font-size: 20px;
   }
-  .hotspot-title {
-    font-size: 15px;
-  }
-  .today-stats {
-    flex-direction: column;
+  .hero-side {
+    width: 100%;
+    flex-direction: row-reverse;
+    align-items: center;
     gap: 12px;
   }
-  .stat-card {
-    padding: 16px 18px;
-    border-radius: 12px;
-    gap: 14px;
+  .mascot {
+    width: 86px;
+    height: 86px;
+    margin: 0;
+    flex-shrink: 0;
   }
-  .stat-icon {
-    font-size: 30px;
+  .mascot :deep(svg) {
+    width: 86px !important;
+    height: 86px !important;
   }
-  .stat-num {
-    font-size: 26px;
+  .weather-card {
+    flex: 1;
   }
-  .chart-container {
-    padding: 18px 10px;
-    border-radius: 12px;
+  .block {
+    margin-bottom: 22px;
   }
-  .bar-chart {
-    height: 150px;
-    gap: 4px;
+  .block-head {
+    margin-bottom: 12px;
   }
-  .bar-label {
-    font-size: 11px;
+  .block-head h2 {
+    font-size: 17px;
   }
-  .bar-count {
-    font-size: 11px;
+  .cat-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
   }
-  .hot-board-grid {
+  .cat-card {
+    padding: 10px 10px 11px;
+    border-radius: 14px;
+    gap: 2px;
+  }
+  .cat-emoji {
+    font-size: 20px;
+  }
+  .cat-name {
+    font-size: 12.5px;
+  }
+  .cat-desc {
+    display: none;
+  }
+  .hot-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
   }
-  .hot-board-card {
-    border-radius: 12px;
+  .hot-info {
+    padding: 10px 12px 12px;
   }
-  .hb-cover {
-    height: 105px;
+  .hot-info h3 {
+    font-size: 13px;
+    min-height: 36px;
   }
-  .hb-info {
-    padding: 10px 12px;
+  .hot-price {
+    font-size: 15px;
   }
-  .hb-title {
-    font-size: 14px;
+  .cta {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 22px;
+    gap: 12px;
+    border-radius: 20px;
+  }
+  .cta-fish {
+    order: 2;
+    align-self: flex-end;
+    margin-top: -34px;
+    opacity: 0.9;
+  }
+  .btn.light {
+    width: 100%;
+    justify-content: center;
   }
 }
 </style>

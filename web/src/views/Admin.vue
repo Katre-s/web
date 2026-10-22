@@ -2,10 +2,10 @@
   <div class="admin-page">
     <div class="admin-sidebar">
       <div class="admin-logo">
-        <span class="logo-seal">衡</span>
+        <span class="logo-seal">鱼</span>
         <div class="logo-text">
           <b>{{ $t('admin.title') }}</b>
-          <span>WENHENG ADMIN</span>
+          <span>XIAOXIANYU ADMIN</span>
         </div>
       </div>
 
@@ -19,11 +19,11 @@
         <el-menu-item index="notifications" @click="activeSection = 'notifications'">
           <el-icon><Bell /></el-icon><span>{{ $t('admin.notifications') }}</span>
         </el-menu-item>
-        <el-menu-item index="boards" @click="switchSection('boards')">
-          <el-icon><Files /></el-icon><span>{{ $t('admin.boards') }}</span>
+        <el-menu-item index="items" @click="switchSection('items')">
+          <el-icon><Box /></el-icon><span>{{ $t('admin.items') }}</span>
         </el-menu-item>
-        <el-menu-item index="wishlist" @click="switchSection('wishlist')">
-          <el-icon><ShoppingCart /></el-icon><span>{{ $t('admin.wishlist') }}</span>
+        <el-menu-item index="plaza" @click="switchSection('plaza')">
+          <el-icon><ChatLineSquare /></el-icon><span>{{ $t('admin.plazaManage') }}</span>
         </el-menu-item>
         <el-menu-item index="users" @click="switchSection('users')">
           <el-icon><User /></el-icon><span>{{ $t('admin.users') }}</span>
@@ -209,97 +209,131 @@
           </div>
         </template>
 
-        <!-- ===== 板块管理 ===== -->
-        <template v-if="activeSection === 'boards'">
+        <!-- ===== 物品管理 ===== -->
+        <template v-if="activeSection === 'items'">
           <div class="panel">
             <div class="panel-toolbar">
-              <h3 class="panel-title">{{ $t('admin.boardManage') }}</h3>
-              <el-button size="small" @click="loadBoards">{{ $t('common.refresh') }}</el-button>
-            </div>
-            <el-table :data="boardList" size="small">
-              <el-table-column prop="id" label="ID" width="60" />
-              <el-table-column :label="$t('admin.cover')" width="80">
-                <template #default="{ row }">
-                  <img v-if="row.bookCover" :src="resolveImg(row.bookCover)" style="width:40px;height:55px;object-fit:cover;border-radius:4px" @error="imgFallback" />
-                </template>
-              </el-table-column>
-              <el-table-column prop="bookTitle" :label="$t('admin.bookTitle')" min-width="150" />
-              <el-table-column prop="bookAuthor" :label="$t('publish.author')" width="120" />
-              <el-table-column prop="isbn" label="ISBN" width="140" />
-              <el-table-column prop="edition" :label="$t('admin.edition')" width="80" />
-              <el-table-column prop="productCount" :label="$t('admin.productCount')" width="80" />
-              <el-table-column :label="$t('common.actions')" width="280" fixed="right">
-                <template #default="{ row }">
-                  <el-button size="small" text type="primary" @click="openBoardEdit(row)">{{ $t('admin.editInfo') }}</el-button>
-                  <el-upload
-                    :show-file-list="false"
-                    accept="image/*"
-                    :http-request="(opt) => uploadCover(row, opt)"
-                    style="display:inline-block;margin-right:8px"
-                  >
-                    <el-button size="small" text type="primary">{{ $t('admin.uploadCover') }}</el-button>
-                  </el-upload>
-                  <el-button size="small" text type="danger" @click="deleteBoard(row)">{{ $t('admin.deleteBoard') }}</el-button>
-                </template>
-              </el-table-column>
-            </el-table>
-          </div>
-        </template>
-
-        <!-- ===== 求购管理 ===== -->
-        <template v-if="activeSection === 'wishlist'">
-          <div class="panel">
-            <div class="panel-toolbar">
-              <h3 class="panel-title">{{ $t('admin.wishlistManage') }}</h3>
+              <h3 class="panel-title">{{ $t('admin.itemManage') }}</h3>
               <div class="toolbar-right">
                 <el-input
-                  v-model="wishKeyword"
-                  :placeholder="$t('admin.wishlistSearchPlaceholder')"
+                  v-model="itemKeyword"
+                  :placeholder="$t('admin.itemSearchPlaceholder')"
                   clearable
-                  style="width: 240px"
-                  @keyup.enter="loadWishlists"
-                  @clear="loadWishlists"
+                  style="width: 220px"
+                  @keyup.enter="loadItems"
+                  @clear="loadItems"
                 />
-                <el-button size="small" @click="loadWishlists">{{ $t('common.refresh') }}</el-button>
+                <el-select v-model="itemCategory" clearable :placeholder="$t('admin.allCategories')" style="width: 140px" @change="loadItems">
+                  <el-option v-for="c in categories" :key="c.value" :label="$t('tradeCat.' + c.key)" :value="c.value" />
+                </el-select>
+                <el-button size="small" @click="loadItems">{{ $t('common.refresh') }}</el-button>
               </div>
             </div>
-            <el-table :data="wishList" size="small">
-              <el-table-column prop="id" label="ID" width="70" />
+            <el-table :data="itemList" size="small">
+              <el-table-column prop="id" label="ID" width="60" />
               <el-table-column :label="$t('admin.cover')" width="70">
                 <template #default="{ row }">
-                  <img
-                    v-if="row.cover || row.book?.bookCover"
-                    :src="resolveImg(row.book?.bookCover || row.cover)"
-                    style="width: 36px; height: 50px; object-fit: cover; border-radius: 4px"
-                    @error="imgFallback"
-                  />
+                  <img v-if="itemCover(row)" :src="itemCover(row)" style="width:36px;height:46px;object-fit:cover;border-radius:4px" @error="imgFallback" />
                 </template>
               </el-table-column>
-              <el-table-column :label="$t('admin.wishlistBook')" min-width="180">
+              <el-table-column :label="$t('admin.itemTitle')" min-width="180">
+                <template #default="{ row }">{{ row.bookTitle || row.title }}</template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.itemCategory')" width="168">
                 <template #default="{ row }">
-                  {{ row.book?.bookTitle || row.title || (row.isbn ? `ISBN ${row.isbn}` : '—') }}
+                  <el-select :model-value="row.category" size="small" class="item-cat" @change="(v) => changeItemCategory(row, v)">
+                    <el-option v-for="c in categories" :key="c.value" :label="$t('tradeCat.' + c.key)" :value="c.value" />
+                  </el-select>
                 </template>
               </el-table-column>
-              <el-table-column :label="$t('publish.author')" width="140">
-                <template #default="{ row }">{{ row.book?.bookAuthor || row.author || '—' }}</template>
+              <el-table-column :label="$t('admin.itemPrice')" width="90">
+                <template #default="{ row }">¥{{ row.price }}</template>
               </el-table-column>
-              <el-table-column prop="isbn" label="ISBN" width="140" />
-              <el-table-column :label="$t('admin.wishlistUser')" width="190">
+              <el-table-column :label="$t('admin.itemSeller')" width="150">
+                <template #default="{ row }">{{ row.seller?.nickname || '—' }}</template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.status')" width="90">
                 <template #default="{ row }">
-                  <span v-if="row.user">{{ row.user.nickname || row.user.userNo }}<span class="muted-text" v-if="row.user.userNo">（{{ row.user.userNo }}）</span></span>
-                  <span v-else class="muted-text">—</span>
+                  <el-tag size="small" :type="row.status === 'available' ? 'success' : 'info'">
+                    {{ row.status === 'available' ? t('common.available') : t('common.sold') }}
+                  </el-tag>
                 </template>
-              </el-table-column>
-              <el-table-column :label="$t('admin.wishlistTime')" width="160">
-                <template #default="{ row }">{{ formatDate(row.createdAt || row.created_at) }}</template>
               </el-table-column>
               <el-table-column :label="$t('common.actions')" width="90" fixed="right">
                 <template #default="{ row }">
-                  <el-button size="small" text type="danger" @click="removeWish(row)">{{ $t('admin.wishlistDelete') }}</el-button>
+                  <el-button size="small" text type="danger" @click="removeItem(row)">{{ $t('common.delete') }}</el-button>
                 </template>
               </el-table-column>
             </el-table>
-            <el-empty v-if="!wishList.length" :description="$t('admin.wishlistEmpty')" :image-size="80" />
+            <div class="pager" v-if="itemTotal > itemPageSize">
+              <el-pagination
+                layout="prev, pager, next"
+                :total="itemTotal"
+                :page-size="itemPageSize"
+                v-model:current-page="itemPage"
+                @current-change="loadItems"
+              />
+            </div>
+          </div>
+        </template>
+
+        <!-- ===== 广场管理 ===== -->
+        <template v-if="activeSection === 'plaza'">
+          <div class="panel">
+            <div class="panel-toolbar">
+              <h3 class="panel-title">{{ $t('admin.plazaManage') }}</h3>
+              <div class="toolbar-right">
+                <el-input
+                  v-model="plazaKeyword"
+                  :placeholder="$t('admin.plazaContent')"
+                  clearable
+                  style="width: 220px"
+                  @keyup.enter="loadPlaza"
+                  @clear="loadPlaza"
+                />
+                <el-button size="small" @click="loadPlaza">{{ $t('common.refresh') }}</el-button>
+              </div>
+            </div>
+            <el-table :data="plazaList" size="small">
+              <el-table-column :label="$t('admin.plazaAuthor')" width="170">
+                <template #default="{ row }">
+                  {{ row.author?.nickname || '—' }}<span class="muted-text" v-if="row.author?.userNo">（{{ row.author.userNo }}）</span>
+                </template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.plazaContent')" min-width="240">
+                <template #default="{ row }">
+                  <span class="plaza-content">{{ row.content || '—' }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.plazaImages')" width="150">
+                <template #default="{ row }">
+                  <div class="plaza-thumbs" v-if="row.images && row.images.length">
+                    <img v-for="(img, i) in row.images.slice(0, 3)" :key="i" :src="resolveImg(img)" @error="imgFallback" />
+                    <span v-if="row.images.length > 3" class="more">+{{ row.images.length - 3 }}</span>
+                  </div>
+                  <span v-else class="muted-text">—</span>
+                </template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.plazaTime')" width="150">
+                <template #default="{ row }">{{ formatDate(row.created_at || row.createdAt) }}</template>
+              </el-table-column>
+              <el-table-column :label="$t('admin.plazaStatus')" width="90">
+                <template #default="{ row }">
+                  <el-tag size="small" :type="row.status === 'active' ? 'success' : 'info'">
+                    {{ row.status === 'active' ? t('admin.plazaActive') : t('admin.plazaHidden') }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column :label="$t('common.actions')" width="150" fixed="right">
+                <template #default="{ row }">
+                  <el-button size="small" text type="primary" @click="togglePlaza(row)">
+                    {{ row.status === 'active' ? t('admin.plazaHide') : t('admin.plazaShow') }}
+                  </el-button>
+                  <el-button size="small" text type="danger" @click="removePlaza(row)">{{ $t('common.delete') }}</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            <el-empty v-if="!plazaList.length" :description="$t('plaza.empty')" :image-size="80" />
           </div>
         </template>
 
@@ -389,34 +423,6 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="showBoardEditDialog" :title="$t('admin.editBoardTitle')" width="520px">
-      <el-form :model="boardEditForm" label-position="top">
-        <div class="form-grid">
-          <el-form-item :label="$t('publish.bookTitle')">
-            <el-input v-model="boardEditForm.bookTitle" :placeholder="$t('publish.placeholderTitle')" />
-          </el-form-item>
-          <el-form-item :label="$t('publish.author')">
-            <el-input v-model="boardEditForm.bookAuthor" :placeholder="$t('publish.placeholderAuthor')" />
-          </el-form-item>
-          <el-form-item :label="$t('publish.publisher')">
-            <el-input v-model="boardEditForm.bookPublisher" :placeholder="$t('publish.placeholderPublisher')" />
-          </el-form-item>
-          <el-form-item :label="$t('publish.edition')">
-            <el-input v-model="boardEditForm.edition" :placeholder="$t('publish.editionPlaceholder')" />
-          </el-form-item>
-          <el-form-item label="ISBN">
-            <el-input v-model="boardEditForm.isbn" :placeholder="$t('admin.isbnPlaceholder')" />
-          </el-form-item>
-          <el-form-item :label="$t('admin.originalPrice')">
-            <el-input-number v-model="boardEditForm.originalPrice" :min="0" :precision="2" style="width: 100%" />
-          </el-form-item>
-        </div>
-      </el-form>
-      <template #footer>
-        <el-button @click="showBoardEditDialog = false">{{ $t('common.cancel') }}</el-button>
-        <el-button type="primary" :loading="boardSaving" @click="submitBoardEdit">{{ $t('common.save') }}</el-button>
-      </template>
-    </el-dialog>
    </div>
 </template>
 
@@ -427,21 +433,23 @@ import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus/es/components/message/index'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index'
 import {
-  DataBoard, ChatDotRound, Bell, Reading, User, Back, Files, ShoppingCart
+  DataBoard, ChatDotRound, Bell, Reading, User, Back, Box, ChatLineSquare
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { hotspotApi, notificationApi, adminApi, booksApi } from '@/api'
+import { TRADE_CATEGORIES } from '@/constants/categories'
 import { resolveImg, imgFallback } from '@/utils/image'
 
 const userStore = useUserStore()
 const activeSection = ref('dashboard')
+const categories = TRADE_CATEGORIES
 const stats = ref(null)
 
 const statCards = computed(() => [
   { label: t('admin.statUsers'), value: stats.value?.userCount ?? '-', icon: User, color: 'linear-gradient(135deg,#5c6bc0,#3949ab)' },
   { label: t('admin.statProducts'), value: stats.value?.productCount ?? '-', icon: Reading, color: 'linear-gradient(135deg,#26a69a,#00897b)' },
   { label: t('admin.statOrders'), value: stats.value?.orderCount ?? '-', icon: DataBoard, color: 'linear-gradient(135deg,#ec407a,#d81b60)' },
-  { label: t('admin.statHotspots'), value: stats.value?.hotspotCount ?? '-', icon: ChatDotRound, color: 'linear-gradient(135deg,#ffa726,#fb8c00)' },
+  { label: t('admin.statPlaza'), value: stats.value?.plazaCount ?? '-', icon: ChatLineSquare, color: 'linear-gradient(135deg,#26c6da,#00838f)' },
   { label: t('admin.statBanned'), value: stats.value?.bannedCount ?? '-', icon: Bell, color: 'linear-gradient(135deg,#ef5350,#e53935)' }
 ])
 
@@ -449,8 +457,8 @@ const sectionTitle = computed(() => ({
   dashboard: t('admin.dashboard'),
   posts: t('admin.posts'),
   notifications: t('admin.notifications'),
-  boards: t('admin.boards'),
-  wishlist: t('admin.wishlist'),
+  items: t('admin.items'),
+  plaza: t('admin.plazaManage'),
   users: t('admin.users')
 }[activeSection.value]))
 
@@ -502,36 +510,9 @@ function switchSection(name) {
   activeSection.value = name
   if (name === 'posts') loadPosts()
   if (name === 'users') loadUsers()
-  if (name === 'boards') loadBoards()
-  if (name === 'wishlist') loadWishlists()
+  if (name === 'items') loadItems()
+  if (name === 'plaza') loadPlaza()
   if (name === 'notifications') loadNotifList()
-}
-
-/* ---- 求购管理 ---- */
-const wishList = ref([])
-const wishKeyword = ref('')
-
-async function loadWishlists() {
-  try {
-    const res = await adminApi.listWishlists({ keyword: wishKeyword.value })
-    wishList.value = res.data || []
-  } catch {
-    wishList.value = []
-  }
-}
-
-async function removeWish(row) {
-  const name = row.book?.bookTitle || row.title || row.isbn || `#${row.id}`
-  try {
-    await ElMessageBox.confirm(
-      t('admin.wishlistDeleteConfirm', { name }),
-      t('common.warning'),
-      { type: 'warning' }
-    )
-    await adminApi.deleteWishlist(row.id)
-    ElMessage.success(t('admin.wishlistDeleted'))
-    loadWishlists()
-  } catch {}
 }
 
 function formatDate(ts) {
@@ -541,33 +522,86 @@ function formatDate(ts) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-/* ---- 板块管理 ---- */
-const boardList = ref([])
-async function loadBoards() {
+/* ---- 物品管理 ---- */
+const itemList = ref([])
+const itemTotal = ref(0)
+const itemPage = ref(1)
+const itemPageSize = 20
+const itemKeyword = ref('')
+const itemCategory = ref('')
+
+async function loadItems() {
   try {
-    const res = await adminApi.listBoards()
-    boardList.value = res.data || []
-  } catch {}
+    const res = await adminApi.listItems({
+      keyword: itemKeyword.value,
+      category: itemCategory.value,
+      page: itemPage.value,
+      pageSize: itemPageSize
+    })
+    itemList.value = res.data?.list || []
+    itemTotal.value = res.data?.total || 0
+  } catch {
+    itemList.value = []
+    itemTotal.value = 0
+  }
 }
-async function deleteBoard(row) {
+
+function itemCover(row) {
+  const first = row.images?.[0]
+  const firstPath = typeof first === 'string' ? first : first?.imagePath
+  return resolveImg(row.bookCover || firstPath)
+}
+
+async function changeItemCategory(row, value) {
   try {
-    await ElMessageBox.confirm(t('admin.deleteBoardConfirm', { name: row.bookTitle }), t('common.warning'), { type: 'warning' })
-    await adminApi.deleteBoard(row.id)
-    ElMessage.success(t('admin.boardDeleted'))
-    loadBoards()
+    await adminApi.updateItem(row.id, { category: value })
+    row.category = value
+    ElMessage.success(t('admin.itemUpdated'))
+  } catch {
+    ElMessage.error(t('admin.itemUpdateFail'))
+    loadItems()
+  }
+}
+
+async function removeItem(row) {
+  const name = row.bookTitle || row.title || `#${row.id}`
+  try {
+    await ElMessageBox.confirm(t('admin.itemDeleteConfirm', { name }), t('common.warning'), { type: 'warning' })
+    await adminApi.deleteItem(row.id)
+    ElMessage.success(t('admin.itemDeleted'))
+    loadItems()
   } catch {}
 }
 
-async function uploadCover(row, opt) {
+/* ---- 广场管理 ---- */
+const plazaList = ref([])
+const plazaKeyword = ref('')
+
+async function loadPlaza() {
   try {
-    const fd = new FormData()
-    fd.append('cover', opt.file)
-    const res = await adminApi.updateBoardCover(row.id, fd)
-    ElMessage.success(t('admin.coverUpdated'))
-    loadBoards()
+    const res = await adminApi.listPlaza({ keyword: plazaKeyword.value, pageSize: 50 })
+    plazaList.value = res.data?.list || []
   } catch {
-    ElMessage.error(t('common.uploadFail'))
+    plazaList.value = []
   }
+}
+
+async function togglePlaza(row) {
+  const next = row.status === 'active' ? 'hidden' : 'active'
+  try {
+    await adminApi.updatePlaza(row.id, { status: next })
+    row.status = next
+    ElMessage.success(next === 'hidden' ? t('admin.plazaHiddenTip') : t('admin.plazaVisibleTip'))
+  } catch {}
+}
+
+async function removePlaza(row) {
+  try {
+    await ElMessageBox.confirm(t('admin.plazaDeleteConfirm'), t('common.warning'), { type: 'warning' })
+    await adminApi.deletePlaza(row.id)
+    ElMessage.success(t('common.deleted'))
+    loadPlaza()
+  } catch {}
 }
 
 /* ---- 通知管理 ---- */
@@ -709,47 +743,6 @@ async function submitBalance() {
     showBalanceDialog.value = false
     loadUsers()
   } catch {}
-}
-
-const showBoardEditDialog = ref(false)
-const boardSaving = ref(false)
-const boardEditForm = ref({ id: null, bookTitle: '', bookAuthor: '', bookPublisher: '', edition: '', isbn: '', originalPrice: 0 })
-
-function openBoardEdit(row) {
-  boardEditForm.value = {
-    id: row.id,
-    bookTitle: row.bookTitle || '',
-    bookAuthor: row.bookAuthor || '',
-    bookPublisher: row.bookPublisher || '',
-    edition: row.edition || '',
-    isbn: row.isbn || '',
-    originalPrice: Number(row.originalPrice) || 0
-  }
-  showBoardEditDialog.value = true
-}
-
-async function submitBoardEdit() {
-  const f = boardEditForm.value
-  if (!f.bookTitle.trim()) {
-    ElMessage.warning(t('admin.needBoardTitle'))
-    return
-  }
-  boardSaving.value = true
-  try {
-    await adminApi.updateBoard(f.id, {
-      bookTitle: f.bookTitle,
-      bookAuthor: f.bookAuthor,
-      bookPublisher: f.bookPublisher,
-      edition: f.edition,
-      isbn: f.isbn,
-      originalPrice: f.originalPrice
-    })
-    ElMessage.success(t('admin.boardUpdated'))
-    showBoardEditDialog.value = false
-    loadBoards()
-  } catch {} finally {
-    boardSaving.value = false
-  }
 }
 
 onMounted(() => {
@@ -953,6 +946,41 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
 }
+.item-cat {
+  width: 100%;
+}
+.item-cat :deep(.el-select__wrapper) {
+  min-height: 28px;
+}
+.plaza-content {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.5;
+  color: #37474f;
+}
+.plaza-thumbs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.plaza-thumbs img {
+  width: 34px;
+  height: 34px;
+  object-fit: cover;
+  border-radius: 5px;
+}
+.plaza-thumbs .more {
+  font-size: 11px;
+  color: #90a4ae;
+}
+.pager {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
 .muted-text {
   color: #9a8a6c;
   font-size: 13px;

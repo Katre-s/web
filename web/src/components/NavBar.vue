@@ -1,7 +1,10 @@
 <template>
   <header class="navbar">
     <div class="nav-inner">
-      <span class="brand-mobile">文衡</span>
+      <router-link to="/" class="brand">
+        <BrandLogo :size="30" />
+        <span class="brand-name">小咸鱼</span>
+      </router-link>
       <div class="nav-left">
         <div class="avatar-box">
           <img :src="resolveImg(userStore.userInfo?.avatar) || defaultAvatar" class="avatar" />
@@ -10,27 +13,31 @@
       </div>
 
       <nav class="nav-links">
-        <router-link to="/" class="nav-item">
+        <router-link to="/" class="nav-item" :title="$t('nav.home')">
           <el-icon><HomeFilled /></el-icon>
           <span>{{ $t('nav.home') }}</span>
         </router-link>
-        <router-link to="/trade" class="nav-item">
+        <router-link to="/trade" class="nav-item" :title="$t('nav.trade')">
           <el-icon><ShoppingBag /></el-icon>
           <span>{{ $t('nav.trade') }}</span>
         </router-link>
-        <router-link to="/chat" class="nav-item">
+        <router-link to="/plaza" class="nav-item" :title="$t('nav.plaza')">
+          <el-icon><ChatLineSquare /></el-icon>
+          <span>{{ $t('nav.plaza') }}</span>
+        </router-link>
+        <router-link to="/chat" class="nav-item" :title="$t('nav.chat')">
           <el-icon><ChatDotRound /></el-icon>
           <span>{{ $t('nav.chat') }}</span>
         </router-link>
-        <router-link to="/ai-chat" class="nav-item" @click="restoreFloat">
+        <router-link to="/ai-chat" class="nav-item" :title="$t('nav.ai')" @click="restoreFloat">
           <el-icon><MagicStick /></el-icon>
           <span>{{ $t('nav.ai') }}</span>
         </router-link>
-        <router-link to="/cart" class="nav-item">
+        <router-link to="/cart" class="nav-item" :title="$t('nav.cart')">
           <el-icon><ShoppingCart /></el-icon>
           <span>{{ $t('nav.cart') }}</span>
         </router-link>
-        <router-link to="/profile" class="nav-item">
+        <router-link to="/profile" class="nav-item" :title="$t('nav.profile')">
           <el-icon><User /></el-icon>
           <span>{{ $t('nav.profile') }}</span>
         </router-link>
@@ -104,14 +111,15 @@
 import { ref, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
-import { HomeFilled, ShoppingBag, ChatDotRound, User, Bell, Setting, ShoppingCart, MagicStick, CaretBottom } from '@element-plus/icons-vue'
+import { HomeFilled, ShoppingBag, ChatLineSquare, ChatDotRound, User, Bell, Setting, ShoppingCart, MagicStick, CaretBottom } from '@element-plus/icons-vue'
 import { notificationApi } from '@/api'
 import { setLang, currentLang } from '@/i18n'
 import { resolveImg } from '@/utils/image'
+import BrandLogo from '@/components/BrandLogo.vue'
 
 const userStore = useUserStore()
 const router = useRouter()
-const defaultAvatar = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><circle cx="20" cy="20" r="20" fill="%2342a5f5"/><text x="50%" y="50%" fill="%23fff" text-anchor="middle" dy=".35em" font-size="16">文</text></svg>'
+const defaultAvatar = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><circle cx="20" cy="20" r="20" fill="%2310667a"/><text x="50%" y="50%" fill="%23fff" text-anchor="middle" dy=".35em" font-size="15">鱼</text></svg>'
 
 const isAdmin = computed(() => userStore.userInfo?.role === 'admin')
 
@@ -212,6 +220,10 @@ onMounted(loadNotifications)
   font-size: 15px;
   font-weight: 600;
   color: var(--nav-text-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 110px;
 }
 
 .nav-links {
@@ -224,6 +236,7 @@ onMounted(loadNotifications)
   align-items: center;
   gap: 6px;
   padding: 8px 18px;
+  white-space: nowrap;
   border-radius: 12px;
   color: var(--nav-text);
   font-size: 15px;
@@ -389,8 +402,64 @@ onMounted(loadNotifications)
 .mobile-only {
   display: none;
 }
-.brand-mobile {
-  display: none;
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-right: 16px;
+  flex-shrink: 0;
+}
+.brand-name {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--nav-text-strong);
+  white-space: nowrap;
+}
+
+/* 中等宽度：先收窄导航，避免文字被挤成竖排 */
+@media (max-width: 1180px) {
+  .nav-inner {
+    padding: 0 16px;
+  }
+  .brand {
+    margin-right: 10px;
+  }
+  .brand-name {
+    display: none;
+  }
+  .nav-links {
+    gap: 2px;
+  }
+  .nav-item {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+  .nav-right {
+    gap: 8px;
+  }
+  .username {
+    max-width: 80px;
+  }
+}
+
+/* 更窄（仍在桌面布局内）：只留图标，文字进 title 提示 */
+@media (max-width: 1040px) {
+  .nav-links {
+    gap: 0;
+  }
+  .nav-links .nav-item span {
+    display: none;
+  }
+  .nav-item {
+    padding: 9px 12px;
+  }
+  .nav-right {
+    gap: 6px;
+  }
+  .lang-btn {
+    padding: 5px 8px;
+  }
 }
 
 /* 宽屏/桌面客户端：导航与内容同宽 */
@@ -416,12 +485,12 @@ onMounted(loadNotifications)
   .nav-right {
     display: none;
   }
-  .brand-mobile {
-    display: block;
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--nav-text-strong);
-    letter-spacing: 2px;
+  .brand {
+    margin-right: 8px;
+    gap: 5px;
+  }
+  .brand-name {
+    font-size: 15px;
   }
   .notif-panel {
     max-height: 60vh;

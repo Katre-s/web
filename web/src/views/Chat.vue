@@ -218,7 +218,7 @@ async function sendMsg() {
   }
 }
 
-// 从商品页/求购页带着 conv 参数进来时，等会话列表加载完自动打开
+// 从商品页带着 conv 参数进来时，等会话列表加载完自动打开
 watch(
   () => route.query.conv,
   async (val) => {

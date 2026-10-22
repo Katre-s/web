@@ -12,6 +12,10 @@
       <el-icon><ShoppingBag /></el-icon>
       <span>{{ $t('tabbar.trade') }}</span>
     </router-link>
+    <router-link to="/plaza" class="tab-item">
+      <el-icon><ChatLineSquare /></el-icon>
+      <span>{{ $t('tabbar.plaza') }}</span>
+    </router-link>
     <div class="tab-item tab-publish" @click="goPublish">
       <div class="publish-btn">
         <el-icon><Plus /></el-icon>
@@ -110,7 +114,7 @@ import { setLang, currentLang } from '@/i18n'
 import { notificationApi, conversationApi } from '@/api'
 import { resolveImg } from '@/utils/image'
 import {
-  HomeFilled, ShoppingBag, ChatDotRound, User, Plus, MagicStick,
+  HomeFilled, ShoppingBag, ChatLineSquare, ChatDotRound, User, Plus, MagicStick,
   ArrowLeft, ArrowRight, ArrowDown, Bell, ShoppingCart, Setting, SwitchButton, Comment
 } from '@element-plus/icons-vue'
 

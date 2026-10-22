@@ -11,8 +11,8 @@
         <p class="detail-isbn" v-if="product.isbn">ISBN：{{ product.isbn }}</p>
         <div class="detail-price">¥{{ product.price }}</div>
         <div class="detail-meta">
-          <span class="meta-tag">{{ product.condition }}</span>
-          <span class="meta-tag" v-if="product.category">{{ product.category }}</span>
+          <span class="meta-tag" v-if="product.condition">{{ product.condition }}</span>
+          <span class="meta-tag" v-if="product.category">{{ $t('tradeCat.' + categoryKey(product.category)) }}</span>
         </div>
         <div class="detail-desc" v-if="product.description">
           <h3>{{ $t('publish.description') }}</h3>
@@ -38,6 +38,7 @@ import { ElMessage } from 'element-plus/es/components/message/index'
 import { productApi, cartApi, conversationApi } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { resolveImg, imgFallback } from '@/utils/image'
+import { categoryKey } from '@/constants/categories'
 
 const route = useRoute()
 const router = useRouter()

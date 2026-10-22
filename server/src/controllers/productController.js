@@ -1,6 +1,7 @@
 import { Op } from 'sequelize'
 import { Product, ProductImage, User, Favorite, Book, Order, OrderItem, CartItem } from '../models/index.js'
 import { success, fail } from '../utils/response.js'
+import { normalizeCategory, isBookCategory } from '../config/categories.js'
 
 const orderMap = {
   newest: [['created_at', 'DESC']],
@@ -61,7 +62,10 @@ export async function list(req, res, next) {
       order: orderMap[sort] || orderMap.newest,
       offset: (page - 1) * pageSize,
       limit: Number(pageSize),
-      include: [{ model: ProductImage, as: 'images' }]
+      include: [
+        { model: ProductImage, as: 'images' },
+        { model: User, as: 'seller', attributes: ['id', 'nickname', 'campus'] }
+      ]
     })
     success(res, rows, `共${count}条`)
   } catch (err) { next(err) }
@@ -81,8 +85,14 @@ export async function create(req, res, next) {
   try {
     const userId = req.user.id
     const { isbn, bookTitle, bookAuthor, bookPublisher, bookCover, originalPrice,
-            edition, delivery, price, condition, category, description } = req.body
-    const title = bookTitle || req.body.title || '未命名书籍'
+            edition, delivery, price, condition, description } = req.body
+    const category = normalizeCategory(req.body.category)
+    const isBook = isBookCategory(category)
+    // 图书沿用书名，其他类目用通用「商品标题」
+    const title = isBook
+      ? (bookTitle || req.body.title || '')
+      : (req.body.title || bookTitle || '')
+    if (!title) return fail(res, isBook ? '请填写书名' : '请填写商品标题')
 
     let finalCover = ''
     if (req.files && req.files.length) {
@@ -93,10 +103,20 @@ export async function create(req, res, next) {
     }
 
     const product = await Product.create({
-      userId, title, isbn: (isbn || '').replace(/[-\s]/g, ''), bookTitle, bookAuthor, bookPublisher,
+      userId,
+      title,
+      isbn: isBook ? (isbn || '').replace(/[-\s]/g, '') : '',
+      bookTitle: isBook ? (bookTitle || title) : '',
+      bookAuthor: isBook ? (bookAuthor || '') : '',
+      bookPublisher: isBook ? (bookPublisher || '') : '',
       bookCover: finalCover,
-      edition: edition || '', delivery: delivery !== 'false' && delivery !== false,
-      originalPrice: originalPrice || 0, price, condition, category, description,
+      edition: isBook ? (edition || '') : '',
+      delivery: delivery !== 'false' && delivery !== false,
+      originalPrice: isBook ? (originalPrice || 0) : 0,
+      price,
+      condition: condition || (category === '租房' ? '' : '九成新'),
+      category,
+      description,
       status: 'available'
     })
 
@@ -110,10 +130,13 @@ export async function create(req, res, next) {
       )
     }
 
-    await findOrCreateBook({
-      isbn, bookTitle: title, bookAuthor, bookPublisher,
-      bookCover: bookCover || '', edition, originalPrice, userId
-    })
+    // 只有图书才维护「书目板块」，其他类目是独立的二手商品
+    if (isBook) {
+      await findOrCreateBook({
+        isbn, bookTitle: title, bookAuthor, bookPublisher,
+        bookCover: bookCover || '', edition, originalPrice, userId
+      })
+    }
 
     success(res, product, '发布成功')
   } catch (err) { next(err) }

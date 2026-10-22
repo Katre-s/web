@@ -2,11 +2,11 @@
  * AI 可执行能力层（Agent Tools）
  * ------------------------------------------------------------------
  * 背景：此前的 AI 只会返回 intent + 文案，前端最多跳个页面，
- *       "帮我加购物车 / 上架求购 / 卖这本书" 这类要求完全落不了地。
+ *       "帮我加购物车 / 卖这本书 / 打开某页面" 这类要求完全落不了地。
  *
  * 方案：把"模型自由发挥"和"真实后端操作"解耦——
  *   1) parseIntent() 用规则引擎从自然语言里提取动作 + 实体（书名/ISBN/价格/页面）；
- *   2) runAgentAction() 用当前登录用户真正执行数据库写操作（购物车、求购、商品）；
+ *   2) runAgentAction() 用当前登录用户真正执行数据库写操作（购物车、商品）；
  *   3) 返回给前端的 actions 只描述"怎么跳转/怎么预填"，不做二次写操作。
  *
  * 为什么不用纯 function calling：线上是本地微调的 4B 模型（qwen3-4B），
@@ -14,13 +14,12 @@
  */
 
 import { Op } from 'sequelize'
-import { Product, Wishlist, Book, CartItem } from '../models/index.js'
+import { Product, Book, CartItem } from '../models/index.js'
 
 /* ------------------------------ 页面别名 ------------------------------ */
 const PAGES = [
   { keys: ['购物车'], path: '/cart', name: '购物车' },
   { keys: ['我的订单', '订单'], path: '/orders', name: '我的订单' },
-  { keys: ['求购广场', '求购页'], path: '/trade?tab=buy', name: '求购广场' },
   { keys: ['交易市场', '交易页', '二手市场', '交易'], path: '/trade', name: '交易页' },
   { keys: ['发布页', '发布', '上架页'], path: '/publish', name: '发布页' },
   { keys: ['书单'], path: '/booklist', name: '书单上传' },
@@ -33,7 +32,7 @@ const PAGES = [
 /* ------------------------------ 文本工具 ------------------------------ */
 const HOWTO_RE = /(怎么|怎样|如何|在哪|哪里|教程|步骤|流程|为什么|能不能|可不可以|可以吗|多少钱|卖多少|什么价|价格|值多少|价钱|功能)/
 const PARTICLE_RE = /(这本书|那本书|一书|的书|的价格|多少钱|价格|吧|呢|啊|呀|哦|谢谢|嘛)+$/
-// 页面词被误当成书名时的兜底（如"打开求购广场"里的"广场"）
+// 页面词被误当成书名时的兜底（如"打开交易页"里的"交易"）
 const PAGE_STOPWORDS = ['广场', '购物车', '订单', '页面', '交易', '发布', '首页', '主页', '求购', '清单', '市场', '消息', '对话', '个人中心', '书架', '书单']
 // 指代词不能被当成书名（"那本书" 曾被抓成《书》，导致去搜"书"）
 const GENERIC_TITLES = ['书', '本', '一本', '这本书', '那本书', '这本', '那本', '这个', '那个', '它', '这些', '那些']
@@ -144,7 +143,7 @@ export function parseIntent(raw) {
     return { action: 'cart_add', title, isbn }
   }
 
-  // 1) 纯"打开某页面"（没有点名具体书）→ 先判跳转，避免"打开求购广场"被当成求购一本书
+  // 1) 纯"打开某页面"（没有点名具体书）→ 先判跳转，避免"打开交易页"被当成书名
   if (page && /(打开|进入|去|跳到|跳转|带我去|看看|查看)/.test(msg) && !/[《【]/.test(msg)) {
     return { action: 'navigate', page }
   }
@@ -157,11 +156,6 @@ export function parseIntent(raw) {
   // 3) 购物车查询
   if (/购物车/.test(msg) && /(有什么|有多少|看看|查看|里面|清单|几件|我的)/.test(msg)) {
     return { action: 'cart_list' }
-  }
-
-  // 4) 上架求购
-  if (/(求购|收购|想收|求一本|收一本|求书)/.test(msg)) {
-    return { action: 'wish_add', ref, title, isbn }
   }
 
   // 5) 卖书 / 上架书籍（有价格才直接创建，没价格就预填发布页）
@@ -205,7 +199,6 @@ export async function runAgentAction(parsed, userId) {
   switch (parsed.action) {
     case 'cart_add': return addToCart(parsed, userId)
     case 'cart_list': return listCart(userId)
-    case 'wish_add': return addWish(parsed, userId)
     case 'publish': return publishBook(parsed, userId)
     case 'search': return searchBooks(parsed)
     case 'price_query': return priceQuery(parsed)
@@ -244,11 +237,8 @@ async function priceQuery({ title, isbn }) {
   if (!products.length) {
     return {
       intent: 'search',
-      reply: `《${title || isbn}》目前没有卖家在售，要不要上架求购？`,
-      actions: [
-        { type: 'open_wish', label: '上架求购这本书', draft: { title: title || '', isbn: isbn || '' } },
-        { type: 'navigate', path: '/trade', label: '去交易页' }
-      ]
+      reply: `《${title || isbn}》目前没有卖家在售，可以先去交易页看看同类别的东西。`,
+      actions: [{ type: 'navigate', path: '/trade', label: '去交易页' }]
     }
   }
 
@@ -285,11 +275,8 @@ async function addToCart({ title, isbn }, userId) {
   if (!product) {
     return {
       intent: 'buy',
-      reply: `没找到《${title || isbn}》的在售商品。要不要我帮你上架求购？有了卖家会更容易被看到。`,
-      actions: [
-        { type: 'open_wish', label: '上架求购这本书', draft: { title: title || '', isbn: isbn || '' } },
-        { type: 'navigate', path: '/trade', label: '去交易页浏览' }
-      ]
+      reply: `没找到《${title || isbn}》的在售商品，先去交易页逛逛别的书吧。`,
+      actions: [{ type: 'navigate', path: '/trade', label: '去交易页浏览' }]
     }
   }
 
@@ -324,41 +311,6 @@ async function listCart(userId) {
   }
 }
 
-async function addWish({ title, isbn }, userId) {
-  if (!title && !isbn) {
-    return {
-      intent: 'buy',
-      reply: '告诉我书名（有 ISBN 更好），我马上帮你上架求购～',
-      actions: [{ type: 'navigate', path: '/trade?tab=buy&compose=wish', label: '手动上架求购' }]
-    }
-  }
-
-  const where = isbn ? { userId, isbn } : { userId, title }
-  const dup = await Wishlist.findOne({ where })
-  if (dup) {
-    return {
-      intent: 'buy',
-      reply: `《${title || isbn}》已经在你的求购清单里了，有卖家上架我会优先展示给你。`,
-      actions: [{ type: 'navigate', path: '/trade?tab=buy', label: '去求购广场' }]
-    }
-  }
-
-  const book = await findTitles(title, isbn)
-  await Wishlist.create({
-    userId,
-    title: title || book?.bookTitle || '',
-    author: book?.bookAuthor || '',
-    isbn: isbn || book?.isbn || '',
-    cover: book?.bookCover || ''
-  })
-
-  return {
-    intent: 'buy',
-    reply: `已帮你上架求购《${title || book?.bookTitle || isbn}》，价格面议。卖家在求购广场看到后可以直接联系你。`,
-    actions: [{ type: 'navigate', path: '/trade?tab=buy', label: '查看求购广场' }]
-  }
-}
-
 async function publishBook({ title, isbn, price }, userId) {
   const book = await findTitles(title, isbn)
 
@@ -379,7 +331,7 @@ async function publishBook({ title, isbn, price }, userId) {
     edition: book?.edition || '',
     price: price || null,
     condition: '九成新',
-    category: '教材'
+    category: '图书'
   }
 
   if (!draft.bookTitle) {
@@ -479,11 +431,8 @@ async function searchBooks({ title, isbn }) {
   if (!books.length) {
     return {
       intent: 'search',
-      reply: `暂时没找到《${title || isbn}》。要不要我帮你上架求购，等有卖家出现？`,
-      actions: [
-        { type: 'open_wish', label: '上架求购', draft: { title: title || '', isbn: isbn || '' } },
-        { type: 'navigate', path: '/trade', label: '去交易页' }
-      ]
+      reply: `暂时没找到《${title || isbn}》，可以换个书名或 ISBN 再试试。`,
+      actions: [{ type: 'navigate', path: '/trade', label: '去交易页' }]
     }
   }
 
@@ -498,12 +447,12 @@ async function searchBooks({ title, isbn }) {
     intent: 'search',
     reply: count
       ? `找到《${top.bookTitle}》，市场上有 ${count} 个卖家在售，最低 ¥${lowest}${more}。点下面的按钮直接去看。`
-      : `找到了《${top.bookTitle}》，但目前还没有卖家在售${more}。可以先上架求购。`,
+      : `找到了《${top.bookTitle}》，但目前还没有卖家在售${more}。`,
     actions: books.slice(0, 3).map(b => ({
       type: 'navigate',
       path: `/book/${encodeURIComponent(b.id || b.isbn || b.bookTitle)}`,
       label: `看《${b.bookTitle}》`
-    })).concat(count ? [] : [{ type: 'open_wish', label: '上架求购这本书', draft: { title: top.bookTitle, isbn: top.isbn || '', author: top.bookAuthor || '' } }])
+    }))
   }
 }
 

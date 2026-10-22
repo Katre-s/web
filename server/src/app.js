@@ -13,10 +13,10 @@ import bookRoutes from './routes/book.js'
 import booksRoutes from './routes/books.js'
 import cartRoutes from './routes/cart.js'
 import orderRoutes from './routes/orders.js'
-import wishlistRoutes from './routes/wishlist.js'
 import favoriteRoutes from './routes/favorites.js'
 import messageRoutes from './routes/messages.js'
 import hotspotRoutes from './routes/hotspots.js'
+import plazaRoutes from './routes/plaza.js'
 import notificationRoutes from './routes/notifications.js'
 import adminRoutes from './routes/admin.js'
 import conversationRoutes from './routes/conversations.js'
@@ -52,10 +52,10 @@ app.use('/api/book', bookRoutes)
 app.use('/api/books', booksRoutes)
 app.use('/api/cart', cartRoutes)
 app.use('/api/orders', orderRoutes)
-app.use('/api/wishlist', wishlistRoutes)
 app.use('/api/favorites', favoriteRoutes)
 app.use('/api/messages', messageRoutes)
 app.use('/api/hotspots', hotspotRoutes)
+app.use('/api/plaza', plazaRoutes)
 app.use('/api/notifications', notificationRoutes)
 app.use('/api/admin', adminRoutes)
 app.use('/api/conversations', conversationRoutes)
@@ -163,7 +163,7 @@ async function start() {
   }
 
   app.listen(PORT, () => {
-    console.log(`文衡 API 服务已启动: http://localhost:${PORT}`)
+    console.log(`徐工院小咸鱼 API 服务已启动: http://localhost:${PORT}`)
   })
 
   setInterval(async () => {

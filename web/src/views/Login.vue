@@ -1,91 +1,106 @@
 <template>
   <div class="auth-page">
-    <!-- ===== 左侧：墨韵 · 书法区 ===== -->
-    <div class="auth-left">
-      <div class="ink-wash ink-wash-1"></div>
-      <div class="ink-wash ink-wash-2"></div>
-      <div class="ink-wash ink-wash-3"></div>
-      <div class="mountain-silhouette"></div>
-
-      <div class="ink-ripple-layer">
-        <span v-for="n in 14" :key="n" class="ink-ripple" :style="rippleStyle(n)"></span>
+    <!-- ===== 左侧：小池塘品牌区 ===== -->
+    <section class="auth-brand">
+      <div class="pond">
+        <span v-for="n in 16" :key="n" class="bubble" :style="bubbleStyle(n)"></span>
+        <div class="light-beam"></div>
+        <div class="wave wave-1"></div>
+        <div class="wave wave-2"></div>
       </div>
 
-      <div class="left-content">
-        <div class="seal-logo">
-          <span>文</span>
+      <div class="brand-head">
+        <BrandLogo :size="46" />
+        <div class="brand-words">
+          <b>{{ $t('login.brandName') }}</b>
+          <span>XGXY · SECOND-HAND POND</span>
         </div>
-
-        <h1 class="calligraphy-title">文 衡</h1>
-        <div class="ornament-line">
-          <i></i><b></b><i></i>
-        </div>
-        <p class="brand-slogan">文聚学府 · 百事通达</p>
-
-        <div class="vertical-poem">
-          <span>萬</span>
-          <span>卷</span>
-          <span>诗</span>
-          <span>书</span>
-          <span>传</span>
-          <span>雅</span>
-          <span>韵</span>
-        </div>
-
-        <div class="literary-tags">
-          <span class="ltag">📖 ISBN 一键上架</span>
-          <span class="ltag">🖋 书单智能导入</span>
-          <span class="ltag">🏮 校园专属</span>
-        </div>
-
-        <p class="left-footer">—— 学生 · 书友 · 校园交易平台 ——</p>
       </div>
 
-      <div class="dangling-tassel">
-        <div class="tassel-line"></div>
-        <div class="tassel-knot"></div>
-        <div class="tassel-fringe"></div>
+      <div class="brand-body">
+        <p class="brand-kicker">{{ $t('login.brandKicker') }}</p>
+        <h1 class="brand-title">
+          {{ $t('login.brandSloganTop') }}<br />
+          <em>{{ $t('login.brandSloganBottom') }}</em>
+        </h1>
+        <p class="brand-desc">{{ $t('login.brandDesc') }}</p>
+
+        <ul class="brand-points">
+          <li>
+            <i>🛡️</i>
+            <div>
+              <b>{{ $t('login.point1') }}</b>
+              <span>{{ $t('login.point1d') }}</span>
+            </div>
+          </li>
+          <li>
+            <i>🐟</i>
+            <div>
+              <b>{{ $t('login.point2') }}</b>
+              <span>{{ $t('login.point2d') }}</span>
+            </div>
+          </li>
+          <li>
+            <i>💸</i>
+            <div>
+              <b>{{ $t('login.point3') }}</b>
+              <span>{{ $t('login.point3d') }}</span>
+            </div>
+          </li>
+        </ul>
       </div>
-    </div>
 
-    <!-- ===== 右侧：宣纸 · 表单区 ===== -->
-    <div class="auth-right">
-      <div class="paper-texture"></div>
-      <div class="corner-badge">文衡</div>
-      <div class="ink-splatter"></div>
-      <div class="right-poem">
-        <p>非学无以广才</p>
-        <p>非志无以成学</p>
+      <div class="brand-art">
+        <BrandLogo :size="196" />
       </div>
 
+      <p class="brand-foot">{{ $t('login.brandFoot') }}</p>
+    </section>
 
-      <div class="auth-form-wrapper">
-        <div class="form-header">
-          <h2 class="form-title">{{ isLogin ? $t('login.title') : $t('login.titleReg') }}</h2>
-          <div class="title-ornament">
-            <span class="to-line"></span>
-            <span class="to-dot"></span>
-            <span class="to-line"></span>
-          </div>
-          <p class="form-subtitle">{{ isLogin ? $t('login.subtitle') : $t('login.subtitleReg') }}</p>
+    <!-- ===== 右侧：登录 / 注册 ===== -->
+    <section class="auth-panel">
+      <div class="panel-card">
+        <div class="panel-brand">
+          <BrandLogo :size="34" />
+          <b>{{ $t('login.brandName') }}</b>
+        </div>
+
+        <header class="panel-head">
+          <p class="eyebrow">{{ isLogin ? 'WELCOME BACK' : 'JOIN THE POND' }}</p>
+          <h2>{{ isLogin ? $t('login.loginWelcome') : $t('login.regWelcome') }}</h2>
+          <p class="panel-sub">{{ isLogin ? $t('login.loginHint') : $t('login.regHint') }}</p>
+        </header>
+
+        <div class="mode-switch">
+          <span class="mode-thumb" :class="{ right: !isLogin }"></span>
+          <button type="button" :class="{ active: isLogin }" @click="isLogin = true">
+            {{ $t('login.submit') }}
+          </button>
+          <button type="button" :class="{ active: !isLogin }" @click="isLogin = false">
+            {{ $t('login.submitReg') }}
+          </button>
         </div>
 
         <transition name="form-fade" mode="out-in">
           <!-- 登录 -->
-          <el-form :model="loginForm" v-if="isLogin" label-position="top" @submit.prevent="handleLogin" key="login">
+          <el-form :model="loginForm" v-if="isLogin" label-position="top" @submit.prevent="handleLogin" key="login" class="auth-form">
             <el-form-item>
               <el-input v-model="loginForm.email" :placeholder="$t('login.email')" size="large" prefix-icon="Message" />
             </el-form-item>
             <el-form-item>
               <el-input v-model="loginForm.password" type="password" :placeholder="$t('login.password')" show-password size="large" prefix-icon="Lock" />
             </el-form-item>
-            <el-button type="primary" round :loading="loading" @click="handleLogin" class="submit-btn">
-              <span>{{ $t('login.submit') }}</span>
+            <el-button type="primary" :loading="loading" @click="handleLogin" class="submit-btn">
+              {{ $t('login.submit') }}
+              <span class="arrow">→</span>
             </el-button>
+            <div class="link-row">
+              <span class="forgot-link" @click="goForgot">{{ $t('login.forgot') }}</span>
+            </div>
           </el-form>
 
           <!-- 注册 -->
-          <el-form :model="regForm" v-else label-position="top" @submit.prevent="handleRegister" key="register">
+          <el-form :model="regForm" v-else label-position="top" @submit.prevent="handleRegister" key="register" class="auth-form">
             <div class="field-row two">
               <el-form-item>
                 <el-input v-model="regForm.nickname" placeholder="昵称" size="large" prefix-icon="User" />
@@ -107,13 +122,8 @@
                   :class="{ active: regForm.campus === c }"
                   @click="regForm.campus = c"
                 >
-                  <span class="campus-icon">
-                    <svg v-if="c === '一期'" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 18v-6a2 2 0 0 1 2-2h3v8H3z M8 10h8M8 10v8h8v-8M16 12a5 5 0 0 1 5 5v1h-5"/></svg>
-                    <svg v-else-if="c === '二期'" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M3 12l4-4M3 12l4 4M21 12l-4-4M21 12l-4 4"/></svg>
-                    <svg v-else viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20v-8l8-7 8 7v8M4 12h16M9 20v-6h6v6"/></svg>
-                  </span>
+                  <span class="campus-dot"></span>
                   <span class="campus-name">{{ c }}</span>
-                  <span class="campus-check" v-if="regForm.campus === c">✓</span>
                 </div>
               </div>
             </el-form-item>
@@ -135,20 +145,20 @@
             <el-form-item>
               <el-input v-model="regForm.confirmPassword" type="password" :placeholder="$t('login.confirm')" show-password size="large" prefix-icon="Lock" />
             </el-form-item>
-            <el-button type="primary" round :loading="loading" @click="handleRegister" class="submit-btn">
-              <span>{{ $t('login.submitReg') }}</span>
+            <el-button type="primary" :loading="loading" @click="handleRegister" class="submit-btn">
+              {{ $t('login.submitReg') }}
+              <span class="arrow">→</span>
             </el-button>
           </el-form>
         </transition>
 
-        <div class="toggle-area">
-          <span class="toggle-text" @click="toggleMode">
-            {{ isLogin ? $t('login.toggleReg') : $t('login.toggleLogin') }}
-          </span>
-          <span v-if="isLogin" class="forgot-link" @click="goForgot">{{ $t('login.forgot') }}</span>
-        </div>
+        <p class="switch-hint" @click="toggleMode">
+          {{ isLogin ? $t('login.toggleReg') : $t('login.toggleLogin') }}
+        </p>
       </div>
-    </div>
+
+      <p class="panel-foot">{{ $t('login.brandFoot') }}</p>
+    </section>
   </div>
 </template>
 
@@ -159,6 +169,7 @@ import { ElMessage } from 'element-plus/es/components/message/index'
 
 import { useUserStore } from '@/stores/user'
 import { authApi } from '@/api'
+import BrandLogo from '@/components/BrandLogo.vue'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -177,12 +188,15 @@ const regForm = ref({ nickname: '', realName: '', campus: '', email: '', code: '
 
 const emailRegex = /^[\w.+-]+@[\w-]+(\.[\w-]+)+$/
 
-function rippleStyle(n) {
+function bubbleStyle(n) {
+  const size = 4 + ((n * 7) % 14)
   return {
-    left: Math.random() * 100 + '%',
-    top: Math.random() * 100 + '%',
-    animationDelay: (n * 0.7) + 's',
-    animationDuration: (6 + Math.random() * 5) + 's'
+    width: size + 'px',
+    height: size + 'px',
+    left: (n * 13) % 92 + '%',
+    top: (n * 23) % 88 + '%',
+    animationDelay: (n * 0.45) % 6 + 's',
+    animationDuration: 5 + (n % 5) + 's'
   }
 }
 
@@ -193,7 +207,6 @@ function toggleMode() {
 function goForgot() {
   router.push('/forgot-password')
 }
-
 
 async function sendCode() {
   const email = regForm.value.email.trim()
@@ -228,7 +241,7 @@ async function handleLogin() {
   loading.value = true
   try {
     await userStore.login(loginForm.value.email, loginForm.value.password)
-    ElMessage.success('登录成功')
+    ElMessage.success('登录成功，欢迎回来！')
     router.push(route.query.redirect || '/')
   } catch {
   } finally {
@@ -269,7 +282,7 @@ async function handleRegister() {
   loading.value = true
   try {
     await userStore.register(f.nickname, f.realName, f.email, f.code, f.password, f.campus)
-    ElMessage.success('注册成功，欢迎加入文衡！')
+    ElMessage.success('注册成功，欢迎加入小咸鱼！')
     router.push(route.query.redirect || '/')
   } catch {
   } finally {
@@ -286,387 +299,323 @@ onUnmounted(() => {
 .auth-page {
   display: flex;
   min-height: 100vh;
+  background: #f4faf9;
+}
+
+/* ================= 左侧品牌区 ================= */
+.auth-brand {
+  position: relative;
+  flex: 1.08;
   overflow: hidden;
-}
-
-/* ================= 左侧：墨韵书法区 ================= */
-.auth-left {
-  flex: 1.15;
-  background: linear-gradient(155deg, #14151c 0%, #1e2230 45%, #2a2438 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-}
-
-.ink-wash {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(60px);
-  opacity: 0.35;
-}
-.ink-wash-1 {
-  width: 380px; height: 380px;
-  background: radial-gradient(circle, rgba(120, 108, 180, 0.5), transparent 70%);
-  top: -80px; left: -80px;
-  animation: ink-drift 12s ease-in-out infinite;
-}
-.ink-wash-2 {
-  width: 320px; height: 320px;
-  background: radial-gradient(circle, rgba(60, 90, 130, 0.5), transparent 70%);
-  bottom: -60px; right: -60px;
-  animation: ink-drift 16s ease-in-out infinite reverse;
-}
-.ink-wash-3 {
-  width: 220px; height: 220px;
-  background: radial-gradient(circle, rgba(150, 132, 90, 0.35), transparent 70%);
-  top: 55%; left: 58%;
-  animation: ink-drift 9s ease-in-out infinite;
-}
-@keyframes ink-drift {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(36px, -28px) scale(1.15); }
-  66% { transform: translate(-24px, 22px) scale(0.9); }
-}
-
-.mountain-silhouette {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 30%;
-  background: linear-gradient(180deg, transparent, rgba(10, 12, 18, 0.55) 40%);
-  clip-path: polygon(0 100%, 0 55%, 12% 42%, 22% 55%, 33% 30%, 45% 52%, 56% 35%, 66% 55%, 78% 28%, 88% 50%, 100% 40%, 100% 100%);
-  opacity: 0.5;
-}
-
-.ink-ripple-layer {
-  position: absolute;
-  width: 100%; height: 100%;
-  pointer-events: none;
-}
-.ink-ripple {
-  position: absolute;
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(214, 202, 255, 0.7), transparent);
-  box-shadow: 0 0 18px 6px rgba(160, 148, 220, 0.25);
-  animation: ripple-fade linear infinite;
-  opacity: 0;
-}
-@keyframes ripple-fade {
-  0% { transform: scale(0.2); opacity: 0; }
-  20% { opacity: 0.9; }
-  80% { opacity: 0.6; }
-  100% { transform: scale(3.2); opacity: 0; }
-}
-
-.left-content {
-  text-align: center;
-  z-index: 2;
-  color: #efe8dc;
-  position: relative;
-  animation: fade-up 1.1s cubic-bezier(0.16, 1, 0.3, 1);
-}
-@keyframes fade-up {
-  from { opacity: 0; transform: translateY(34px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.seal-logo {
-  width: 62px; height: 62px;
-  margin: 0 auto 26px;
-  background: #b5442f;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'KaiTi', 'STKaiti', 'SimSun', serif;
-  font-size: 34px;
-  font-weight: 700;
-  color: #f7f3ea;
-  box-shadow: 0 6px 24px rgba(181, 68, 47, 0.4), inset 0 0 0 2px rgba(247, 243, 234, 0.25);
-  position: relative;
-  animation: seal-breathe 3.6s ease-in-out infinite;
-}
-.seal-logo::after {
-  content: '';
-  position: absolute;
-  inset: 4px;
-  border: 1px solid rgba(247, 243, 234, 0.55);
-  border-radius: 3px;
-}
-@keyframes seal-breathe {
-  0%, 100% { transform: rotate(-2deg) scale(1); }
-  50% { transform: rotate(2deg) scale(1.06); }
-}
-
-.calligraphy-title {
-  font-family: 'KaiTi', 'STKaiti', 'STSong', 'SimSun', serif;
-  font-size: 64px;
-  font-weight: 700;
-  letter-spacing: 18px;
-  margin-bottom: 4px;
-  background: linear-gradient(180deg, #fbf6ec 0%, #d8c9a3 60%, #b9a87e 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-shadow: 0 0 46px rgba(216, 201, 163, 0.25);
-}
-
-.ornament-line {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin: 18px auto;
-}
-.ornament-line i {
-  width: 44px; height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(216, 201, 163, 0.8));
-}
-.ornament-line b {
-  width: 44px; height: 1px;
-  background: linear-gradient(90deg, rgba(216, 201, 163, 0.8), transparent);
-}
-.ornament-line i::after { content: ''; }
-
-.brand-slogan {
-  font-family: 'STKaiti', 'KaiTi', serif;
-  font-size: 19px;
-  letter-spacing: 7px;
-  color: #cabfa4;
-}
-
-.vertical-poem {
-  position: absolute;
-  right: -92px;
-  top: 50%;
-  transform: translateY(-50%);
-  writing-mode: vertical-rl;
-  display: flex;
-  gap: 14px;
-  font-family: 'KaiTi', 'STKaiti', serif;
-  font-size: 21px;
-  letter-spacing: 10px;
-  color: rgba(216, 201, 163, 0.4);
-  animation: poem-fade 2.4s ease-out 0.6s both;
-}
-.vertical-poem span {
-  display: inline-block;
-  transition: all 0.5s;
-}
-.vertical-poem span:hover {
-  color: rgba(240, 222, 175, 0.95);
-  transform: scale(1.18);
-}
-@keyframes poem-fade {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.literary-tags {
-  margin-top: 46px;
-  display: flex;
-  gap: 14px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-.ltag {
-  padding: 7px 18px;
-  border: 1px solid rgba(216, 201, 163, 0.35);
-  border-radius: 30px;
-  font-size: 13px;
-  color: #d8c9a3;
-  background: rgba(216, 201, 163, 0.06);
-  backdrop-filter: blur(4px);
-  transition: all 0.4s;
-}
-.ltag:hover {
-  background: rgba(216, 201, 163, 0.16);
-  transform: translateY(-3px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
-}
-
-.left-footer {
-  margin-top: 34px;
-  font-size: 12px;
-  letter-spacing: 3px;
-  color: rgba(216, 201, 163, 0.45);
-}
-
-.dangling-tassel {
-  position: absolute;
-  right: 26px; top: 0;
+  padding: 46px 56px 40px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  z-index: 3;
-}
-.tassel-line {
-  width: 1px; height: 130px;
-  background: linear-gradient(180deg, transparent, rgba(181, 68, 47, 0.7));
-}
-.tassel-knot {
-  width: 10px; height: 10px;
-  border-radius: 50%;
-  background: #b5442f;
-  box-shadow: 0 0 10px rgba(181, 68, 47, 0.5);
-}
-.tassel-fringe {
-  width: 1px; height: 46px;
-  background: linear-gradient(180deg, rgba(181, 68, 47, 0.7), transparent);
-  position: relative;
-}
-.tassel-fringe::after {
-  content: '';
-  position: absolute;
-  left: -4px; top: 0;
-  width: 9px; height: 46px;
-  background: repeating-linear-gradient(180deg, transparent 0 8px, rgba(181, 68, 47, 0.5) 8px 9px);
+  color: #eaf7f5;
+  background:
+    radial-gradient(120% 90% at 85% 8%, rgba(255, 154, 90, 0.28), transparent 58%),
+    radial-gradient(90% 80% at 10% 90%, rgba(122, 217, 196, 0.22), transparent 60%),
+    linear-gradient(155deg, #082c3b 0%, #0c4356 46%, #0f5f70 100%);
 }
 
-/* ================= 右侧：宣纸表单区 ================= */
-.auth-right {
+.pond {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.bubble {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.12) 65%);
+  box-shadow: 0 0 12px rgba(160, 235, 225, 0.25);
+  animation: bubble-rise ease-in-out infinite;
+  opacity: 0.55;
+}
+@keyframes bubble-rise {
+  0% { transform: translateY(12px) scale(0.8); opacity: 0; }
+  35% { opacity: 0.6; }
+  100% { transform: translateY(-46px) scale(1.15); opacity: 0; }
+}
+.light-beam {
+  position: absolute;
+  top: -25%;
+  left: 45%;
+  width: 46%;
+  height: 90%;
+  background: linear-gradient(180deg, rgba(255, 236, 200, 0.16), transparent 72%);
+  transform: rotate(14deg);
+  filter: blur(6px);
+}
+.wave {
+  position: absolute;
+  left: -20%;
+  right: -20%;
+  bottom: -80px;
+  height: 200px;
+  border-radius: 46% 54% 0 0 / 60% 60% 0 0;
+  background: rgba(122, 217, 196, 0.1);
+}
+.wave-2 {
+  bottom: -120px;
+  background: rgba(122, 217, 196, 0.07);
+  animation: wave-drift 12s ease-in-out infinite alternate;
+}
+@keyframes wave-drift {
+  from { transform: translateX(-18px); }
+  to { transform: translateX(18px); }
+}
+
+.brand-head {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.brand-words {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.brand-words b {
+  font-size: 21px;
+  letter-spacing: 2px;
+  color: #fdf7ea;
+}
+.brand-words span {
+  font-size: 9px;
+  letter-spacing: 2.4px;
+  color: rgba(234, 247, 245, 0.5);
+}
+
+.brand-body {
+  position: relative;
+  z-index: 2;
+  margin-top: auto;
+  margin-bottom: auto;
+  max-width: 460px;
+  padding: 26px 0;
+}
+.brand-kicker {
+  display: inline-block;
+  font-size: 12px;
+  letter-spacing: 3px;
+  color: #7ad9c4;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(122, 217, 196, 0.35);
+}
+.brand-title {
+  margin: 22px 0 18px;
+  font-size: 52px;
+  line-height: 1.24;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: #fdf7ea;
+}
+.brand-title em {
+  font-style: normal;
+  color: #ffb877;
+  position: relative;
+}
+.brand-title em::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: 6px;
+  height: 10px;
+  border-radius: 6px;
+  background: rgba(255, 154, 90, 0.22);
+  z-index: -1;
+}
+.brand-desc {
+  font-size: 14px;
+  line-height: 1.95;
+  color: rgba(234, 247, 245, 0.68);
+  max-width: 400px;
+}
+
+.brand-points {
+  list-style: none;
+  margin-top: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.brand-points li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.brand-points i {
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-style: normal;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(6px);
+}
+.brand-points div {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.5;
+}
+.brand-points b {
+  font-size: 14px;
+  color: #f4fbfa;
+}
+.brand-points span {
+  font-size: 12px;
+  color: rgba(234, 247, 245, 0.5);
+}
+
+.brand-art {
+  position: absolute;
+  right: -8px;
+  bottom: 76px;
+  z-index: 1;
+  opacity: 0.95;
+  animation: fish-float 7s ease-in-out infinite;
+  filter: drop-shadow(0 22px 40px rgba(0, 0, 0, 0.28));
+}
+@keyframes fish-float {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-16px) rotate(3deg); }
+}
+
+.brand-foot {
+  position: relative;
+  z-index: 2;
+  font-size: 11px;
+  letter-spacing: 1.6px;
+  color: rgba(234, 247, 245, 0.36);
+}
+
+/* ================= 右侧表单区 ================= */
+.auth-panel {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(165deg, #f6f1e7 0%, #efe7d6 55%, #e8deC9 100%);
-  position: relative;
-  overflow: hidden;
-}
-.auth-right::before {
-  content: '';
-  position: absolute;
-  inset: 0;
+  padding: 40px 32px;
   background:
-    repeating-linear-gradient(45deg, rgba(160, 140, 100, 0.035) 0 2px, transparent 2px 4px);
-  pointer-events: none;
-}
-.auth-right::after {
-  content: '';
-  position: absolute;
-  left: -180px; bottom: -180px;
-  width: 440px; height: 440px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(140, 120, 80, 0.12), transparent 68%);
+    radial-gradient(70% 60% at 100% 0%, rgba(122, 217, 196, 0.16), transparent 60%),
+    radial-gradient(60% 50% at 0% 100%, rgba(255, 184, 120, 0.14), transparent 60%),
+    #f4faf9;
 }
 
-.paper-texture {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse at 20% 10%, rgba(255, 255, 255, 0.5), transparent 55%),
-              radial-gradient(ellipse at 85% 90%, rgba(160, 140, 100, 0.16), transparent 55%);
-  pointer-events: none;
+.panel-card {
+  width: 100%;
+  max-width: 430px;
+  padding: 38px 38px 30px;
+  border-radius: 26px;
+  background: #ffffff;
+  border: 1px solid rgba(16, 102, 122, 0.08);
+  box-shadow: 0 30px 70px -30px rgba(10, 60, 75, 0.35), 0 2px 8px rgba(10, 60, 75, 0.04);
+  animation: card-in 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(22px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.corner-badge {
-  position: absolute;
-  top: 26px; right: 30px;
-  writing-mode: vertical-rl;
-  font-family: 'KaiTi', 'STKaiti', serif;
-  font-size: 15px;
-  letter-spacing: 8px;
-  color: #8f7c55;
-  border-right: 2px solid rgba(143, 124, 85, 0.5);
-  padding-right: 8px;
+.panel-foot {
+  display: none;
 }
 
-.ink-splatter {
-  position: absolute;
-  left: -40px; top: 40%;
-  width: 130px; height: 130px;
-  background: radial-gradient(circle at 40% 40%,
-    rgba(51, 45, 60, 0.12) 0 12px,
-    transparent 12px 14px,
-    rgba(51, 45, 60, 0.06) 14px 26px,
-    transparent 26px 30px,
-    rgba(51, 45, 60, 0.04) 30px 44px,
-    transparent 44px);
-  border-radius: 50%;
-  filter: blur(2px);
-  opacity: 0.7;
-}
-
-.right-poem {
-  position: absolute;
-  right: 34px;
-  bottom: 46px;
-  text-align: right;
-  font-family: 'STKaiti', 'KaiTi', serif;
-  font-size: 15px;
-  line-height: 2.1;
-  letter-spacing: 3px;
-  color: rgba(118, 100, 68, 0.55);
-}
-.right-poem p { margin: 0; }
-
-
-.auth-form-wrapper {
-  width: 430px;
-  padding: 46px 44px;
-  z-index: 1;
-  background: linear-gradient(180deg, rgba(255, 252, 245, 0.82), rgba(250, 245, 234, 0.92));
-  border-radius: 18px;
-  border: 1px solid rgba(176, 150, 105, 0.28);
-  box-shadow:
-    0 24px 60px -18px rgba(90, 72, 40, 0.35),
-    0 2px 8px rgba(90, 72, 40, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
-  animation: slide-in-right 0.85s cubic-bezier(0.16, 1, 0.3, 1);
-}
-@keyframes slide-in-right {
-  from { opacity: 0; transform: translateX(48px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-.form-header {
-  margin-bottom: 30px;
-  text-align: center;
-}
-.form-title {
-  font-family: 'KaiTi', 'STKaiti', 'SimSun', serif;
-  font-size: 30px;
-  font-weight: 700;
-  letter-spacing: 8px;
-  color: #3b3020;
-  margin-bottom: 12px;
-}
-.title-ornament {
-  display: flex;
+.panel-brand {
+  display: none;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: 9px;
+  margin-bottom: 20px;
 }
-.to-line {
-  width: 42px; height: 1px;
-  background: linear-gradient(90deg, transparent, #a58a4b);
-}
-.to-line:last-child {
-  background: linear-gradient(90deg, #a58a4b, transparent);
-}
-.to-dot {
-  width: 7px; height: 7px;
-  background: #a58a4b;
-  border-radius: 50%;
-  box-shadow: 0 0 8px rgba(165, 138, 75, 0.5);
-}
-.form-subtitle {
-  font-size: 13px;
-  letter-spacing: 2px;
-  color: #9a8a6c;
+.panel-brand b {
+  font-size: 17px;
+  letter-spacing: 1px;
+  color: #0d3b4f;
 }
 
+.panel-head {
+  margin-bottom: 22px;
+}
+.eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: #1a90a0;
+}
+.panel-head h2 {
+  margin: 8px 0 6px;
+  font-size: 27px;
+  letter-spacing: 1px;
+  color: #0d2f3d;
+}
+.panel-sub {
+  font-size: 13px;
+  color: #7b95a0;
+}
+
+/* 登录/注册切换 */
+.mode-switch {
+  position: relative;
+  display: flex;
+  padding: 5px;
+  margin-bottom: 22px;
+  border-radius: 14px;
+  background: #eef6f5;
+}
+.mode-thumb {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  width: calc(50% - 5px);
+  height: calc(100% - 10px);
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(13, 59, 79, 0.1);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.mode-thumb.right {
+  transform: translateX(100%);
+}
+.mode-switch button {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  height: 38px;
+  border: 0;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 600;
+  color: #7b95a0;
+  cursor: pointer;
+  border-radius: 10px;
+  transition: color 0.25s;
+  font-family: inherit;
+}
+.mode-switch button.active {
+  color: #0d3b4f;
+}
+
+/* 表单 */
 .field-row.two {
   display: flex;
-  gap: 12px;
+  gap: 10px;
 }
 .field-row.two .el-form-item {
   flex: 1;
 }
 
-/* ---- 校区徽章选择器 ---- */
+.campus-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #5d7b87;
+  letter-spacing: 1px;
+}
 .campus-picker {
   display: flex;
   gap: 10px;
@@ -674,63 +623,43 @@ onUnmounted(() => {
 }
 .campus-option {
   flex: 1;
-  height: 54px;
-  border-radius: 12px;
-  border: 1.5px solid #d9cdb4;
-  background: linear-gradient(180deg, #fbf7ee, #f4edde);
+  height: 44px;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 7px;
+  border-radius: 12px;
+  border: 1.5px solid #e2efee;
+  background: #f8fcfb;
+  color: #6e8a95;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  position: relative;
-  transition: all 0.3s ease;
-  color: #8b7b58;
+  transition: all 0.22s ease;
   user-select: none;
 }
+.campus-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #cbdfdd;
+  transition: all 0.22s ease;
+}
 .campus-option:hover {
-  border-color: #a58a4b;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(120, 100, 60, 0.16);
+  border-color: #b7ded9;
+  transform: translateY(-1px);
 }
 .campus-option.active {
-  border-color: #a58a4b;
-  background: linear-gradient(180deg, #efe5cd, #e6d8b8);
-  color: #5c4a28;
-  box-shadow: 0 6px 18px rgba(165, 138, 75, 0.28), inset 0 0 0 1px rgba(165, 138, 75, 0.3);
-  transform: translateY(-2px);
+  border-color: #1a90a0;
+  background: #e9f7f5;
+  color: #0d5b6a;
+  box-shadow: 0 4px 12px rgba(26, 144, 160, 0.14);
 }
-.campus-icon {
-  line-height: 1;
-  color: inherit;
-}
-.campus-name {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 2px;
-}
-.campus-check {
-  position: absolute;
-  top: -7px; right: -7px;
-  width: 19px; height: 19px;
-  border-radius: 50%;
-  background: #a58a4b;
-  color: #fff;
-  font-size: 11px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 6px rgba(120, 100, 60, 0.4);
-}
-.campus-label {
-  letter-spacing: 2px;
-  color: #5c4a28;
-  font-weight: 600;
-  font-size: 13px;
+.campus-option.active .campus-dot {
+  background: #1a90a0;
+  box-shadow: 0 0 0 3px rgba(26, 144, 160, 0.15);
 }
 
-/* ---- 验证码 ---- */
 .code-row {
   display: flex;
   gap: 10px;
@@ -739,157 +668,173 @@ onUnmounted(() => {
 .code-btn {
   flex-shrink: 0;
   white-space: nowrap;
-  color: #7c6438;
-  border-color: #bda46a;
+  height: 46px;
   border-radius: 12px;
-  background: #faf5e8;
-  transition: all 0.3s;
+  border-color: #cfe6e3;
+  background: #f3fbfa;
+  color: #137c88;
+  font-size: 13px;
+  transition: all 0.25s;
 }
 .code-btn:hover:not(:disabled):not(.is-loading) {
-  background: #a58a4b;
+  background: #1a90a0;
+  border-color: #1a90a0;
   color: #fff;
-  border-color: #a58a4b;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(165, 138, 75, 0.35);
 }
 .code-btn:disabled {
-  opacity: 0.55;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
-/* ---- 提交按钮：鎏金质感 ---- */
 .submit-btn {
   width: 100%;
-  margin-top: 10px;
   height: 50px;
+  margin-top: 6px;
+  border: 0;
+  border-radius: 14px;
   font-size: 16px;
-  letter-spacing: 6px;
-  border: none;
-  background: linear-gradient(135deg, #a58a4b 0%, #c7a75f 50%, #a58a4b 100%);
-  background-size: 200% 200%;
-  box-shadow: 0 6px 18px rgba(150, 120, 60, 0.35);
-  transition: all 0.35s ease;
-  font-family: 'KaiTi', 'STKaiti', serif;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #fff;
+  background: linear-gradient(135deg, #12667a 0%, #1a90a0 55%, #23a7a5 100%);
+  box-shadow: 0 12px 26px -10px rgba(18, 102, 122, 0.65);
+  transition: all 0.28s ease;
 }
 .submit-btn:hover {
-  background-position: 100% 100%;
-  box-shadow: 0 8px 26px rgba(150, 120, 60, 0.5);
   transform: translateY(-2px);
+  box-shadow: 0 16px 30px -10px rgba(18, 102, 122, 0.75);
 }
-.submit-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 3px 10px rgba(150, 120, 60, 0.3);
+.submit-btn .arrow {
+  display: inline-block;
+  margin-left: 6px;
+  transition: transform 0.28s;
+}
+.submit-btn:hover .arrow {
+  transform: translateX(4px);
 }
 
-.toggle-area {
-  text-align: center;
-  margin-top: 24px;
-}
-.toggle-text {
-  color: #8b7b58;
-  cursor: pointer;
-  font-size: 14px;
-  letter-spacing: 1px;
-  transition: all 0.3s;
-  position: relative;
-}
-.toggle-text::after {
-  content: '';
-  position: absolute;
-  bottom: -2px; left: 0;
-  width: 0; height: 1px;
-  background: #a58a4b;
-  transition: width 0.3s;
-}
-.toggle-text:hover {
-  color: #7c6438;
-}
-.toggle-text:hover::after {
-  width: 100%;
+.link-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
 }
 .forgot-link {
-  display: block;
-  margin-top: 12px;
-  color: #8b7b58;
+  font-size: 12.5px;
+  color: #849fa9;
   cursor: pointer;
-  font-size: 13px;
-  letter-spacing: 1px;
-  transition: all 0.3s;
+  transition: color 0.2s;
 }
 .forgot-link:hover {
-  color: #b5442f;
-  text-decoration: underline;
+  color: #1a90a0;
 }
 
-/* ---- 表单控件 ---- */
+.switch-hint {
+  margin-top: 18px;
+  text-align: center;
+  font-size: 13px;
+  color: #849fa9;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.switch-hint:hover {
+  color: #137c88;
+}
+
+/* Element Plus 细节 */
 :deep(.el-form-item) {
-  margin-bottom: 18px;
-  animation: field-enter 0.55s ease-out both;
+  margin-bottom: 14px;
 }
-:deep(.el-form-item:nth-child(1)) { animation-delay: 0.08s; }
-:deep(.el-form-item:nth-child(2)) { animation-delay: 0.16s; }
-:deep(.el-form-item:nth-child(3)) { animation-delay: 0.24s; }
-:deep(.el-form-item:nth-child(4)) { animation-delay: 0.32s; }
-:deep(.el-form-item:nth-child(5)) { animation-delay: 0.4s; }
-:deep(.el-form-item:nth-child(6)) { animation-delay: 0.48s; }
-:deep(.el-form-item:nth-child(7)) { animation-delay: 0.56s; }
-:deep(.el-form-item:nth-child(8)) { animation-delay: 0.64s; }
-:deep(.el-form-item:nth-child(9)) { animation-delay: 0.72s; }
-@keyframes field-enter {
-  from { opacity: 0; transform: translateX(18px); }
-  to { opacity: 1; transform: translateX(0); }
+:deep(.el-form-item__label) {
+  padding-bottom: 4px !important;
 }
-
 :deep(.el-input__wrapper) {
   border-radius: 12px;
-  box-shadow: 0 0 0 1px #dcd2ba inset;
-  transition: all 0.3s ease;
-  padding: 4px 14px;
-  background: rgba(255, 253, 248, 0.85);
+  background: #f8fcfb;
+  box-shadow: 0 0 0 1.5px #e2efee inset;
+  padding: 3px 13px;
+  transition: all 0.22s ease;
 }
 :deep(.el-input__wrapper:hover) {
-  box-shadow: 0 0 0 1px #bda46a inset;
+  box-shadow: 0 0 0 1.5px #bfe0dc inset;
 }
 :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 2px #a58a4b inset, 0 6px 16px rgba(165, 138, 75, 0.18) !important;
-  transform: translateY(-1px);
+  background: #fff;
+  box-shadow: 0 0 0 2px #1a90a0 inset, 0 6px 16px rgba(26, 144, 160, 0.12) !important;
 }
 :deep(.el-input__inner) {
-  height: 46px;
-  font-size: 15px;
-  color: #3b3020;
+  height: 44px;
+  font-size: 14.5px;
+  color: #0d2f3d;
 }
 :deep(.el-input__inner::placeholder) {
-  color: #b5a583;
+  color: #a9bfc6;
 }
 
-.form-fade-enter-active, .form-fade-leave-active {
-  transition: all 0.3s ease;
+.form-fade-enter-active,
+.form-fade-leave-active {
+  transition: all 0.25s ease;
 }
-.form-fade-enter-from { opacity: 0; transform: translateY(16px); }
-.form-fade-leave-to { opacity: 0; transform: translateY(-16px); }
-
-@media (max-width: 900px) {
-  .auth-left { display: none; }
-  .auth-page { flex-direction: column; }
-  .auth-form-wrapper { width: 90%; margin: 30px auto; }
+.form-fade-enter-from {
+  opacity: 0;
+  transform: translateY(12px);
+}
+.form-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-12px);
 }
 
-@media (max-width: 768px) {
-  .auth-right {
-    padding: 16px 0;
-    min-height: 100vh;
-    align-items: flex-start;
-    overflow-y: auto;
+@media (max-width: 1024px) {
+  .auth-brand {
+    flex: 1;
+    padding: 36px 34px;
   }
-  .auth-form-wrapper {
-    width: 92%;
-    margin: 14px auto;
-    padding: 30px 22px;
-    border-radius: 14px;
+  .brand-title {
+    font-size: 42px;
   }
-  .corner-badge, .right-poem, .ink-splatter {
+  .brand-art {
+    right: -40px;
+    bottom: 40px;
+    opacity: 0.5;
+  }
+  .brand-art :deep(svg) {
+    width: 150px !important;
+    height: 150px !important;
+  }
+}
+
+@media (max-width: 860px) {
+  .auth-brand {
     display: none;
+  }
+  .auth-panel {
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 14px calc(18px + env(safe-area-inset-bottom));
+  }
+  .panel-foot {
+    display: block;
+    margin-top: auto;
+    padding-top: 22px;
+    font-size: 10.5px;
+    letter-spacing: 1px;
+    color: #9db2ba;
+    text-align: center;
+  }
+  .panel-card {
+    margin: 8px auto;
+    padding: 26px 20px 22px;
+    border-radius: 22px;
+  }
+  .panel-brand {
+    display: flex;
+  }
+  .panel-head h2 {
+    font-size: 23px;
+  }
+  .campus-option {
+    height: 40px;
+    font-size: 12px;
+    gap: 5px;
   }
 }
 </style>

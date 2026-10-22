@@ -24,9 +24,9 @@ export async function sendVerificationCode(email) {
   await transporter.sendMail({
     from: process.env.MAIL_USER,
     to: email,
-    subject: '文衡 - 注册验证码',
+    subject: '徐工院小咸鱼 - 注册验证码',
     text: `您的验证码是：${code}，5分钟内有效。`,
-    html: `<div style="padding:20px"><h2>文衡</h2><p>您的验证码是：</p><h1 style="color:#4a9eff">${code}</h1><p>5分钟内有效</p></div>`
+    html: `<div style="padding:20px"><h2>徐工院小咸鱼</h2><p>您的验证码是：</p><h1 style="color:#4a9eff">${code}</h1><p>5分钟内有效</p></div>`
   })
 }
 
