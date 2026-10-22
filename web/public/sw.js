@@ -1,6 +1,6 @@
 // 徐工院小咸鱼 - 离线壳 & 静态资源缓存
 // v2：assets 用「缓存优先 + 哈希文件名」，上传图走独立运行时缓存并限量，避免缓存无限膨胀导致手机端变慢
-const VERSION = 'xiaoxianyu-v1'
+const VERSION = 'xiaoxianyu-v2'
 const SHELL_CACHE = `${VERSION}-shell`
 const ASSET_CACHE = `${VERSION}-assets`
 const IMG_CACHE = `${VERSION}-img`
