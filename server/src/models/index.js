@@ -184,6 +184,7 @@ User.hasMany(Order, { foreignKey: 'buyer_id', as: 'orders' })
 
 AfterSale.belongsTo(Order, { foreignKey: 'order_id', as: 'order' })
 AfterSale.belongsTo(User, { foreignKey: 'buyer_id', as: 'buyer' })
+AfterSale.belongsTo(User, { foreignKey: 'seller_id', as: 'seller' })
 AfterSale.belongsTo(User, { foreignKey: 'admin_id', as: 'admin' })
 Order.hasOne(AfterSale, { foreignKey: 'order_id', as: 'aftersale' })
 
