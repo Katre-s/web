@@ -577,7 +577,7 @@ onUnmounted(() => {
   border-radius: 10px;
   background: #ffffff;
   box-shadow: 0 4px 12px rgba(13, 59, 79, 0.1);
-  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.35s var(--ease-spring);
 }
 .mode-thumb.right {
   transform: translateX(100%);
@@ -698,11 +698,11 @@ onUnmounted(() => {
   color: #fff;
   background: linear-gradient(135deg, #12667a 0%, #1a90a0 55%, #23a7a5 100%);
   box-shadow: 0 12px 26px -10px rgba(18, 102, 122, 0.65);
-  transition: all 0.28s ease;
+  transition: transform 0.28s var(--ease-spring), box-shadow 0.28s var(--ease-smooth);
 }
 .submit-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 16px 30px -10px rgba(18, 102, 122, 0.75);
+  box-shadow: 0 16px 30px -10px rgba(18, 102, 122, 0.75), 0 0 24px rgba(26, 144, 160, 0.25);
 }
 .submit-btn .arrow {
   display: inline-block;

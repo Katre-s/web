@@ -215,12 +215,24 @@ function onVisible() {
   display: flex;
   height: calc(56px + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 -2px 20px rgba(13, 40, 71, 0.1);
+  background: var(--nav-bg);
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  box-shadow: 0 -2px 24px rgba(13, 40, 71, 0.12);
   z-index: 200;
   display: none;
+}
+/* 顶部渐变发丝线，与 NavBar 呼应 */
+.tabbar::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-soft) 30%, var(--accent) 50%, var(--accent-soft) 70%, transparent);
+  opacity: 0.55;
+  pointer-events: none;
 }
 .tab-item {
   flex: 1;
@@ -229,42 +241,62 @@ function onVisible() {
   align-items: center;
   justify-content: center;
   gap: 3px;
-  color: #90a4ae;
+  color: var(--nav-text);
   font-size: 11px;
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
+  transition: color 0.25s var(--ease-smooth);
 }
 .tab-item .el-icon {
   font-size: 22px;
+  transition: transform 0.3s var(--ease-spring);
+}
+.tab-item:active .el-icon {
+  transform: scale(0.85);
 }
 .tab-item.router-link-active {
-  color: #1e88e5;
+  color: var(--accent);
   font-weight: 600;
+}
+/* 切到某个 Tab 时图标弹性放大，页面"活"的反馈 */
+.tab-item.router-link-active .el-icon {
+  animation: tab-pop 0.45s var(--ease-spring);
+}
+@keyframes tab-pop {
+  0% { transform: scale(0.7); }
+  55% { transform: scale(1.25); }
+  100% { transform: scale(1); }
 }
 .tab-icon-wrap :deep(.el-badge__content) {
   transform: scale(0.85);
 }
 .tab-menu {
-  color: #546e7a;
+  color: var(--nav-text);
   cursor: pointer;
 }
 .tab-menu:active {
-  color: #1e88e5;
+  color: var(--accent);
 }
 .tab-publish .publish-btn {
   width: 46px;
   height: 46px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #42a5f5, #1e88e5);
+  background: linear-gradient(135deg, var(--accent-2), var(--accent-strong));
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 14px rgba(66, 165, 245, 0.45);
+  box-shadow: 0 4px 16px var(--accent-soft);
   margin-top: -22px;
-  border: 3px solid #fff;
-  transition: transform 0.2s;
+  border: 3px solid rgba(255, 255, 255, 0.95);
+  transition: transform 0.25s var(--ease-spring);
+  /* 呼吸光圈：静止时也有生命感 */
+  animation: publish-breathe 3.2s ease-in-out infinite;
+}
+@keyframes publish-breathe {
+  0%, 100% { box-shadow: 0 4px 16px var(--accent-soft); }
+  50% { box-shadow: 0 6px 24px var(--accent-soft), 0 0 0 6px var(--accent-soft-2); }
 }
 .tab-publish .publish-btn .el-icon {
   font-size: 24px;
@@ -272,6 +304,7 @@ function onVisible() {
 }
 .tab-publish:active .publish-btn {
   transform: scale(0.92);
+  animation-play-state: paused;
 }
 @media (max-width: 768px) {
   .tabbar {
@@ -293,11 +326,13 @@ function onVisible() {
 .panel-sheet {
   width: 100%;
   max-height: 52vh;
-  background: #fff;
+  background: var(--card-bg);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-radius: 18px 18px 0 0;
   overflow-y: auto;
   box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.15);
-  animation: panel-slide-up 0.28s ease-out;
+  animation: panel-slide-up 0.28s var(--ease-spring);
 }
 @keyframes panel-slide-up {
   from { transform: translateY(100%); }
@@ -318,27 +353,28 @@ function onVisible() {
   align-items: center;
   gap: 14px;
   padding: 14px 20px;
-  border-bottom: 1px solid #f5f5f5;
+  border-bottom: 1px solid rgba(127, 140, 150, 0.14);
   cursor: pointer;
   transition: background 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
 .panel-row:active {
-  background: rgba(66, 165, 245, 0.08);
+  background: var(--accent-soft-2);
 }
 .panel-row-icon {
   font-size: 20px;
-  color: #546e7a;
+  color: var(--text-sub);
 }
 .panel-row-label {
   font-size: 15px;
-  color: #37474f;
+  color: var(--text-main);
   font-weight: 500;
 }
 .panel-row-value {
   margin-left: auto;
   font-size: 13px;
-  color: #9aa5ad;
+  color: var(--text-sub);
+  opacity: 0.75;
 }
 .panel-arrow {
   margin-left: auto;
@@ -362,7 +398,7 @@ function onVisible() {
 .panel-username {
   font-size: 16px;
   font-weight: 600;
-  color: #0d2847;
+  color: var(--nav-text-strong);
 }
 .panel-row-badge {
   margin-left: auto;
@@ -375,18 +411,18 @@ function onVisible() {
   color: #ef5350;
 }
 .notif-list-inline {
-  background: #fafafa;
-  border-bottom: 1px solid #f5f5f5;
+  background: var(--accent-soft-2);
+  border-bottom: 1px solid rgba(127, 140, 150, 0.14);
   max-height: 30vh;
   overflow-y: auto;
 }
 .notif-item {
   padding: 10px 20px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid rgba(127, 140, 150, 0.1);
   position: relative;
 }
 .notif-item.unread {
-  background: rgba(66, 165, 245, 0.04);
+  background: var(--accent-soft-2);
 }
 .notif-dot {
   position: absolute;
@@ -395,11 +431,12 @@ function onVisible() {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #42a5f5;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
 }
 .notif-content {
   font-size: 13px;
-  color: #4a4438;
+  color: var(--text-main);
   line-height: 1.5;
   padding-left: 12px;
   margin: 0;
@@ -407,7 +444,8 @@ function onVisible() {
 .notif-time {
   display: block;
   font-size: 11px;
-  color: #b0a488;
+  color: var(--text-sub);
+  opacity: 0.75;
   margin-top: 3px;
   padding-left: 12px;
 }

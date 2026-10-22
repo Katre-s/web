@@ -2,7 +2,11 @@
   <div id="layout">
     <NavBar v-if="!isAuthPage" />
     <main class="main-content" :class="{ 'no-nav': isAuthPage }">
-      <router-view />
+      <router-view v-slot="{ Component }">
+        <transition name="page" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </router-view>
     </main>
     <TabBar v-if="!isAuthPage" />
     <AiFloat v-if="!isAuthPage" />
@@ -34,6 +38,9 @@ const isAuthPage = computed(() => route.path === '/login' || route.path === '/fo
   width: 100%;
   margin: 0 auto;
   padding: 20px;
+  /* 盖住 #app::after 的极光层，内容始终在光效之上 */
+  position: relative;
+  z-index: 1;
 }
 .main-content.no-nav {
   max-width: 100%;

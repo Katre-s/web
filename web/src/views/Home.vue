@@ -314,6 +314,35 @@ onUnmounted(() => {
     radial-gradient(55% 80% at 4% 96%, rgba(122, 217, 196, 0.42), transparent 62%),
     linear-gradient(125deg, #effbf8 0%, #e3f4f4 48%, #eef8fc 100%);
   box-shadow: 0 24px 60px -40px rgba(11, 47, 63, 0.5);
+  animation: rise 0.55s var(--ease-smooth) backwards;
+}
+/* 科技感光带：每隔几秒有一束柔光掠过 hero */
+.hero::after {
+  content: '';
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  left: -45%;
+  width: 38%;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.38), transparent);
+  transform: skewX(-14deg);
+  pointer-events: none;
+  animation: hero-sweep 7.5s var(--ease-smooth) infinite;
+  will-change: transform;
+}
+@keyframes hero-sweep {
+  0%, 58% { transform: skewX(-14deg) translateX(0); }
+  100% { transform: skewX(-14deg) translateX(460%); }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .hero-deco {
   position: absolute;
@@ -358,6 +387,15 @@ onUnmounted(() => {
   flex: 1;
   min-width: 0;
 }
+/* hero 文案错落入场：问候语→标题→副语→按钮→统计逐个浮出 */
+.hero-main > * {
+  animation: rise 0.5s var(--ease-spring) backwards;
+}
+.hero-main > *:nth-child(1) { animation-delay: 0.08s; }
+.hero-main > *:nth-child(2) { animation-delay: 0.16s; }
+.hero-main > *:nth-child(3) { animation-delay: 0.24s; }
+.hero-main > *:nth-child(4) { animation-delay: 0.32s; }
+.hero-main > *:nth-child(5) { animation-delay: 0.4s; }
 .hero-tag {
   display: inline-flex;
   align-items: center;
@@ -418,9 +456,27 @@ onUnmounted(() => {
   transition: all 0.25s ease;
 }
 .btn.primary {
+  position: relative;
+  overflow: hidden;
   color: #fff;
   background: linear-gradient(135deg, #0e5568, #1a90a0 70%, #23a7a5);
   box-shadow: 0 14px 26px -12px rgba(16, 102, 122, 0.8);
+}
+/* 悬停时一道高光扫过按钮 */
+.btn.primary::after {
+  content: '';
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  left: -70%;
+  width: 45%;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: skewX(-16deg);
+  transition: left 0.55s var(--ease-smooth);
+  pointer-events: none;
+}
+.btn.primary:hover::after {
+  left: 135%;
 }
 .btn.primary:hover {
   transform: translateY(-2px);
@@ -482,6 +538,7 @@ onUnmounted(() => {
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
+  animation: rise 0.55s var(--ease-spring) 0.35s backwards;
 }
 .mascot {
   margin-right: 6px;
@@ -606,16 +663,28 @@ onUnmounted(() => {
   cursor: pointer;
   text-align: left;
   font-family: inherit;
-  transition: all 0.24s ease;
+  transition: transform 0.28s var(--ease-spring), border-color 0.24s, box-shadow 0.28s;
+  animation: rise 0.5s var(--ease-spring) backwards;
 }
+.cat-card:nth-child(1) { animation-delay: 0.05s; }
+.cat-card:nth-child(2) { animation-delay: 0.09s; }
+.cat-card:nth-child(3) { animation-delay: 0.13s; }
+.cat-card:nth-child(4) { animation-delay: 0.17s; }
+.cat-card:nth-child(5) { animation-delay: 0.21s; }
+.cat-card:nth-child(6) { animation-delay: 0.25s; }
+.cat-card:nth-child(n + 7) { animation-delay: 0.29s; }
 .cat-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-5px) scale(1.02);
   border-color: rgba(26, 144, 160, 0.35);
   box-shadow: 0 16px 30px -18px rgba(16, 102, 122, 0.5);
 }
 .cat-emoji {
   font-size: 24px;
   line-height: 1.3;
+  transition: transform 0.3s var(--ease-spring);
+}
+.cat-card:hover .cat-emoji {
+  transform: scale(1.2) rotate(-6deg);
 }
 .cat-name {
   font-size: 14px;
@@ -645,10 +714,16 @@ onUnmounted(() => {
   overflow: hidden;
   cursor: pointer;
   box-shadow: var(--card-shadow);
-  transition: all 0.3s ease;
+  transition: transform 0.3s var(--ease-spring), box-shadow 0.3s;
+  animation: rise 0.5s var(--ease-spring) backwards;
 }
+.hot-card:nth-child(1) { animation-delay: 0.06s; }
+.hot-card:nth-child(2) { animation-delay: 0.11s; }
+.hot-card:nth-child(3) { animation-delay: 0.16s; }
+.hot-card:nth-child(4) { animation-delay: 0.21s; }
+.hot-card:nth-child(n + 5) { animation-delay: 0.26s; }
 .hot-card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-6px);
   box-shadow: 0 18px 34px -20px rgba(16, 102, 122, 0.55);
 }
 .hot-cover {
@@ -657,6 +732,10 @@ onUnmounted(() => {
   background: linear-gradient(135deg, #e6f4f2, #d9edf3);
   background-size: cover;
   background-position: center;
+  transition: transform 0.45s var(--ease-smooth);
+}
+.hot-card:hover .hot-cover {
+  transform: scale(1.06);
 }
 .hot-rank {
   position: absolute;
@@ -733,6 +812,7 @@ onUnmounted(() => {
     radial-gradient(70% 120% at 100% 0%, rgba(255, 154, 90, 0.35), transparent 60%),
     linear-gradient(120deg, #0b2f3f 0%, #0e4f61 60%, #126f7e 100%);
   box-shadow: 0 22px 44px -30px rgba(11, 47, 63, 0.9);
+  animation: rise 0.5s var(--ease-smooth) 0.35s backwards;
 }
 .cta-fish {
   flex-shrink: 0;

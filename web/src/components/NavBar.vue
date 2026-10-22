@@ -178,12 +178,25 @@ onMounted(loadNotifications)
 <style scoped>
 .navbar {
   background: var(--nav-bg);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
   box-shadow: 0 2px 20px rgba(13, 40, 71, 0.08);
   position: sticky;
   top: 0;
   z-index: 100;
   transition: background 0.4s ease;
+}
+/* 底部渐变发丝线：科技感的"光边" */
+.navbar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-soft) 30%, var(--accent) 50%, var(--accent-soft) 70%, transparent);
+  opacity: 0.55;
+  pointer-events: none;
 }
 .nav-inner {
   max-width: 1200px;
@@ -241,7 +254,7 @@ onMounted(loadNotifications)
   color: var(--nav-text);
   font-size: 15px;
   font-weight: 500;
-  transition: all 0.3s ease;
+  transition: color 0.3s ease, background 0.3s ease, transform 0.25s var(--ease-spring), box-shadow 0.3s ease;
   position: relative;
 }
 .nav-item::after {
@@ -253,12 +266,14 @@ onMounted(loadNotifications)
   height: 3px;
   border-radius: 2px;
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
-  transition: all 0.3s ease;
+  box-shadow: 0 0 8px var(--accent);
+  transition: all 0.3s var(--ease-spring);
   transform: translateX(-50%);
 }
 .nav-item:hover {
   color: var(--accent);
   background: var(--accent-soft-2);
+  transform: translateY(-1px);
 }
 .nav-item:hover::after {
   width: 60%;
@@ -266,9 +281,19 @@ onMounted(loadNotifications)
 .nav-item.router-link-active {
   color: var(--accent);
   background: var(--accent-soft);
+  box-shadow: 0 4px 14px var(--accent-soft-2);
 }
 .nav-item.router-link-active::after {
   width: 60%;
+}
+/* active 图标轻轻弹一下，切换页面时有"活着"的反馈 */
+.nav-item.router-link-active .el-icon {
+  animation: nav-pop 0.4s var(--ease-spring);
+}
+@keyframes nav-pop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.28); }
+  100% { transform: scale(1); }
 }
 .nav-item.mini {
   padding: 6px 12px;
@@ -296,6 +321,16 @@ onMounted(loadNotifications)
 .bell-box:hover {
   background: var(--accent-soft-2);
   color: var(--accent);
+}
+.bell-box:hover .bell-icon {
+  animation: bell-ring 0.8s var(--ease-smooth);
+}
+@keyframes bell-ring {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(14deg); }
+  40% { transform: rotate(-11deg); }
+  60% { transform: rotate(7deg); }
+  80% { transform: rotate(-4deg); }
 }
 .bell-icon {
   color: var(--nav-text);
@@ -408,6 +443,17 @@ onMounted(loadNotifications)
   gap: 7px;
   margin-right: 16px;
   flex-shrink: 0;
+}
+.brand > :first-child {
+  transition: transform 0.4s var(--ease-spring);
+}
+.brand:hover > :first-child {
+  animation: brand-wiggle 0.7s var(--ease-spring);
+}
+@keyframes brand-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-8deg); }
+  60% { transform: rotate(6deg); }
 }
 .brand-name {
   font-size: 16px;
