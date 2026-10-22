@@ -73,7 +73,7 @@ export const Order = sequelize.define('Order', {
   totalPrice: { type: DataTypes.DECIMAL(10, 2), allowNull: false, field: 'total_price' },
   status: { type: DataTypes.STRING(20), defaultValue: 'pending' },
   // 售后状态与 AfterSale.status 保持同步
-  aftersaleStatus: { type: DataTypes.STRING(20), defaultValue: 'none', field: 'aftersale_status' },
+  aftersaleStatus: { type: DataTypes.STRING(30), defaultValue: 'none', field: 'aftersale_status' },
   completedAt: { type: DataTypes.DATE, field: 'completed_at' }
 }, { tableName: 'orders' })
 

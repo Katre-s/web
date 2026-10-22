@@ -73,6 +73,7 @@
           </div>
           <el-empty v-if="!sellerAftersales.length && !loadingSellerAftersales" :description="$t('profile.noSellerAftersales')" :image-size="60" />
         </div>
+        <template v-if="productFilter !== 'aftersales'">
         <div v-for="p in filteredProducts" :key="p.id" class="my-product-item">
           <div class="my-product-info" @click="goProduct(p)">
             <img :src="resolveImg(p.bookCover || p.images?.[0]?.imagePath) || defaultAvatar" class="my-product-cover" />
@@ -91,6 +92,7 @@
           </div>
         </div>
         <el-empty v-if="!filteredProducts.length" :description="$t('common.noBooks')" />
+        </template>
       </div>
       <div v-else-if="activeTab === 'favorites'" class="fav-products">
         <div v-for="f in favList" :key="f.key" class="fav-product-card" @click="openFav(f)">

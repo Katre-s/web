@@ -145,6 +145,22 @@ async function start() {
     await ensureColumn('balance_logs', 'released', { type: 'TINYINT(1)', allowNull: false, defaultValue: 0 })
     await ensureColumn('books', 'description', { type: 'TEXT', allowNull: true })
 
+    // 旧表 status 列是 VARCHAR(20)，售后退款状态「seller_reject_approved」22 字符会写入失败，这里幂等扩宽到 30
+    async function widenColumn(table, column, width, defaultValue) {
+      const desc = await sequelize.getQueryInterface().describeTable(table)
+      const type = String(desc[column]?.type || '').toUpperCase()
+      if (type.includes('VARCHAR') && !type.includes(`VARCHAR(${width})`)) {
+        await sequelize.getQueryInterface().changeColumn(table, column, {
+          type: `VARCHAR(${width})`,
+          allowNull: false,
+          defaultValue
+        })
+        console.log(`[迁移] ${table}.${column} 已扩宽为 VARCHAR(${width})`)
+      }
+    }
+    await widenColumn('after_sales', 'status', 30, 'pending')
+    await widenColumn('orders', 'aftersale_status', 30, 'none')
+
     // 历史已完成订单补 completed_at（用更新时间兜底），保证 23h 售后窗口可判断
     const { Order, AfterSale } = await import('./models/index.js')
     await Order.update(
