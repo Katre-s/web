@@ -34,10 +34,11 @@ export default {
   },
   voice: {
     title: 'AI 音色',
-    tip: '选择 AI 朗读的声音并自动保存',
+    tip: '选择 AI 朗读的声音并自动保存；下方为当前浏览器可用的中文音色',
     auto: '自动',
     female: '女声',
     male: '男声',
+    noVoice: '未检测到中文音色，建议使用 Edge 浏览器获得最佳音色',
   },
   ai: {
     pageTitle: '🐟 小咸鱼智能助手',

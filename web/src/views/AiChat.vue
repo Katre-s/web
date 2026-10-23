@@ -223,6 +223,31 @@ function stopMic() {
 }
 
 /* ============ 语音朗读（浏览器原生 speechSynthesis，可打断）============ */
+// 音色列表是异步加载的：模块级缓存 + voiceschanged 监听，保证朗读时一定能拿到真实音色
+let zhVoiceCache = []
+const ZH_VOICES_READY = new Set()
+
+function refreshVoiceCache() {
+  if (!window.speechSynthesis) return
+  const all = speechSynthesis.getVoices() || []
+  const zh = all.filter(v => v.lang && v.lang.toLowerCase().startsWith('zh'))
+  // 有变化才更新缓存并广播给全站（VoiceSwitcher 等组件可即时刷新列表）
+  if (zh.length && JSON.stringify(zh.map(v => v.name)) !== JSON.stringify(zhVoiceCache.map(v => v.name))) {
+    zhVoiceCache = zh
+    window.dispatchEvent(new CustomEvent('ai-voices-ready', { detail: zh.map(v => v.name) }))
+  }
+  if (all.length) {
+    speechSynthesis.onvoiceschanged = () => setTimeout(refreshVoiceCache, 0)
+  }
+}
+
+function zhVoices() {
+  if (zhVoiceCache.length) return zhVoiceCache
+  const all = window.speechSynthesis ? speechSynthesis.getVoices() || [] : []
+  const zh = all.filter(v => v.lang && v.lang.toLowerCase().startsWith('zh'))
+  if (zh.length) zhVoiceCache = zh
+  return zh
+}
 const speakOnReply = ref(localStorage.getItem('ai_speak_on') !== '0')
 const speakingIndex = ref(-1)
 let utterTimer = null
@@ -357,18 +382,25 @@ function commitSpeech() {
 }
 
 function pickZhVoice() {
-  const voices = window.speechSynthesis ? speechSynthesis.getVoices() : []
+  const voices = zhVoices()
   if (!voices.length) return null
-  const mode = localStorage.getItem('ai_voice') || 'auto'
+  const mode = (localStorage.getItem('ai_voice') || 'auto').toLowerCase()
+  const zh = v => v.lang && v.lang.toLowerCase().startsWith('zh')
+  // 用户直接选中的具体音色名（如 Microsoft Kangkang...）→ 优先精确命中
+  if (mode && !['auto', 'female', 'male'].includes(mode)) {
+    const exact = voices.find(v => v.name.toLowerCase() === mode)
+    if (exact) return exact
+    const fuzzy = voices.find(v => zh(v) && v.name.toLowerCase().includes(mode))
+    if (fuzzy) return fuzzy
+  }
   const femalePrefs = [
     'xiaoxiao online', 'xiaoyi online', 'google 普通话', 'google 中文',
-    'meijia', 'xiaoxiao', 'xiaoyi', 'huihui', 'yaoyao', 'tingting', 'lili', 'anny', 'woman', 'female'
+    'meijia', 'xiaoxiao', 'xiaoyi', 'huihui', 'yaoyao', 'tingting', 'lili', 'anny', 'woman', 'female', 'meijia'
   ]
   const malePrefs = [
     'yunxi online', 'yunyang online', 'google 中文（香港）',
     'yunxi', 'yunyang', 'kangkang', 'yunjian', 'danny', 'george', 'man', 'male'
   ]
-  const zh = v => v.lang && v.lang.toLowerCase().startsWith('zh')
   // 按用户选择的音色优先匹配，找不到则回退另一种性别，最后回退任意中文音色
   const prefs = mode === 'male' ? malePrefs.concat(femalePrefs) : mode === 'female' ? femalePrefs.concat(malePrefs) : femalePrefs.concat(malePrefs)
   for (const p of prefs) {
@@ -392,23 +424,26 @@ function speakText(content, idx) {
   }
   if (speakingIndex.value === idx) { stopSpeak(); return }
   stopSpeak()
-  const u = new SpeechSynthesisUtterance(content)
-  const v = pickZhVoice()
-  if (v) u.voice = v
-  u.lang = 'zh-CN'
-  u.rate = 1.05
-  u.pitch = 1
-  speakingIndex.value = idx
-  u.onend = () => {
-    speakingIndex.value = -1
-    // 通话模式下：AI 说完自动继续听（打电话式循环）
-    if (callRunning && inCall.value) beginListening()
-  }
-  u.onerror = () => {
-    speakingIndex.value = -1
-    if (callRunning && inCall.value) beginListening()
-  }
-  speechSynthesis.speak(u)
+  // Chrome 的 cancel() 后立即 speak 可能被吞掉：等一小段再播，且保证音色列表已就绪
+  setTimeout(() => {
+    const u = new SpeechSynthesisUtterance(content)
+    const v = pickZhVoice()
+    if (v) u.voice = v
+    u.lang = 'zh-CN'
+    u.rate = 1.05
+    u.pitch = 1
+    speakingIndex.value = idx
+    u.onend = () => {
+      speakingIndex.value = -1
+      // 通话模式下：AI 说完自动继续听（打电话式循环）
+      if (callRunning && inCall.value) beginListening()
+    }
+    u.onerror = () => {
+      speakingIndex.value = -1
+      if (callRunning && inCall.value) beginListening()
+    }
+    speechSynthesis.speak(u)
+  }, 60)
 }
 
 function speakMsg(m, i) {
@@ -497,8 +532,12 @@ onMounted(() => {
       welcome: true
     })
   }
-  // 预加载语音列表（部分浏览器异步加载 voices）
-  if (window.speechSynthesis) speechSynthesis.getVoices()
+  // 预加载语音列表（部分浏览器异步加载 voices）+ 监听就绪事件
+  if (window.speechSynthesis) {
+    speechSynthesis.getVoices()
+    speechSynthesis.onvoiceschanged = () => setTimeout(refreshVoiceCache, 0)
+    setTimeout(refreshVoiceCache, 400)
+  }
 })
 
 onUnmounted(() => {

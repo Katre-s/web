@@ -34,10 +34,11 @@ export default {
   },
   voice: {
     title: 'AI Voice',
-    tip: 'Choose the voice for AI replies. Saved automatically.',
+    tip: 'Choose the voice for AI replies. Real available Chinese voices are listed below.',
     auto: 'Auto',
     female: 'Female',
     male: 'Male',
+    noVoice: 'No Chinese voice detected. Edge browser is recommended for the best voices.',
   },
   ai: {
     pageTitle: '🐟 Xiaoxianyu Assistant',

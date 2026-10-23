@@ -6,15 +6,15 @@
           <div class="vs-title">{{ $t('voice.title') }}</div>
           <div class="vs-grid">
             <div
-              v-for="v in voices"
+              v-for="v in quickVoices"
               :key="v.id"
               class="vs-card"
-              :class="{ active: current === v.id }"
+              :class="{ active: isActive(v.id) }"
               @click="choose(v.id)"
             >
               <div class="vs-emoji">{{ v.emoji }}</div>
               <div class="vs-name">{{ $t(`voice.${v.id}`) }}</div>
-              <div class="vs-dot" v-if="current === v.id"></div>
+              <div class="vs-dot" v-if="isActive(v.id)"></div>
             </div>
           </div>
           <div class="vs-tip">{{ $t('voice.tip') }}</div>
@@ -25,27 +25,59 @@
       </button>
     </template>
 
-    <!-- 内联模式（个人中心）：紧凑胶囊入口，hover 渐变展开，与主题一致 -->
+    <!-- 内联模式（个人中心）：胶囊入口，hover 渐变展开，与主题一致 -->
     <div v-else class="vs-inline" @mouseenter="open = true" @mouseleave="open = false">
       <div class="vs-trigger">
         <el-icon :size="15"><Microphone /></el-icon>
         <span class="vs-trigger-label">{{ $t('voice.title') }}</span>
-        <span class="vs-current">{{ $t(`voice.${current}`) }}</span>
+        <span class="vs-current">{{ currentLabel }}</span>
         <el-icon :size="12" class="vs-caret"><ArrowDown /></el-icon>
       </div>
       <transition name="pop">
         <div v-if="open" class="vs-panel-sm">
-          <div
-            v-for="v in voices"
-            :key="v.id"
-            class="vs-card-sm"
-            :class="{ active: current === v.id }"
-            @click="choose(v.id)"
-          >
-            <div class="vs-emoji-sm">{{ v.emoji }}</div>
-            <div class="vs-name-sm">{{ $t(`voice.${v.id}`) }}</div>
-            <div class="vs-dot" v-if="current === v.id"></div>
+          <div class="vs-quick">
+            <div
+              v-for="v in quickVoices"
+              :key="v.id"
+              class="vs-card-sm"
+              :class="{ active: isActive(v.id) }"
+              @click="choose(v.id)"
+            >
+              <div class="vs-emoji-sm">{{ v.emoji }}</div>
+              <div class="vs-name-sm">{{ $t(`voice.${v.id}`) }}</div>
+              <div class="vs-dot" v-if="isActive(v.id)"></div>
+            </div>
           </div>
+          <!-- 当前浏览器真实可用的中文音色：分组展示，精确可点选 -->
+          <template v-if="groups.female.length || groups.male.length">
+            <div v-if="groups.female.length" class="vs-group">
+              <div class="vs-group-title">🎀 {{ $t('voice.female') }}</div>
+              <div
+                v-for="name in groups.female"
+                :key="name"
+                class="vs-voice-row"
+                :class="{ active: isActive(name) }"
+                @click="choose(name)"
+              >
+                <span class="vs-voice-name">{{ shortName(name) }}</span>
+                <span class="vs-check" v-if="isActive(name)">✓</span>
+              </div>
+            </div>
+            <div v-if="groups.male.length" class="vs-group">
+              <div class="vs-group-title">🧢 {{ $t('voice.male') }}</div>
+              <div
+                v-for="name in groups.male"
+                :key="name"
+                class="vs-voice-row"
+                :class="{ active: isActive(name) }"
+                @click="choose(name)"
+              >
+                <span class="vs-voice-name">{{ shortName(name) }}</span>
+                <span class="vs-check" v-if="isActive(name)">✓</span>
+              </div>
+            </div>
+          </template>
+          <div v-else class="vs-no-voice">{{ $t('voice.noVoice') }}</div>
         </div>
       </transition>
     </div>
@@ -53,7 +85,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { Microphone, ArrowDown } from '@element-plus/icons-vue'
 
 const props = defineProps({
@@ -62,21 +94,80 @@ const props = defineProps({
 
 const open = ref(false)
 const current = ref(localStorage.getItem('ai_voice') || 'auto')
-const voices = [
+const available = ref([])
+
+const quickVoices = [
   { id: 'auto', emoji: '✨' },
   { id: 'female', emoji: '🎀' },
   { id: 'male', emoji: '🧢' }
 ]
 
+const FEMALE_HINT = ['xiaoxiao', 'xiaoyi', 'huihui', 'yaoyao', 'tingting', 'lili', 'anny', 'meijia', 'woman', 'female', 'google 普通话', 'google 中文']
+const MALE_HINT = ['kangkang', 'yunxi', 'yunyang', 'yunjian', 'danny', 'george', 'man', 'male', 'google 中文（香港）']
+
+function classify(name) {
+  const n = name.toLowerCase()
+  for (const h of FEMALE_HINT) if (n.includes(h)) return 'female'
+  for (const h of MALE_HINT) if (n.includes(h)) return 'male'
+  return 'other'
+}
+
+const groups = computed(() => {
+  const g = { female: [], male: [], other: [] }
+  for (const v of available.value) g[classify(v)].push(v)
+  return g
+})
+
+function isActive(id) {
+  if (current.value === id) return true
+  // 快速档与具体音色的联动：选了女声但当前是具体女声音色也算激活
+  if (id === 'female' && !['auto', 'female', 'male'].includes(current.value) && classify(current.value) === 'female') return true
+  if (id === 'male' && !['auto', 'female', 'male'].includes(current.value) && classify(current.value) === 'male') return true
+  return false
+}
+
+const currentLabel = computed(() => {
+  if (['auto', 'female', 'male'].includes(current.value)) return current.value
+  return shortName(current.value)
+})
+
+function shortName(name) {
+  // "Microsoft Huihui - Chinese (Simplified, PRC)" → "Huihui"
+  // "Xiaoxiao Online - Chinese (China)" → "Xiaoxiao"
+  let n = String(name || '')
+  n = n.split(' - ')[0].trim()
+  n = n.replace(/^Microsoft\s+/i, '').replace(/^Google\s+/i, '')
+  const skipWords = ['online', 'neural', 'natural', 'local']
+  const words = n.split(/\s+/).filter(Boolean)
+  if (words.length > 1) {
+    let last = words[words.length - 1]
+    if (skipWords.includes(last.toLowerCase()) && words.length > 1) last = words[words.length - 2]
+    n = last
+  }
+  return n || String(name).slice(0, 18)
+}
+
 function choose(id) {
   localStorage.setItem('ai_voice', id)
   current.value = id
-  // 触发自定义事件，便于其他组件（如 AiChat）即时感知
   window.dispatchEvent(new CustomEvent('ai-voice-changed', { detail: id }))
+}
+
+function refreshVoices(names) {
+  if (Array.isArray(names) && names.length) {
+    available.value = names.filter(n => /zh|Chinese|chinese/i.test(n) || /[\u4e00-\u9fa5]/.test(n))
+  } else if (window.speechSynthesis) {
+    const zh = speechSynthesis.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith('zh'))
+    if (zh.length) available.value = zh.map(v => v.name)
+  }
 }
 
 function onVoiceChanged(e) {
   if (e.detail) current.value = e.detail
+}
+
+function onVoicesReady(e) {
+  refreshVoices(e.detail)
 }
 
 function onDocClick(e) {
@@ -87,10 +178,18 @@ function onDocClick(e) {
 onMounted(() => {
   document.addEventListener('click', onDocClick)
   window.addEventListener('ai-voice-changed', onVoiceChanged)
+  window.addEventListener('ai-voices-ready', onVoicesReady)
+  refreshVoices()
+  if (window.speechSynthesis) {
+    speechSynthesis.getVoices()
+    speechSynthesis.onvoiceschanged = () => setTimeout(refreshVoices, 0)
+    setTimeout(refreshVoices, 400)
+  }
 })
 onUnmounted(() => {
   document.removeEventListener('click', onDocClick)
   window.removeEventListener('ai-voice-changed', onVoiceChanged)
+  window.removeEventListener('ai-voices-ready', onVoicesReady)
 })
 </script>
 
@@ -104,7 +203,6 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: flex-end;
 }
-/* 内联模式：个人中心紧凑入口 + hover 渐变面板（与主题一致）*/
 .voice-switcher.inline {
   position: static;
   width: 100%;
@@ -149,7 +247,7 @@ onUnmounted(() => {
   position: absolute;
   left: 0;
   top: calc(100% + 8px);
-  width: 248px;
+  width: 288px;
   padding: 12px;
   border-radius: 16px;
   background: var(--nav-bg, rgba(255, 255, 255, 0.97));
@@ -158,9 +256,12 @@ onUnmounted(() => {
   border: 1px solid var(--card-border, rgba(180, 160, 120, 0.2));
   box-shadow: 0 16px 44px rgba(0, 0, 0, 0.16);
   z-index: 60;
+}
+.vs-quick {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
+  margin-bottom: 10px;
 }
 .vs-card-sm {
   position: relative;
@@ -187,6 +288,47 @@ onUnmounted(() => {
   font-size: 11.5px;
   color: var(--text-sub);
   font-weight: 600;
+}
+.vs-group {
+  border-top: 1px dashed var(--card-border, rgba(180, 160, 120, 0.25));
+  padding-top: 8px;
+  margin-top: 4px;
+}
+.vs-group-title {
+  font-size: 11px;
+  color: var(--text-sub, #78909c);
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.vs-voice-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 9px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-main);
+  transition: background 0.18s var(--ease-smooth);
+}
+.vs-voice-row:hover {
+  background: var(--accent-soft, rgba(66, 165, 245, 0.08));
+}
+.vs-voice-row.active {
+  background: var(--accent-soft, rgba(66, 165, 245, 0.14));
+  color: var(--accent);
+  font-weight: 700;
+}
+.vs-check {
+  color: var(--accent);
+  font-weight: 800;
+}
+.vs-no-voice {
+  padding: 10px 4px 4px;
+  font-size: 11.5px;
+  color: var(--text-sub, #78909c);
+  text-align: center;
+  border-top: 1px dashed var(--card-border, rgba(180, 160, 120, 0.25));
 }
 .pop-enter-active,
 .pop-leave-active {
