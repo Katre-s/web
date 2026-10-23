@@ -4,6 +4,10 @@
       <span class="ai-title">{{ $t('ai.pageTitle') }}</span>
       <span class="ai-tag">{{ $t('ai.tag') }}</span>
       <div class="ai-header-right">
+        <el-button size="small" round class="ai-call-btn" :class="{ calling: inCall }" @click="toggleCall">
+          <el-icon :size="14"><Phone /></el-icon>
+          <span>{{ inCall ? $t('ai.hangup') : $t('ai.call') }}</span>
+        </el-button>
         <span class="ai-voice-label">{{ $t('ai.voiceReply') }}</span>
         <el-switch
           v-model="speakOnReply"
@@ -70,6 +74,31 @@
       />
       <el-button type="primary" :loading="loading" @click="send">{{ $t('ai.send') }}</el-button>
     </div>
+
+    <!-- ===== 实时通话模式：像打电话一样与 AI 交流 ===== -->
+    <teleport to="body">
+      <transition name="call-fade">
+        <div v-if="inCall" class="call-overlay">
+          <div class="call-stage">
+            <div class="call-avatar">
+              <span class="call-fish">🐟</span>
+              <span class="call-ring ring1"></span>
+              <span class="call-ring ring2"></span>
+            </div>
+            <div class="call-status">
+              <span class="call-status-text">{{ callStatusText }}</span>
+              <div class="call-waves" v-if="callStatus === 'listening' || callStatus === 'speaking'">
+                <i v-for="n in 7" :key="n" :style="{ animationDelay: n * 0.12 + 's' }"></i>
+              </div>
+            </div>
+            <div class="call-tip">{{ callTipText }}</div>
+            <button class="call-hangup" @click="hangupCall">
+              <el-icon :size="26"><PhoneFilled /></el-icon>
+            </button>
+          </div>
+        </div>
+      </transition>
+    </teleport>
   </div>
 </template>
 
@@ -79,7 +108,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { agentApi } from '@/api'
 import { ElMessage } from 'element-plus/es/components/message/index'
-import { Microphone } from '@element-plus/icons-vue'
+import { Microphone, Phone, PhoneFilled } from '@element-plus/icons-vue'
 import { useAgentStore } from '@/stores/agent'
 import { runAgentAction } from '@/utils/agentAction'
 
@@ -130,7 +159,7 @@ function startMic() {
     }
     recognition.onerror = (e) => {
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-        ElMessage.error(t('ai.micDenied'))
+        if (!inCall.value) ElMessage.error(t('ai.micDenied'))
       }
       isListening.value = false
     }
@@ -139,6 +168,10 @@ function startMic() {
       // 说话结束后若有完整识别结果，自动发送（实时通话体验）
       if (finalTranscript.trim() && !loading.value) {
         send()
+      } else if (callRunning && inCall.value && !loading.value) {
+        // 通话模式：没听清/没说话就继续听，像电话保持在线
+        callStatus.value = 'listening'
+        startMic()
       }
     }
     recognition.start()
@@ -161,8 +194,69 @@ const speakOnReply = ref(localStorage.getItem('ai_speak_on') !== '0')
 const speakingIndex = ref(-1)
 let utterTimer = null
 
+/* ============ 实时通话模式：像打电话一样 ============ */
+const inCall = ref(false)
+const callStatus = ref('idle') // idle | listening | thinking | speaking
+let callRunning = false
+
+const callStatusText = computed(() => {
+  const map = {
+    idle: t('ai.callConnecting'),
+    listening: t('ai.callListening'),
+    thinking: t('ai.callThinking'),
+    speaking: t('ai.callSpeaking')
+  }
+  return map[callStatus.value] || ''
+})
+const callTipText = computed(() => {
+  if (callStatus.value === 'listening') return t('ai.callTipListening')
+  if (callStatus.value === 'thinking') return t('ai.callTipThinking')
+  if (callStatus.value === 'speaking') return t('ai.callTipSpeaking')
+  return t('ai.callConnecting')
+})
+
+function toggleCall() {
+  if (inCall.value) hangupCall()
+  else startCall()
+}
+
+function startCall() {
+  if (!micSupported) {
+    ElMessage.warning(t('ai.micUnsupported'))
+    return
+  }
+  inCall.value = true
+  callRunning = true
+  callStatus.value = 'idle'
+  // 短暂连接提示后开始聆听
+  setTimeout(() => {
+    if (callRunning) {
+      callStatus.value = 'listening'
+      startMic()
+    }
+  }, 700)
+}
+
+function hangupCall() {
+  callRunning = false
+  inCall.value = false
+  callStatus.value = 'idle'
+  stopMic()
+  stopSpeak()
+}
+
 function pickZhVoice() {
   const voices = window.speechSynthesis ? speechSynthesis.getVoices() : []
+  if (!voices.length) return null
+  // 优先自然音色：Edge 在线自然语音 / Google 普通话 / 系统中文
+  const prefers = [
+    'xiaoxiao online', 'xiaoyi online', 'yunxi online', 'yunyang online',
+    'google 普通话', 'google 中文', 'huihui', 'yaoyao', 'kangkang', 'tingting'
+  ]
+  for (const p of prefers) {
+    const hit = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('zh') && v.name.toLowerCase().includes(p))
+    if (hit) return hit
+  }
   return voices.find(v => v.lang && v.lang.toLowerCase().startsWith('zh')) || null
 }
 
@@ -183,8 +277,21 @@ function speakText(content, idx) {
   u.rate = 1.05
   u.pitch = 1
   speakingIndex.value = idx
-  u.onend = () => { speakingIndex.value = -1 }
-  u.onerror = () => { speakingIndex.value = -1 }
+  u.onend = () => {
+    speakingIndex.value = -1
+    // 通话模式下：AI 说完自动继续听（打电话式循环）
+    if (callRunning && inCall.value) {
+      callStatus.value = 'listening'
+      startMic()
+    }
+  }
+  u.onerror = () => {
+    speakingIndex.value = -1
+    if (callRunning && inCall.value) {
+      callStatus.value = 'listening'
+      startMic()
+    }
+  }
   speechSynthesis.speak(u)
 }
 
@@ -234,6 +341,7 @@ async function send() {
   text.value = ''
   agentStore.addMessage({ role: 'user', content })
   loading.value = true
+  if (inCall.value) callStatus.value = 'thinking'
   scrollBottom()
 
   const history = agentStore.messages
@@ -245,12 +353,19 @@ async function send() {
     const res = await agentApi.chat(content, history)
     const data = res.data || res
     agentStore.addMessage({ role: 'assistant', content: data.reply, intent: data.intent, actions: data.actions || [] })
-    // 实时通话：开启语音播报时自动朗读 AI 回复
-    if (speakOnReply.value && data.reply) {
+    // 通话模式下：AI 回复自动朗读，形成"打电话式"对话
+    if (inCall.value && data.reply) {
+      callStatus.value = 'speaking'
+      nextTick(() => speakText(data.reply, messages.value.length - 1))
+    } else if (speakOnReply.value && data.reply) {
       nextTick(() => speakText(data.reply, messages.value.length - 1))
     }
   } catch {
     ElMessage.error(t('ai.error'))
+    if (inCall.value) {
+      callStatus.value = 'listening'
+      startMic()
+    }
   } finally {
     loading.value = false
     scrollBottom()
@@ -272,6 +387,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  hangupCall()
   stopMic()
   stopSpeak()
 })
@@ -392,7 +508,148 @@ onUnmounted(() => {
   color: #fff !important;
   animation: mic-pulse 1s ease-in-out infinite;
 }
+.ai-call-btn {
+  margin: 0 2px 0 0 !important;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 999px !important;
+}
+.ai-call-btn.calling {
+  background: linear-gradient(135deg, #26c6da, #00acc1) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  animation: mic-pulse 1.4s ease-in-out infinite;
+}
 @media (max-width: 768px) {
   .ai-chat-page { height: calc(100vh - 160px); }
+}
+</style>
+
+<style>
+/* ===== 实时通话界面（teleport 到 body）===== */
+.call-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(60% 50% at 50% 18%, rgba(66, 165, 245, 0.22), transparent 62%),
+    radial-gradient(50% 45% at 82% 82%, rgba(167, 139, 250, 0.16), transparent 60%),
+    linear-gradient(180deg, #0b1220 0%, #101b33 55%, #0d1628 100%);
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+.call-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding-bottom: 24px;
+  user-select: none;
+}
+.call-avatar {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.call-fish {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #22d3ee, #3b82f6 60%, #a78bfa);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 44px;
+  box-shadow: 0 12px 44px rgba(34, 211, 238, 0.4);
+  z-index: 2;
+  animation: call-breathe 2.6s ease-in-out infinite;
+}
+@keyframes call-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+.call-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid rgba(34, 211, 238, 0.4);
+  inset: 0;
+  animation: call-ring 2.4s ease-out infinite;
+}
+.call-ring.ring2 {
+  animation-delay: 1.2s;
+}
+@keyframes call-ring {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  100% { transform: scale(1.55); opacity: 0; }
+}
+.call-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-height: 62px;
+}
+.call-status-text {
+  color: #e8f6ff;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.call-tip {
+  color: rgba(143, 179, 201, 0.85);
+  font-size: 12.5px;
+  letter-spacing: 0.4px;
+}
+.call-waves {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 30px;
+}
+.call-waves i {
+  width: 4px;
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #22d3ee, #a78bfa);
+  animation: wave 0.9s ease-in-out infinite;
+}
+@keyframes wave {
+  0%, 100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1.15); }
+}
+.call-hangup {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(135deg, #ef5350, #d32f2f);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 32px rgba(239, 83, 80, 0.45);
+  transition: transform 0.2s var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1)), box-shadow 0.25s;
+  margin-top: 8px;
+}
+.call-hangup:hover {
+  transform: scale(1.08);
+  box-shadow: 0 14px 40px rgba(239, 83, 80, 0.55);
+}
+.call-hangup:active {
+  transform: scale(0.94);
+}
+.call-fade-enter-active,
+.call-fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.call-fade-enter-from,
+.call-fade-leave-to {
+  opacity: 0;
 }
 </style>
