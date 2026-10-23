@@ -473,8 +473,8 @@ onUnmounted(() => {
 }
 .btn {
   height: 46px;
-  padding: 0 24px;
-  border-radius: 14px;
+  padding: 0 26px;
+  border-radius: 999px;
   font-size: 14.5px;
   font-weight: 700;
   font-family: inherit;

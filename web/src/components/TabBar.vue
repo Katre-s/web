@@ -259,6 +259,23 @@ function onVisible() {
   color: var(--accent);
   font-weight: 600;
 }
+/* iOS 质感：选中图标背后柔和圆形容器高亮 */
+.tab-item.router-link-active .el-icon {
+  position: relative;
+}
+.tab-item.router-link-active .el-icon::before {
+  content: '';
+  position: absolute;
+  inset: -9px -7px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  z-index: 0;
+  transition: background 0.3s var(--ease-smooth);
+}
+.tab-item.router-link-active .el-icon :deep(svg) {
+  position: relative;
+  z-index: 1;
+}
 /* 切到某个 Tab 时图标弹性放大，页面"活"的反馈 */
 .tab-item.router-link-active .el-icon {
   animation: tab-pop 0.45s var(--ease-spring);
