@@ -3,6 +3,11 @@
   "appName": "徐工院小咸鱼",
   "webDir": "dist",
 
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true
+  },
+
   "android": {
     "allowMixedContent": true,
     "adjustMarginsForEdgeToEdge": "auto"

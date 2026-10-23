@@ -169,7 +169,7 @@
           @click="goDetail(book)"
         >
           <div class="book-cover-wrap">
-            <img v-if="book.bookCover" :src="resolveImg(book.bookCover)" class="book-cover" @error="book.bookCover = ''" />
+            <img v-if="book.bookCover" :src="thumb(book.bookCover, 480)" class="book-cover" loading="lazy" @error="coverError($event, book.bookCover)" />
             <div v-else class="book-cover-placeholder">
               <el-icon><Notebook /></el-icon>
             </div>
@@ -194,7 +194,8 @@
               v-if="goodsCover(p)"
               :src="goodsCover(p)"
               class="goods-cover"
-              @error="p.bookCover = ''; p.images = []"
+              loading="lazy"
+              @error="coverError($event, p.bookCover || p.images?.[0]?.imagePath)"
             />
             <div v-else class="goods-cover-placeholder">{{ currentCategory.icon }}</div>
             <span class="goods-badge">{{ $t('tradeCat.' + categoryKey(p.category)) }}</span>
@@ -230,7 +231,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus/es/components/message/index'
 import { Search, Plus, UploadFilled, Notebook, Document, Camera, Loading, Filter, Close } from '@element-plus/icons-vue'
 import { booksApi, bookApi, productApi, recommendApi } from '@/api'
-import { resolveImg } from '@/utils/image'
+import { resolveImg, thumb } from '@/utils/image'
 import { TRADE_CATEGORIES, DEFAULT_CATEGORY, isValidCategory, getCategory, categoryKey } from '@/constants/categories'
 
 const router = useRouter()
@@ -356,7 +357,19 @@ async function loadProducts() {
 function goodsCover(p) {
   const first = p.images?.[0]
   const firstPath = typeof first === 'string' ? first : first?.imagePath
-  return resolveImg(p.bookCover || firstPath)
+  return thumb(p.bookCover || firstPath, 480)
+}
+
+// 缩略图生成失败（老图/文件名特殊）时退回原图，再失败才藏起来，别留破图
+function coverError(e, raw) {
+  const el = e?.target
+  if (!el) return
+  if (el.dataset.fb !== 'raw') {
+    el.dataset.fb = 'raw'
+    const u = resolveImg(raw)
+    if (u) { el.src = u; return }
+  }
+  el.style.visibility = 'hidden'
 }
 
 // 筛选面板

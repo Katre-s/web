@@ -660,37 +660,118 @@ function pickZhVoice() {
 function stopSpeak() {
   if (window.speechSynthesis) speechSynthesis.cancel()
   if (utterTimer) { clearTimeout(utterTimer); utterTimer = null }
+  if (typeof clearSpeakWatchdog === 'function') clearSpeakWatchdog()
+  if (nativeTts) { try { nativeTts.stop() } catch {} }
   speakingIndex.value = -1
 }
 
-function speakText(content, idx) {
-  // 无语音合成能力时：通话模式自动继续下一轮聆听（避免卡死在 speaking）
-  if (!window.speechSynthesis) {
-    if (callRunning && inCall.value) setTimeout(beginListening, 300)
-    return
+/* ============ 语音朗读 ============
+   三条路，按可用性降级：
+     1. 安卓原生 TextToSpeech —— WebView 里根本没有可用的 speechSynthesis，
+        不接这条路，APK 里 AI「只会发文字」而且通话会卡死在 speaking 状态；
+     2. 浏览器 speechSynthesis —— 网页端/桌面端正常走这条；
+     3. 都没有 —— 不朗读，直接继续听，绝不让通话卡住。
+   任何一条都带超时看门狗，防止 onend 不回调把整通电话挂死。 */
+let nativeTts = null
+let nativeTtsTried = false
+let speakWatchdog = null
+let ttsFailCount = 0
+let ttsBroken = false
+
+const inNativeShell = () => !!(window.Capacitor?.isNativePlatform?.())
+
+function clearSpeakWatchdog() {
+  if (speakWatchdog) { clearTimeout(speakWatchdog); speakWatchdog = null }
+}
+
+function startSpeakWatchdog(content, idx) {
+  clearSpeakWatchdog()
+  // 中文按 ~4 字/秒 估算，再留 3 秒余量；估算偏大没关系，只是兜底
+  const est = Math.max(4000, String(content || '').length * 260 + 3000)
+  speakWatchdog = setTimeout(() => {
+    if (speakingIndex.value !== idx) return
+    speakingIndex.value = -1
+    if (callRunning && inCall.value) beginListening()
+  }, est)
+}
+
+async function loadNativeTts() {
+  if (nativeTtsTried && !nativeTts) return false
+  nativeTtsTried = true
+  try {
+    const mod = await import('@capacitor-community/text-to-speech')
+    nativeTts = mod.TextToSpeech || null
+    return !!nativeTts
+  } catch {
+    return false
   }
+}
+
+async function speakText(content, idx) {
   if (speakingIndex.value === idx) { stopSpeak(); return }
   stopSpeak()
-  // Chrome 的 cancel() 后立即 speak 可能被吞掉：等一小段再播，且保证音色列表已就绪
-  setTimeout(() => {
-    const u = new SpeechSynthesisUtterance(content)
-    const v = pickZhVoice()
-    if (v) u.voice = v
-    u.lang = 'zh-CN'
-    u.rate = 1.05
-    u.pitch = 1
+
+  const finish = () => {
+    speakingIndex.value = -1
+    clearSpeakWatchdog()
+    if (callRunning && inCall.value) beginListening()
+  }
+
+  // 1) 原生 TTS（APK）
+  if (inNativeShell() && !ttsBroken) {
+    const ok = await loadNativeTts()
+    if (ok) {
+      speakingIndex.value = idx
+      startSpeakWatchdog(content, idx)
+      try {
+        await nativeTts.stop().catch(() => {})
+        await nativeTts.speak({
+          text: content,
+          lang: 'zh-CN',
+          rate: 1.0,
+          pitch: 1.0,
+          volume: 1.0,
+          // 关键：等真正播完再 resolve，否则通话会立刻进入下一轮录音
+          awaitSpeakCompletion: true
+        })
+        ttsFailCount = 0
+        finish()
+        return
+      } catch {
+        ttsFailCount++
+        // 手机没装中文语音引擎时会连续报错：两次之后就不再尝试，直接静音继续对话
+        if (ttsFailCount >= 2) ttsBroken = true
+        clearSpeakWatchdog()
+        speakingIndex.value = -1
+      }
+    }
+  }
+
+  // 2) 浏览器合成
+  if (window.speechSynthesis) {
     speakingIndex.value = idx
-    u.onend = () => {
-      speakingIndex.value = -1
-      // 通话模式下：AI 说完自动继续听（打电话式循环）
-      if (callRunning && inCall.value) beginListening()
-    }
-    u.onerror = () => {
-      speakingIndex.value = -1
-      if (callRunning && inCall.value) beginListening()
-    }
-    speechSynthesis.speak(u)
-  }, 60)
+    startSpeakWatchdog(content, idx)
+    // Chrome 的 cancel() 后立即 speak 可能被吞掉：等一小段再播，且保证音色列表已就绪
+    utterTimer = setTimeout(() => {
+      try {
+        const u = new SpeechSynthesisUtterance(content)
+        const v = pickZhVoice()
+        if (v) u.voice = v
+        u.lang = 'zh-CN'
+        u.rate = 1.05
+        u.pitch = 1
+        u.onend = finish
+        u.onerror = finish
+        speechSynthesis.speak(u)
+      } catch {
+        finish()
+      }
+    }, 60)
+    return
+  }
+
+  // 3) 彻底没有语音能力：不朗读，继续听
+  if (callRunning && inCall.value) setTimeout(beginListening, 250)
 }
 
 function speakMsg(m, i) {

@@ -1,7 +1,7 @@
 <template>
   <div class="product-card" @click="goDetail">
     <div class="card-image">
-      <img :src="coverImg" :alt="product.title" loading="lazy" decoding="async" />
+      <img :src="coverImg" :alt="product.title" loading="lazy" decoding="async" @error="handleImgError" />
       <span class="status-tag" v-if="product.status === 'sold'">{{ $t('common.sold') }}</span>
     </div>
     <div class="card-body">
@@ -35,6 +35,25 @@ const coverImg = computed(() => {
 
 function goDetail() {
   router.push(`/product/${props.product.id}`)
+}
+
+// 缩略图万一生成失败（老图文件名特殊/后端未更新），退回原图；原图再失败才用占位图。
+// 这样任何情况下卡片都不会留一个破图图标或纯白块。
+function handleImgError(e) {
+  const el = e?.target
+  if (!el) return
+  if (el.dataset.fallback !== 'orig') {
+    el.dataset.fallback = 'orig'
+    const p = props.product
+    const first = p.images?.[0]
+    const firstPath = typeof first === 'string' ? first : first?.imagePath
+    const raw = resolveImg(p.cover || p.bookCover || firstPath)
+    if (raw) {
+      el.src = raw
+      return
+    }
+  }
+  el.src = defaultImg
 }
 </script>
 
