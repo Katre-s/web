@@ -7,7 +7,7 @@
       </router-link>
       <div class="nav-left">
         <div class="avatar-box">
-          <img :src="resolveImg(userStore.userInfo?.avatar) || defaultAvatar" class="avatar" />
+          <img :src="thumb(userStore.userInfo?.avatar, 96) || defaultAvatar" class="avatar" />
         </div>
         <span class="username">{{ userStore.userInfo?.nickname || '同学' }}</span>
       </div>
@@ -114,7 +114,7 @@ import { useRouter } from 'vue-router'
 import { HomeFilled, ShoppingBag, ChatLineSquare, ChatDotRound, User, Bell, Setting, Tickets, MagicStick, CaretBottom } from '@element-plus/icons-vue'
 import { notificationApi } from '@/api'
 import { setLang, currentLang } from '@/i18n'
-import { resolveImg } from '@/utils/image'
+import { resolveImg, thumb } from '@/utils/image'
 import BrandLogo from '@/components/BrandLogo.vue'
 
 const userStore = useUserStore()

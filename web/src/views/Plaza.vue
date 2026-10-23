@@ -51,7 +51,7 @@
     <section class="feed" v-loading="loading">
       <article v-for="post in list" :key="post.id" class="post-card">
         <header class="post-head">
-          <img class="avatar" :src="resolveImg(post.author?.avatar) || defaultAvatar" @error="avatarFallback" />
+          <img class="avatar" :src="thumb(post.author?.avatar, 96) || defaultAvatar" @error="avatarFallback" loading="lazy" />
           <div class="who">
             <b>{{ post.author?.nickname || $t('plaza.authorFallback') }}</b>
             <span>
@@ -70,7 +70,7 @@
           <el-image
             v-for="(img, i) in post.images"
             :key="i"
-            :src="resolveImg(img)"
+            :src="thumb(img, 480)"
             :preview-src-list="post.images.map(resolveImg)"
             :initial-index="i"
             fit="cover"
@@ -96,7 +96,7 @@ import { ElMessage } from 'element-plus/es/components/message/index'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index'
 import { useUserStore } from '@/stores/user'
 import { plazaApi } from '@/api'
-import { resolveImg } from '@/utils/image'
+import { resolveImg, thumb } from '@/utils/image'
 import BrandLogo from '@/components/BrandLogo.vue'
 
 const { t } = useI18n()
@@ -119,7 +119,7 @@ const previews = ref([])
 const fileInput = ref(null)
 
 const defaultAvatar = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><circle cx="20" cy="20" r="20" fill="%2310667a"/><text x="50%" y="50%" fill="%23fff" text-anchor="middle" dy=".35em" font-size="15">鱼</text></svg>'
-const myAvatar = computed(() => resolveImg(me.value?.avatar) || defaultAvatar)
+const myAvatar = computed(() => thumb(me.value?.avatar, 96) || defaultAvatar)
 
 const canPost = computed(() => content.value.trim().length > 0 || previews.value.length > 0)
 const hasMore = computed(() => list.value.length < total.value)

@@ -59,7 +59,7 @@
     <div class="ai-input">
       <el-button
         class="ai-mic-btn"
-        :class="{ listening: isListening }"
+        :class="{ listening: micActive }"
         :title="$t('ai.micTip')"
         circle
         @click="toggleMic"
@@ -68,7 +68,7 @@
       </el-button>
       <el-input
         v-model="text"
-        :placeholder="isListening ? $t('ai.listening') : $t('ai.placeholder')"
+        :placeholder="micActive ? $t('ai.listening') : $t('ai.placeholder')"
         @keyup.enter="send"
         :disabled="loading"
       />
@@ -126,15 +126,233 @@ const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecogni
 const isListening = ref(false)
 let recognition = null
 let finalTranscript = ''
-let micSupported = !!SpeechRecognition
 // 麦克风仅在 HTTPS 或 localhost 下可用（Chrome 安全上下文策略）
 const secureCtx = !!(window.isSecureContext || location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname))
 const micError = ref(false)
 let micFailCount = 0
 
+/* ============ 录音兜底：MediaRecorder → 服务端识别 ============
+   手机端打不了电话的两个真实原因：
+     1. 打包成 APK 后页面跑在 Android WebView 里，它没有实现 webkitSpeechRecognition；
+     2. 站点是自签名证书，浏览器拿到的是「不安全上下文」，getUserMedia 也会被拒。
+   所以除了原生识别，再留一条通用通路：录一小段音频 → 上传 → 后台转文字 → 正常走对话。 */
+const hasSR = !!SpeechRecognition
+const hasMR = !!(window.MediaRecorder && navigator.mediaDevices?.getUserMedia)
+const recSupported = hasMR
+// 安卓（含 APK 里的 WebView）优先走录音通路：那套原生识别要么压根不存在，
+// 要么背后连的是境外服务，在国内基本只会返回 network error。
+// iOS Safari 的原生识别是本地能力，可以继续用；桌面端先用原生，失败再降级。
+const isAndroid = /Android/i.test(navigator.userAgent || '')
+let micMode = hasSR && !isAndroid ? 'sr' : (hasMR ? 'mr' : (hasSR ? 'sr' : 'none'))
+let asrUnavailable = false // 服务端没配 ASR 时置位，避免反复弹提示
+
+let mrRecorder = null
+let mrStream = null
+let mrChunks = []
+let mrMimeType = ''
+let mrAudioCtx = null
+let mrVadTimer = null
+let mrSpoke = false
+let mrSilenceAt = 0
+let mrStartAt = 0
+const mrBusy = ref(false)
+let mrSingleShot = false // true=点麦克风说一句；false=通话中的一轮
+
+function pickAudioMime() {
+  const cands = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus']
+  for (const m of cands) {
+    try {
+      if (window.MediaRecorder.isTypeSupported(m)) return m
+    } catch {}
+  }
+  return ''
+}
+
+function releaseRec() {
+  if (mrVadTimer) { clearInterval(mrVadTimer); mrVadTimer = null }
+  if (mrAudioCtx) {
+    try { mrAudioCtx.close() } catch {}
+    mrAudioCtx = null
+  }
+  if (mrStream) {
+    try { mrStream.getTracks().forEach(t => t.stop()) } catch {}
+    mrStream = null
+  }
+  mrRecorder = null
+}
+
+/** 录一轮：说话后静音约 1.1 秒自动结束，或最长 20 秒强制结束 */
+async function startRecTurn(singleShot = false) {
+  if (!recSupported || mrBusy.value) return
+  if (!singleShot && (!callRunning || !inCall.value)) return
+  if (asrUnavailable) {
+    ElMessage.warning(t('ai.asrUnavailable'))
+    return
+  }
+
+  mrBusy.value = true
+  mrSingleShot = singleShot
+  mrChunks = []
+  mrSpoke = false
+  callStatus.value = 'listening'
+
+  try {
+    mrStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+    })
+  } catch (err) {
+    mrBusy.value = false
+    micError.value = true
+    callStatus.value = 'idle'
+    clearWatchdog()
+    ElMessage.error(t('ai.micDenied'))
+    return
+  }
+
+  // 静音检测（VAD）：直接用音量包络判断是否说完，比固定时长自然得多
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext
+    if (Ctx) {
+      mrAudioCtx = new Ctx()
+      const src = mrAudioCtx.createMediaStreamSource(mrStream)
+      const analyser = mrAudioCtx.createAnalyser()
+      analyser.fftSize = 1024
+      src.connect(analyser)
+      const buf = new Uint8Array(analyser.fftSize)
+      mrVadTimer = setInterval(() => {
+        if (!mrRecorder || mrRecorder.state !== 'recording') return
+        analyser.getByteTimeDomainData(buf)
+        let sum = 0
+        for (let i = 0; i < buf.length; i++) {
+          const v = (buf[i] - 128) / 128
+          sum += v * v
+        }
+        const rms = Math.sqrt(sum / buf.length)
+        const now = Date.now()
+        if (rms > 0.022) {
+          mrSpoke = true
+          mrSilenceAt = 0
+        } else if (mrSpoke && !mrSilenceAt) {
+          mrSilenceAt = now
+        }
+        const silentTooLong = mrSpoke && mrSilenceAt && now - mrSilenceAt > 1100
+        if (silentTooLong || now - mrStartAt > 20000) stopRecTurn()
+      }, 100)
+    }
+  } catch {
+    // 没有 AudioContext 就退化为固定 6 秒录音
+    mrVadTimer = setTimeout(() => stopRecTurn(), 6000)
+  }
+
+  try {
+    mrMimeType = pickAudioMime()
+    mrRecorder = mrMimeType
+      ? new MediaRecorder(mrStream, { mimeType: mrMimeType })
+      : new MediaRecorder(mrStream)
+    mrMimeType = mrRecorder.mimeType || mrMimeType || 'audio/webm'
+    mrRecorder.ondataavailable = (e) => { if (e.data && e.data.size) mrChunks.push(e.data) }
+    mrRecorder.onstop = () => finishRecTurn()
+    mrStartAt = Date.now()
+    mrRecorder.start()
+  } catch {
+    mrBusy.value = false
+    releaseRec()
+    micError.value = true
+    callStatus.value = 'idle'
+    clearWatchdog()
+    ElMessage.error(t('ai.micError'))
+  }
+}
+
+function stopRecTurn() {
+  if (mrVadTimer) {
+    clearInterval(mrVadTimer)
+    clearTimeout(mrVadTimer)
+    mrVadTimer = null
+  }
+  try {
+    if (mrRecorder && mrRecorder.state === 'recording') mrRecorder.stop()
+  } catch {}
+}
+
+async function finishRecTurn() {
+  const chunks = mrChunks
+  mrChunks = []
+  releaseRec()
+  const blob = new Blob(chunks, { type: mrMimeType || 'audio/webm' })
+  // 小于 1.5KB 基本是环境噪声/没说话，直接开下一轮，别浪费一次识别
+  if (!chunks.length || blob.size < 1500) {
+    mrBusy.value = false
+    if (mrSingleShot) { callStatus.value = 'idle'; return }
+    if (callRunning && inCall.value) setTimeout(() => startRecTurn(), 250)
+    return
+  }
+  await transcribeAndSend(blob)
+}
+
+async function transcribeAndSend(blob) {
+  const ext = /mp4|m4a/.test(mrMimeType) ? 'm4a' : /ogg/.test(mrMimeType) ? 'ogg' : 'webm'
+  const fd = new FormData()
+  fd.append('file', blob, `speech.${ext}`)
+  try {
+    const res = await agentApi.asr(fd)
+    const code = res?.code
+    if (code === 2001) {
+      asrUnavailable = true
+      micError.value = true
+      callStatus.value = 'idle'
+      ElMessage.warning(res.message || t('ai.asrUnavailable'))
+      mrBusy.value = false
+      return
+    }
+    if (code && code !== 0) {
+      ElMessage.warning(res?.message || t('ai.asrFail'))
+      mrBusy.value = false
+      if (!mrSingleShot && callRunning && inCall.value) setTimeout(() => startRecTurn(), 400)
+      return
+    }
+    const content = String(res?.data?.text || '').trim()
+    mrBusy.value = false
+    if (!content) {
+      // 没识别出内容：通话里继续听，单次模式就停下
+      if (mrSingleShot) { callStatus.value = 'idle'; return }
+      if (callRunning && inCall.value) setTimeout(() => startRecTurn(), 300)
+      return
+    }
+    text.value = content
+    if (inCall.value) send()
+    else send()
+  } catch {
+    mrBusy.value = false
+    if (!mrSingleShot && callRunning && inCall.value) setTimeout(() => startRecTurn(), 600)
+  }
+}
+
+/** 停掉录音通路（挂断/离开页面） */
+function abortRec() {
+  if (mrVadTimer) { clearInterval(mrVadTimer); clearTimeout(mrVadTimer); mrVadTimer = null }
+  mrBusy.value = false
+  mrChunks = []
+  try {
+    if (mrRecorder && mrRecorder.state !== 'inactive') {
+      mrRecorder.onstop = null
+      mrRecorder.stop()
+    }
+  } catch {}
+  releaseRec()
+}
+
+
 function toggleMic() {
-  if (!micSupported) {
+  if (micMode === 'none') {
     ElMessage.warning(t('ai.micUnsupported'))
+    return
+  }
+  // 录音通路：点一下录一句（录完自动发送）
+  if (micMode === 'mr') {
+    if (mrBusy.value) { stopRecTurn(); return }
+    stopSpeak()
+    startRecTurn(true)
     return
   }
   if (isListening.value) stopMic()
@@ -170,6 +388,20 @@ function startMic() {
       scrollBottom()
     }
     recognition.onerror = (e) => {
+      // 原生识别「不可用」类错误（不是用户明确拒绝，而是这条路走不通）：
+      // 安卓 WebView 无此 API、国内网络连不上背后的识别服务、非安全上下文等。
+      // 只要有录音能力就切到「录音上传识别」，别让整通电话死在这。
+      const srDead = ['not-allowed', 'service-not-allowed', 'network', 'audio-capture', 'language-not-supported'].includes(e.error)
+      if (srDead && hasMR && micMode === 'sr' && !asrUnavailable) {
+        micMode = 'mr'
+        isListening.value = false
+        micFailCount = 0
+        try { recognition.abort() } catch {}
+        if (inCall.value) {
+          setTimeout(() => { if (callRunning && inCall.value) startRecTurn() }, 300)
+        }
+        return
+      }
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
         micError.value = true
         if (!inCall.value) ElMessage.error(t('ai.micDenied'))
@@ -257,6 +489,8 @@ const inCall = ref(false)
 const callStatus = ref('idle') // idle | listening | thinking | speaking
 let callRunning = false
 
+const micActive = computed(() => isListening.value || mrBusy.value)
+
 const callStatusText = computed(() => {
   if (micError.value) return t('ai.callMicError')
   const map = {
@@ -281,7 +515,7 @@ function toggleCall() {
 }
 
 function startCall() {
-  if (!micSupported) {
+  if (micMode === 'none') {
     ElMessage.warning(t('ai.micUnsupported'))
     return
   }
@@ -290,10 +524,15 @@ function startCall() {
     ElMessage.warning(t('ai.needHttps'))
     return
   }
+  if (micMode === 'mr' && asrUnavailable) {
+    ElMessage.warning(t('ai.asrUnavailable'))
+    return
+  }
   inCall.value = true
   callRunning = true
   callStatus.value = 'idle'
   micError.value = false
+  micFailCount = 0
   // 接通后：先说一句欢迎语（仅此一次），然后开始聆听
   setTimeout(() => {
     if (!callRunning) return
@@ -317,6 +556,7 @@ function hangupCall() {
   inCall.value = false
   callStatus.value = 'idle'
   clearWatchdog()
+  abortRec()
   stopMic()
   stopSpeak()
 }
@@ -334,6 +574,13 @@ function beginListening() {
     return
   }
   callStatus.value = 'listening'
+
+  // 录音通路（APK / 无原生识别的浏览器）：走「录一轮 → 上传识别 → 下一轮」的循环
+  if (micMode === 'mr') {
+    if (!mrBusy.value) startRecTurn()
+    return
+  }
+
   // 新聆听轮次才重置静默计时并启动看门狗；识别异常重连时不重置，避免无限推迟应答
   if (!watchdogTimer) {
     lastSpeechAt = Date.now()
@@ -488,7 +735,7 @@ function scrollBottom() {
 async function send() {
   const content = text.value.trim()
   if (!content || loading.value) return
-  if (!inCall.value) stopMic() // 通话模式保持识别常开，thinking 阶段也能继续听
+  if (!inCall.value) { stopMic(); abortRec() } // 通话模式保持识别常开，thinking 阶段也能继续听
   text.value = ''
   agentStore.addMessage({ role: 'user', content })
   loading.value = true
@@ -542,6 +789,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   hangupCall()
+  abortRec()
   stopMic()
   stopSpeak()
 })

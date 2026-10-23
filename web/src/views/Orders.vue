@@ -136,7 +136,7 @@ import { ElMessage } from 'element-plus/es/components/message/index'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index'
 import { cartApi, orderApi, conversationApi, aftersaleApi } from '@/api'
 import { useUserStore } from '@/stores/user'
-import { resolveImg, imgFallback } from '@/utils/image'
+import { resolveImg, imgFallback, thumb } from '@/utils/image'
 
 const route = useRoute()
 const router = useRouter()
@@ -155,13 +155,13 @@ const selectAll = ref(false)
 function getCover(item) {
   const p = item?.product
   if (!p) return ''
-  return resolveImg(p.cover || p.bookCover || p.images?.[0]?.imagePath)
+  return thumb(p.cover || p.bookCover || p.images?.[0]?.imagePath, 320)
 }
 
 function getItemCover(item) {
   const p = item?.product
   if (!p) return ''
-  return resolveImg(p.cover || p.bookCover || p.images?.[0]?.imagePath)
+  return thumb(p.cover || p.bookCover || p.images?.[0]?.imagePath, 320)
 }
 
 async function loadCart() {

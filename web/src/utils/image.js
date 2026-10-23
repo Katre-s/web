@@ -58,4 +58,22 @@ export function imgFallback(e) {
   onImgError(e)
 }
 
+// 列表/详情用缩略图：把 `/uploads/x.jpg` 换成 `/uploads/t/480/x.jpg`
+// 后端按需生成并缓存（480w 的 webp 只有 16KB，原图 600KB+），手机端弱网才不会全白。
+// 头像、外链、data/blob 一律原样返回。
+const UPLOAD_RE = /\/uploads\/(?!t\/)([^/?#]+)(\?[^#]*)?$/
+
+export function thumb(src, w = 480) {
+  const u = resolveImg(src)
+  if (!u || isInline(u)) return u
+  const m = u.match(UPLOAD_RE)
+  if (!m) return u
+  return u.replace(UPLOAD_RE, `/uploads/t/${w}/${m[1]}${m[2] || ''}`)
+}
+
+// 详情页大图：1200w 足够看清（约 48KB），需要原图时再单独取
+export function thumbLarge(src) {
+  return thumb(src, 1200)
+}
+
 export default resolveImg

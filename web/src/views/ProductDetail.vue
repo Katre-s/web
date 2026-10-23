@@ -40,7 +40,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus/es/components/message/index'
 import { productApi, cartApi, conversationApi, favoriteApi, recommendApi } from '@/api'
 import { useUserStore } from '@/stores/user'
-import { resolveImg, imgFallback } from '@/utils/image'
+import { resolveImg, imgFallback, thumb } from '@/utils/image'
 import { categoryKey } from '@/constants/categories'
 
 const route = useRoute()
@@ -56,7 +56,7 @@ const coverImg = computed(() => {
   if (!p) return ''
   const first = p.images?.[0]
   const firstPath = typeof first === 'string' ? first : first?.imagePath
-  return resolveImg(p.cover || p.bookCover || firstPath)
+  return thumb(p.cover || p.bookCover || firstPath, 1200)
 })
 
 async function loadProduct() {

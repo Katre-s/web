@@ -47,7 +47,7 @@
           <div class="panel-handle"></div>
           <div class="panel-content">
             <div class="panel-row panel-avatar-row" @click="go('/profile')">
-              <img :src="resolveImg(userStore.userInfo?.avatar) || defaultAvatar" class="panel-avatar" />
+              <img :src="thumb(userStore.userInfo?.avatar, 96) || defaultAvatar" class="panel-avatar" />
               <span class="panel-username">{{ userStore.userInfo?.nickname || '同学' }}</span>
               <el-icon class="panel-arrow"><ArrowRight /></el-icon>
             </div>
@@ -112,7 +112,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { setLang, currentLang } from '@/i18n'
 import { notificationApi, conversationApi } from '@/api'
-import { resolveImg } from '@/utils/image'
+import { resolveImg, thumb } from '@/utils/image'
 import {
   HomeFilled, ShoppingBag, ChatLineSquare, ChatDotRound, User, Plus, MagicStick,
   ArrowLeft, ArrowRight, ArrowDown, Bell, Tickets, Setting, SwitchButton, Comment

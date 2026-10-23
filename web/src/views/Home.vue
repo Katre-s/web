@@ -151,7 +151,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { booksApi, weatherApi, recommendApi } from '@/api'
-import { resolveImg } from '@/utils/image'
+import { resolveImg, thumb } from '@/utils/image'
 import BrandLogo from '@/components/BrandLogo.vue'
 import { TRADE_CATEGORIES, categoryKey } from '@/constants/categories'
 
@@ -295,7 +295,7 @@ function openRec(p) {
 }
 
 function coverStyle(cover) {
-  const url = resolveImg(cover)
+  const url = thumb(cover, 640)
   if (!url) return {}
   return { backgroundImage: `url("${url}")`, backgroundSize: 'cover', backgroundPosition: 'center' }
 }

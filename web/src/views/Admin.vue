@@ -134,7 +134,7 @@
                   <el-tag size="small" :type="row.status === 'active' ? 'success' : 'info'">{{ row.status === 'active' ? t('common.active') : t('common.deleted') }}</el-tag>
                 </template>
               </el-table-column>
-              <el-table-column :label="$t('common.actions')" width="190" fixed="right">
+              <el-table-column :label="$t('common.actions')" :width="isMobile ? 140 : 190" :fixed="isMobile ? false : 'right'">
                 <template #default="{ row }">
                   <el-button size="small" text type="primary" :disabled="row.status !== 'active'" @click="movePost(row, 'up')">{{ $t('admin.moveUp') }}</el-button>
                   <el-button size="small" text type="primary" :disabled="row.status !== 'active'" @click="movePost(row, 'down')">{{ $t('admin.moveDown') }}</el-button>
@@ -196,7 +196,7 @@
               </el-table-column>
               <el-table-column prop="content" :label="$t('home.content')" min-width="250" show-overflow-tooltip />
               <el-table-column prop="time" :label="$t('admin.time')" width="160" />
-              <el-table-column :label="$t('common.actions')" width="90" fixed="right">
+              <el-table-column :label="$t('common.actions')" :width="isMobile ? 90 : 90" :fixed="isMobile ? false : 'right'">
                 <template #default="{ row }">
                   <el-button size="small" text type="danger" @click="deleteNotif(row)">{{ $t('common.delete') }}</el-button>
                 </template>
@@ -226,7 +226,7 @@
               </div>
             </div>
             <el-table :data="itemList" size="small">
-              <el-table-column prop="id" label="ID" width="60" />
+              <el-table-column v-if="!isMobile" prop="id" label="ID" width="60" />
               <el-table-column :label="$t('admin.cover')" width="70">
                 <template #default="{ row }">
                   <img v-if="itemCover(row)" :src="itemCover(row)" style="width:36px;height:46px;object-fit:cover;border-radius:4px" @error="imgFallback" />
@@ -251,7 +251,7 @@
               <el-table-column :label="$t('admin.sellerId')" width="90">
                 <template #default="{ row }">{{ row.seller?.userNo || row.seller?.id || '—' }}</template>
               </el-table-column>
-              <el-table-column :label="$t('common.actions')" width="150" fixed="right">
+              <el-table-column :label="$t('common.actions')" :width="isMobile ? 140 : 150" :fixed="isMobile ? false : 'right'">
                 <template #default="{ row }">
                   <el-button size="small" text type="primary" @click="contactUser(row.seller?.id, row.id)">{{ $t('common.contactSeller') }}</el-button>
                   <el-button size="small" text type="danger" @click="removeItem(row)">{{ $t('common.delete') }}</el-button>
@@ -288,10 +288,10 @@
               </div>
             </div>
             <el-table :data="boardList" size="small">
-              <el-table-column prop="id" label="ID" width="60" />
+              <el-table-column v-if="!isMobile" prop="id" label="ID" width="60" />
               <el-table-column :label="$t('admin.cover')" width="70">
                 <template #default="{ row }">
-                  <img v-if="row.bookCover" :src="row.bookCover" style="width:36px;height:46px;object-fit:cover;border-radius:4px" @error="imgFallback" />
+                  <img v-if="row.bookCover" :src="thumb(row.bookCover, 320)" style="width:36px;height:46px;object-fit:cover;border-radius:4px" @error="imgFallback" loading="lazy" />
                 </template>
               </el-table-column>
               <el-table-column :label="$t('admin.boardTitle')" min-width="160" show-overflow-tooltip>
@@ -317,7 +317,7 @@
               <el-table-column :label="$t('admin.boardSold')" width="80">
                 <template #default="{ row }">{{ row.soldCount }}</template>
               </el-table-column>
-              <el-table-column :label="$t('common.actions')" width="120" fixed="right">
+              <el-table-column :label="$t('common.actions')" :width="isMobile ? 120 : 120" :fixed="isMobile ? false : 'right'">
                 <template #default="{ row }">
                   <el-button size="small" text type="primary" @click="openBoardDialog(row)">{{ $t('common.edit') }}</el-button>
                   <el-button size="small" text type="danger" @click="removeBoard(row)">{{ $t('common.delete') }}</el-button>
@@ -362,7 +362,7 @@
               <el-table-column :label="$t('admin.orderTime')" width="150">
                 <template #default="{ row }">{{ formatDate(row.created_at || row.createdAt) }}</template>
               </el-table-column>
-              <el-table-column :label="$t('common.actions')" width="150" fixed="right">
+              <el-table-column :label="$t('common.actions')" :width="isMobile ? 140 : 150" :fixed="isMobile ? false : 'right'">
                 <template #default="{ row }">
                   <el-button size="small" text type="primary" @click="contactUser(row.buyer?.id)">{{ $t('admin.contactBuyerBtn') }}</el-button>
                   <el-button
@@ -411,7 +411,7 @@
               <el-table-column :label="$t('admin.plazaImages')" width="150">
                 <template #default="{ row }">
                   <div class="plaza-thumbs" v-if="row.images && row.images.length">
-                    <img v-for="(img, i) in row.images.slice(0, 3)" :key="i" :src="resolveImg(img)" @error="imgFallback" />
+                    <img v-for="(img, i) in row.images.slice(0, 3)" :key="i" :src="thumb(img, 320)" @error="imgFallback" loading="lazy" />
                     <span v-if="row.images.length > 3" class="more">+{{ row.images.length - 3 }}</span>
                   </div>
                   <span v-else class="muted-text">—</span>
@@ -427,7 +427,7 @@
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column :label="$t('common.actions')" width="150" fixed="right">
+              <el-table-column :label="$t('common.actions')" :width="isMobile ? 140 : 150" :fixed="isMobile ? false : 'right'">
                 <template #default="{ row }">
                   <el-button size="small" text type="primary" @click="togglePlaza(row)">
                     {{ row.status === 'active' ? t('admin.plazaHide') : t('admin.plazaShow') }}
@@ -459,7 +459,7 @@
               </div>
             </div>
             <el-table :data="afterSales" size="small">
-              <el-table-column prop="id" label="ID" width="56" />
+              <el-table-column v-if="!isMobile" prop="id" label="ID" width="56" />
               <el-table-column :label="$t('admin.afterSaleOrder')" width="80">
                 <template #default="{ row }">#{{ row.orderId }}</template>
               </el-table-column>
@@ -470,16 +470,23 @@
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column :label="$t('admin.afterSaleBuyer')" width="130">
+              <el-table-column :label="$t('admin.afterSaleBuyer')" :width="isMobile ? 96 : 130">
                 <template #default="{ row }">
-                  {{ row.buyer?.nickname || '—' }}
-                  <span class="muted-text" v-if="row.buyer?.userNo">（{{ row.buyer.userNo }}）</span>
+                  <div class="party-cell">
+                    <span>{{ row.buyer?.nickname || '—' }}</span>
+                    <span class="muted-text" v-if="row.buyer?.userNo">{{ row.buyer.userNo }}</span>
+                  </div>
                 </template>
               </el-table-column>
-              <el-table-column :label="$t('admin.afterSaleSeller')" width="130">
-                <template #default="{ row }">{{ row.seller?.nickname || '—' }}</template>
+              <el-table-column :label="$t('admin.afterSaleSeller')" :width="isMobile ? 104 : 130">
+                <template #default="{ row }">
+                  <div class="party-cell">
+                    <span>{{ row.seller?.nickname || '—' }}</span>
+                    <span class="muted-text" v-if="row.seller?.userNo">{{ row.seller.userNo }}</span>
+                  </div>
+                </template>
               </el-table-column>
-              <el-table-column :label="$t('admin.afterSaleItems')" min-width="150">
+              <el-table-column v-if="!isMobile" :label="$t('admin.afterSaleItems')" min-width="150">
                 <template #default="{ row }">
                   <span class="plaza-content">{{ afterSaleItems(row) }}</span>
                 </template>
@@ -487,13 +494,13 @@
               <el-table-column :label="$t('admin.afterSaleAmount')" width="90">
                 <template #default="{ row }">¥{{ Number(row.amount || 0).toFixed(2) }}</template>
               </el-table-column>
-              <el-table-column :label="$t('admin.afterSaleReason')" min-width="150" show-overflow-tooltip>
+              <el-table-column v-if="!isMobile" :label="$t('admin.afterSaleReason')" min-width="150" show-overflow-tooltip>
                 <template #default="{ row }">{{ row.reason || '—' }}</template>
               </el-table-column>
-              <el-table-column :label="$t('admin.asSellerReject')" min-width="140" show-overflow-tooltip>
+              <el-table-column v-if="!isMobile" :label="$t('admin.asSellerReject')" min-width="140" show-overflow-tooltip>
                 <template #default="{ row }">{{ row.rejectReason || '—' }}</template>
               </el-table-column>
-              <el-table-column :label="$t('admin.asAppeal')" min-width="140" show-overflow-tooltip>
+              <el-table-column v-if="!isMobile" :label="$t('admin.asAppeal')" min-width="140" show-overflow-tooltip>
                 <template #default="{ row }">{{ row.appealReason || '—' }}</template>
               </el-table-column>
               <el-table-column :label="$t('admin.afterSaleStatus')" width="110">
@@ -501,10 +508,10 @@
                   <el-tag size="small" :type="aftersaleTagType(row.status)">{{ aftersaleStatusLabel(row.status) }}</el-tag>
                 </template>
               </el-table-column>
-              <el-table-column :label="$t('admin.afterSaleTime')" width="140">
+              <el-table-column v-if="!isMobile" :label="$t('admin.afterSaleTime')" width="140">
                 <template #default="{ row }">{{ formatDate(row.created_at || row.createdAt) }}</template>
               </el-table-column>
-              <el-table-column :label="$t('common.actions')" width="180" fixed="right">
+              <el-table-column :label="$t('common.actions')" :width="isMobile ? 140 : 180" :fixed="isMobile ? false : 'right'">
                 <template #default="{ row }">
                   <template v-if="row.status === 'pending'">
                     <el-button size="small" type="success" @click="reviewAfterSale(row, 'approve')">{{ $t('admin.asApprove') }}</el-button>
@@ -536,7 +543,7 @@
               </el-input>
             </div>
             <el-table :data="userList" size="small">
-              <el-table-column prop="id" :label="$t('admin.id')" width="55" />
+              <el-table-column v-if="!isMobile" prop="id" :label="$t('admin.id')" width="55" />
               <el-table-column :label="$t('admin.userNo')" width="90">
                 <template #default="{ row }">
                   <span class="user-no-cell">{{ row.userNo || t('common.unassigned') }}</span>
@@ -561,7 +568,7 @@
                   <span class="balance-cell">¥{{ Number(row.balance ?? 0).toFixed(2) }}</span>
                 </template>
               </el-table-column>
-              <el-table-column :label="$t('common.actions')" width="300" fixed="right">
+              <el-table-column :label="$t('common.actions')" :width="isMobile ? 140 : 300" :fixed="isMobile ? false : 'right'">
                 <template #default="{ row }">
                   <el-button size="small" text type="primary" @click="openBalanceDialog(row)">{{ $t('admin.setBalance') }}</el-button>
                   <el-button size="small" text type="primary" @click="openUserNoDialog(row)">{{ $t('admin.changeNo') }}</el-button>
@@ -657,7 +664,7 @@ const { t } = useI18n()
 import { useRouter } from 'vue-router'
 const router = useRouter()
 
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus/es/components/message/index'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index'
 import {
@@ -667,9 +674,13 @@ import { useUserStore } from '@/stores/user'
 import { hotspotApi, notificationApi, adminApi, booksApi, conversationApi } from '@/api'
 import { TRADE_CATEGORIES } from '@/constants/categories'
 import StatsCharts from '@/components/StatsCharts.vue'
-import { resolveImg, imgFallback } from '@/utils/image'
+import { resolveImg, imgFallback, thumb } from '@/utils/image'
 
 const userStore = useUserStore()
+// 手机端表格：固定列会把可视区挤成一条缝，窄屏时取消固定、改成整表横滑
+const isMobile = ref(false)
+let mq = null
+function syncMobile(e) { isMobile.value = e.matches }
 const activeSection = ref('dashboard')
 const categories = TRADE_CATEGORIES
 const chartData = ref(null)
@@ -986,7 +997,7 @@ async function loadItems() {
 function itemCover(row) {
   const first = row.images?.[0]
   const firstPath = typeof first === 'string' ? first : first?.imagePath
-  return resolveImg(row.bookCover || firstPath)
+  return thumb(row.bookCover || firstPath, 320)
 }
 
 async function changeItemCategory(row, value) {
@@ -1182,7 +1193,18 @@ async function submitBalance() {
   } catch {}
 }
 
+onUnmounted(() => {
+  if (mq) {
+    mq.removeEventListener ? mq.removeEventListener('change', syncMobile) : mq.removeListener(syncMobile)
+  }
+})
+
 onMounted(() => {
+  if (typeof window !== 'undefined' && window.matchMedia) {
+    mq = window.matchMedia('(max-width: 768px)')
+    isMobile.value = mq.matches
+    mq.addEventListener ? mq.addEventListener('change', syncMobile) : mq.addListener(syncMobile)
+  }
   loadStats()
   loadHomeStats()
   loadCharts()
@@ -1398,6 +1420,22 @@ onMounted(() => {
   line-height: 1.5;
   color: #37474f;
 }
+.party-cell {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+/* 昵称上、编号下，窄列也不会被裁成半截 */
+}
+.party-cell > span {
+  min-width: 0;
+  max-width: 100%;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+.party-cell .muted-text {
+  font-size: 11px;
+  opacity: 0.78;
+}
 .plaza-thumbs {
   display: flex;
   align-items: center;
@@ -1469,6 +1507,208 @@ onMounted(() => {
   .admin-sidebar { width: 100%; }
   .single-send-row { flex-direction: column; align-items: flex-start; }
 }
+
+/* ===== 手机端（≤768px）：后台最容易「乱」的地方集中在这里 =====
+   原来是 220px 竖排侧栏 + 6~8 列固定宽表格，在 360px 宽屏上会挤成一团、
+   字号 12px 又小又淡。改成：顶部横向滑动菜单条 + 收窄内边距 + 放大字号。 */
+@media (max-width: 768px) {
+  .admin-page {
+    border-radius: 12px;
+    border: none;
+    box-shadow: none;
+    min-height: calc(100vh - 120px);
+    overflow: visible;
+  }
+
+  /* 侧栏 → 顶部横向标签条（可左右滑动，吸顶） */
+  .admin-sidebar {
+    flex-direction: row;
+    align-items: stretch;
+    width: 100%;
+    position: sticky;
+    top: 54px; /* 让开手机端 NavBar 的高度（54px），否则吸顶时被导航栏盖住 */
+    z-index: 20;
+    background: linear-gradient(90deg, #1e2430 0%, #171c26 100%);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+    overflow: visible;
+    position: sticky;
+  }
+  .admin-logo {
+    padding: 8px 10px;
+    border-bottom: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+  }
+  .logo-seal {
+    width: 30px;
+    height: 30px;
+    font-size: 15px;
+    border-radius: 6px;
+  }
+  .logo-text { display: none; }
+
+  .admin-menu {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .admin-menu::-webkit-scrollbar { display: none; }
+  .admin-menu :deep(.el-menu-item) {
+    height: 36px;
+    line-height: 36px;
+    margin: 8px 2px;
+    padding: 0 11px;
+    border-radius: 18px;
+    font-size: 12.5px;
+    flex-shrink: 0;
+  }
+  /* 右边缘渐隐：提示右边还有菜单可以滑 */
+  .admin-sidebar::after {
+    content: '';
+    position: absolute;
+    right: 74px;
+    top: 0;
+    bottom: 0;
+    width: 26px;
+    background: linear-gradient(90deg, rgba(30, 36, 48, 0), rgba(30, 36, 48, 0.95));
+    pointer-events: none;
+    z-index: 2;
+  }
+  .admin-sidebar-footer {
+    padding: 0 8px;
+    border-top: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .back-btn {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 50%;
+  }
+  .back-btn :deep(span) { display: none; }
+
+  /* 主区：收紧留白，底部给固定导航条留位置 */
+  .admin-main {
+    padding: 14px 11px calc(24px + env(safe-area-inset-bottom));
+  }
+  .admin-header {
+    margin-bottom: 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .admin-title {
+    font-size: 17px;
+    letter-spacing: 1px;
+  }
+  .admin-user-info { font-size: 13px; gap: 8px; }
+
+  .admin-content { gap: 12px; }
+
+  /* 统计卡：两列，数字放大到能看清 */
+  .stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .stat-card {
+    padding: 12px 10px;
+    gap: 9px;
+    border-radius: 12px;
+  }
+  .stat-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+  }
+  .stat-icon :deep(svg) { width: 17px; height: 17px; }
+  .stat-num { font-size: 20px; }
+  .stat-label { font-size: 12px; color: #6b5c40; }
+
+  .admin-today-stats { flex-direction: column; gap: 10px; }
+  .admin-today-card { padding: 12px 14px; gap: 10px; border-radius: 12px; }
+  .admin-today-icon { font-size: 26px; }
+  .admin-today-num { font-size: 22px; }
+  .admin-today-label { font-size: 12px; color: #6b5c40; }
+
+  .panel {
+    padding: 12px 10px;
+    border-radius: 12px;
+  }
+  .panel-title { font-size: 15px; margin-bottom: 10px; }
+  .panel-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .toolbar-right {
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+  }
+  /* 触屏上按钮目标不要太小，否则点不准 */
+  .panel :deep(.el-button) {
+    min-height: 30px;
+    padding: 6px 11px;
+    font-size: 13px;
+  }
+  .panel :deep(.el-button + .el-button) { margin-left: 6px; }
+  .panel :deep(.el-select),
+  .panel :deep(.el-input) { font-size: 13px; }
+
+  /* 表格：字号提到 13px，行内弹簧压紧，允许横向滑动看完整列 */
+  .panel :deep(.el-table) {
+    font-size: 13px;
+  }
+  .panel :deep(.el-table th.el-table__cell) {
+    padding: 7px 0;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #4a3d28;
+    background: #faf6ee;
+  }
+  .panel :deep(.el-table td.el-table__cell) {
+    padding: 7px 0;
+  }
+  .panel :deep(.el-table .cell) {
+    padding: 0 7px;
+    line-height: 1.45;
+    word-break: break-word;
+  }
+  /* 行内操作按钮在手机上容易挤成两行，改成紧凑排布 */
+  .panel :deep(.el-table .el-button + .el-button) { margin-left: 4px; }
+  .panel :deep(.el-table .el-button) {
+    padding: 5px 8px;
+    font-size: 12.5px;
+    min-height: 26px;
+  }
+  .panel :deep(.el-tag) { font-size: 12px; }
+  .panel :deep(.el-pagination) {
+    margin-top: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .panel :deep(.el-form-item__label) { font-size: 13px; }
+  .panel :deep(.el-dialog) { --el-dialog-width: 92vw !important; }
+
+  .chart-container { padding: 14px 10px; border-radius: 12px; }
+  .bar-chart { height: 150px; gap: 5px; }
+  .bar-count { font-size: 11px; top: -18px; }
+  .bar-label { font-size: 11px; }
+  .plaza-thumbs img { width: 30px; height: 30px; }
+
+  .user-no-tip { font-size: 13px; }
+}
+
 .user-no-cell {
   font-weight: 600;
   color: #42a5f5;

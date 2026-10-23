@@ -145,7 +145,12 @@ export const conversationApi = {
 }
 
 export const agentApi = {
-  chat: (message, history) => request.post('/agent/chat', { message, history })
+  chat: (message, history) => request.post('/agent/chat', { message, history }),
+  // 语音识别：录音 blob 上传转文字（APK/不支持 Web Speech API 时走这条）
+  asr: (formData) => request.post('/agent/asr', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 40000
+  })
 }
 
 export const weatherApi = {

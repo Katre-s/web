@@ -26,6 +26,8 @@ import conversationRoutes from './routes/conversations.js'
 import bookFavoriteRoutes from './routes/bookFavorites.js'
 import agentRoutes from './routes/agent.js'
 import weatherRoutes from './routes/weather.js'
+import { pruneThumbCache } from './services/thumbService.js'
+import thumbRoutes from './routes/thumb.js'
 
 dotenv.config()
 
@@ -48,6 +50,10 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
     res.setHeader('Cache-Control', 'public, max-age=2592000, immutable')
   }
 }))
+
+// 缩略图：/uploads/t/480/img_xxx.jpg（原图 600KB+，列表页用它降到 20~50KB）
+// 必须放在 express.static 之后：先找同名静态文件，找不到才进这里生成
+app.use('/uploads', thumbRoutes)
 
 app.use('/api/auth', authRoutes)
 app.use('/api/products', productRoutes)
@@ -353,6 +359,9 @@ async function start() {
   app.listen(PORT, () => {
     console.log(`徐工院小咸鱼 API 服务已启动: http://localhost:${PORT}`)
   })
+
+  // 缩略图缓存清理（启动跑一次，超过 60 天没用过的丢掉）
+  pruneThumbCache(60).catch(() => {})
 
   setInterval(async () => {
     try {

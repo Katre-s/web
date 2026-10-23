@@ -8,8 +8,8 @@
         </transition>
       </router-view>
     </main>
-    <TabBar v-if="!isAuthPage" />
-    <AiFloat v-if="!isAuthPage" />
+    <TabBar v-if="!isAuthPage && !isAdminPage" />
+    <AiFloat v-if="!isAuthPage && !isAdminPage" />
   </div>
 </template>
 
@@ -22,6 +22,8 @@ import AiFloat from '@/components/AiFloat.vue'
 
 const route = useRoute()
 const isAuthPage = computed(() => route.path === '/login' || route.path === '/forgot-password')
+// 后台管理是整屏工作区：手机上底部导航条 + 悬浮 AI 按钮会压住表格最后一行和操作按钮
+const isAdminPage = computed(() => route.path.startsWith('/admin'))
 </script>
 
 <style scoped>

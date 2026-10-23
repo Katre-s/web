@@ -3,7 +3,7 @@
     <h2 class="page-title">{{ $t('profile.title') }}</h2>
     <div class="profile-card">
       <div class="avatar-wrap" @click="pickAvatar">
-        <img :src="resolveImg(userStore.userInfo?.avatar) || defaultUserAvatar" class="avatar" />
+        <img :src="thumb(userStore.userInfo?.avatar, 96) || defaultUserAvatar" class="avatar" />
         <div class="avatar-mask" v-loading="avatarUploading">
           <span>{{ avatarUploading ? $t('profile.avatarUploading') : $t('profile.changeAvatar') }}</span>
         </div>
@@ -94,7 +94,7 @@
         <template v-if="productFilter !== 'aftersales'">
         <div v-for="p in filteredProducts" :key="p.id" class="my-product-item">
           <div class="my-product-info" @click="goProduct(p)">
-            <img :src="resolveImg(p.bookCover || p.images?.[0]?.imagePath) || defaultAvatar" class="my-product-cover" />
+            <img :src="thumb(p.bookCover || p.images?.[0]?.imagePath, 320) || defaultAvatar" class="my-product-cover" loading="lazy" />
             <div class="my-product-text">
               <div class="my-product-title">{{ p.bookTitle || p.title }}</div>
               <div class="my-product-meta">
@@ -207,7 +207,7 @@ import { ElMessage } from 'element-plus/es/components/message/index'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index'
 import { productApi, favoriteApi, bookFavoriteApi, authApi, balanceApi, conversationApi, aftersaleApi } from '@/api'
 import { useUserStore } from '@/stores/user'
-import { resolveImg } from '@/utils/image'
+import { resolveImg, thumb } from '@/utils/image'
 import ThemeSwitcher from '@/components/ThemeSwitcher.vue'
 import VoiceSwitcher from '@/components/VoiceSwitcher.vue'
 
@@ -426,10 +426,10 @@ function goProduct(p) {
 }
 
 function favCover(f) {
-  if (f?.kind === 'book') return resolveImg(f.book?.bookCover) || defaultAvatar
+  if (f?.kind === 'book') return thumb(f.book?.bookCover, 320) || defaultAvatar
   const p = f?.product
   if (!p) return defaultAvatar
-  return resolveImg(p.cover || p.bookCover || p.images?.[0]?.imagePath) || defaultAvatar
+  return thumb(p.cover || p.bookCover || p.images?.[0]?.imagePath, 320) || defaultAvatar
 }
 
 function favTitle(f) {

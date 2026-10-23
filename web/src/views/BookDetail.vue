@@ -82,7 +82,7 @@ import { ElMessage } from 'element-plus/es/components/message/index'
 import { Notebook, Location } from '@element-plus/icons-vue'
 import { booksApi, conversationApi, cartApi, bookFavoriteApi, recommendApi } from '@/api'
 import { useUserStore } from '@/stores/user'
-import { resolveImg } from '@/utils/image'
+import { resolveImg, thumb } from '@/utils/image'
 
 const route = useRoute()
 const router = useRouter()
@@ -96,7 +96,7 @@ const sortAsc = ref(false)
 const favorited = ref(false)
 
 // 封面统一走 resolveImg：手机壳内需要绝对地址，Web 端走同源相对路径
-const coverUrl = computed(() => resolveImg(book.value?.bookCover))
+const coverUrl = computed(() => thumb(book.value?.bookCover, 640))
 
 const sortedSellers = computed(() => {
   const list = [...sellers.value]
