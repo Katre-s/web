@@ -64,6 +64,9 @@ export default {
     callTipSpeaking: 'AI 正在说话，随时可以打断',
     callTipConnecting: '正在建立通话',
     callPromptNone: '我在听，请问你想找什么书，或者想卖什么物品？',
+    needHttps: '语音通话需要 HTTPS 安全环境（浏览器安全策略）。请通过 https://121.40.219.139/ai-chat 访问，或本地 localhost 运行后使用。',
+    callMicError: '麦克风不可用',
+    callMicErrorTip: '无法使用麦克风：请检查浏览器权限，并确保通过 HTTPS 或 localhost 访问。可挂断后重试。',
     intent: {
       buy: '🛒 想买书',
       sell: '📤 想卖书',

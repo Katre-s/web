@@ -127,6 +127,10 @@ const isListening = ref(false)
 let recognition = null
 let finalTranscript = ''
 let micSupported = !!SpeechRecognition
+// 麦克风仅在 HTTPS 或 localhost 下可用（Chrome 安全上下文策略）
+const secureCtx = !!(window.isSecureContext || location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname))
+const micError = ref(false)
+let micFailCount = 0
 
 function toggleMic() {
   if (!micSupported) {
@@ -167,7 +171,20 @@ function startMic() {
     }
     recognition.onerror = (e) => {
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+        micError.value = true
         if (!inCall.value) ElMessage.error(t('ai.micDenied'))
+        else {
+          clearWatchdog() // 权限被拒：停止无限"我在听"引导，提示用户检查麦克风
+          callStatus.value = 'idle'
+        }
+      } else if (inCall.value) {
+        // 其它识别错误：累计失败次数，连续失败进入故障提示
+        micFailCount++
+        if (micFailCount > 3) {
+          micError.value = true
+          clearWatchdog()
+          callStatus.value = 'idle'
+        }
       }
       isListening.value = false
     }
@@ -185,7 +202,16 @@ function startMic() {
   } catch (err) {
     isListening.value = false
     if (!inCall.value) ElMessage.error(t('ai.micError'))
-    else setTimeout(beginListening, 600)
+    else {
+      micFailCount++
+      if (micFailCount > 3) {
+        micError.value = true
+        clearWatchdog()
+        callStatus.value = 'idle'
+      } else {
+        setTimeout(beginListening, 600)
+      }
+    }
   }
 }
 
@@ -207,6 +233,7 @@ const callStatus = ref('idle') // idle | listening | thinking | speaking
 let callRunning = false
 
 const callStatusText = computed(() => {
+  if (micError.value) return t('ai.callMicError')
   const map = {
     idle: t('ai.callConnecting'),
     listening: t('ai.callListening'),
@@ -216,6 +243,7 @@ const callStatusText = computed(() => {
   return map[callStatus.value] || ''
 })
 const callTipText = computed(() => {
+  if (micError.value) return t('ai.callMicErrorTip')
   if (callStatus.value === 'listening') return t('ai.callTipListening')
   if (callStatus.value === 'thinking') return t('ai.callTipThinking')
   if (callStatus.value === 'speaking') return t('ai.callTipSpeaking')
@@ -232,9 +260,15 @@ function startCall() {
     ElMessage.warning(t('ai.micUnsupported'))
     return
   }
+  // 语音识别/麦克风仅在 HTTPS 或 localhost 下可用（Chrome 安全策略）
+  if (!secureCtx) {
+    ElMessage.warning(t('ai.needHttps'))
+    return
+  }
   inCall.value = true
   callRunning = true
   callStatus.value = 'idle'
+  micError.value = false
   // 短暂连接提示后开始聆听
   setTimeout(() => {
     if (callRunning) beginListening()
@@ -256,6 +290,12 @@ let watchdogTimer = null
 
 function beginListening() {
   if (!callRunning || !inCall.value || loading.value) return
+  // 麦克风故障：进入提示态，不再无限引导
+  if (micError.value) {
+    callStatus.value = 'idle'
+    clearWatchdog()
+    return
+  }
   callStatus.value = 'listening'
   // 新聆听轮次才重置静默计时并启动看门狗；识别异常重连时不重置，避免无限推迟应答
   if (!watchdogTimer) {
@@ -267,6 +307,7 @@ function beginListening() {
 }
 
 /* 静默看门狗：每 500ms 检查一次；用户 2 秒没说话就自动应答 */
+let lastPromptAt = 0
 function startWatchdog() {
   clearWatchdog()
   watchdogTimer = setInterval(() => {
@@ -279,9 +320,14 @@ function startWatchdog() {
     if (finalTranscript.trim()) {
       // 用户说完了但停住 → 提交并等 AI 回复
       commitSpeech()
-    } else {
-      // 完全没说话 → AI 主动引导一句，继续听
+    } else if (Date.now() - lastPromptAt > 12000) {
+      // 完全没说话 → AI 主动引导一句（12 秒内至多一次，避免刷屏"我在听"）
+      lastPromptAt = Date.now()
       aiPromptSpeech()
+    } else {
+      // 引导冷却中：继续安静聆听
+      lastSpeechAt = Date.now()
+      startWatchdog()
     }
   }, 500)
 }

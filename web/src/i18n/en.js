@@ -64,6 +64,9 @@ export default {
     callTipSpeaking: 'AI is speaking — interrupt anytime',
     callTipConnecting: 'Establishing the call',
     callPromptNone: "I'm listening. What book are you looking for, or what would you like to sell?",
+    needHttps: 'Voice calls require an HTTPS secure context (browser security policy). Open https://121.40.219.139/ai-chat or run locally on localhost.',
+    callMicError: 'Microphone unavailable',
+    callMicErrorTip: 'Cannot access the microphone: check browser permission and make sure you visit via HTTPS or localhost. Hang up and retry.',
     intent: {
       buy: '🛒 Want to buy',
       sell: '📤 Want to sell',
