@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 940" width="1200" height="940" font-family="'PingFang SC','Microsoft YaHei','Hiragino Sans GB',sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="940" fill="#FFFFFF"/>
+
+  <text x="60" y="48" font-size="22" font-weight="500" fill="#26215C">徐工院小咸鱼 · 系统运行原理</text>
+  <text x="60" y="74" font-size="13" fill="#5F5E5A">三端接入 → nginx / Node API → MySQL 与文件 → AI、图片与邮件服务</text>
+
+  <!-- ===== 客户端层 ===== -->
+  <rect x="60" y="100" width="1080" height="116" rx="14" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+  <text x="76" y="126" font-size="12" fill="#185FA5">客户端</text>
+
+  <rect x="96" y="140" width="300" height="64" rx="10" fill="#FFFFFF" stroke="#185FA5" stroke-width="0.5"/>
+  <text x="246" y="164" font-size="14" font-weight="500" fill="#0C447C" text-anchor="middle" dominant-baseline="central">网页端（手机 / 电脑浏览器）</text>
+  <text x="246" y="186" font-size="12" fill="#185FA5" text-anchor="middle" dominant-baseline="central">Vue3 + Vite · PWA 离线壳 · https 同源访问</text>
+
+  <rect x="440" y="140" width="300" height="64" rx="10" fill="#FFFFFF" stroke="#185FA5" stroke-width="0.5"/>
+  <text x="590" y="164" font-size="14" font-weight="500" fill="#0C447C" text-anchor="middle" dominant-baseline="central">安卓 APK（Capacitor）</text>
+  <text x="590" y="186" font-size="12" fill="#185FA5" text-anchor="middle" dominant-baseline="central">WebView · 页面源 http://localhost · 内置页面</text>
+
+  <rect x="784" y="140" width="300" height="64" rx="10" fill="#FFFFFF" stroke="#185FA5" stroke-width="0.5"/>
+  <text x="934" y="164" font-size="14" font-weight="500" fill="#0C447C" text-anchor="middle" dominant-baseline="central">电脑客户端（Electron）</text>
+  <text x="934" y="186" font-size="12" fill="#185FA5" text-anchor="middle" dominant-baseline="central">内置页面 · API 直连 3000</text>
+
+  <!-- 客户端 → 接入层 -->
+  <path d="M246 204 L246 280" fill="none" stroke="#185FA5" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M590 204 L590 280" fill="none" stroke="#0F6E56" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M934 204 L934 280" fill="none" stroke="#0F6E56" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ===== 接入层 ===== -->
+  <rect x="60" y="280" width="1080" height="116" rx="14" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+  <text x="76" y="306" font-size="12" fill="#0F6E56">接入层</text>
+
+  <rect x="96" y="320" width="460" height="64" rx="10" fill="#FFFFFF" stroke="#0F6E56" stroke-width="0.5"/>
+  <text x="326" y="344" font-size="14" font-weight="500" fill="#085041" text-anchor="middle" dominant-baseline="central">nginx（443 端口）</text>
+  <text x="326" y="366" font-size="12" fill="#0F6E56" text-anchor="middle" dominant-baseline="central">http → https 301 · 反代 /api 与 /uploads · 前端静态文件</text>
+
+  <rect x="600" y="320" width="500" height="64" rx="10" fill="#FFFFFF" stroke="#0F6E56" stroke-width="0.5"/>
+  <text x="850" y="344" font-size="14" font-weight="500" fill="#085041" text-anchor="middle" dominant-baseline="central">安卓 / 桌面直连 Node 3000（http 明文）</text>
+  <text x="850" y="366" font-size="12" fill="#0F6E56" text-anchor="middle" dominant-baseline="central">证书无 SAN 不可信 → 用 http + 本地源绕开混合内容拦截</text>
+
+  <path d="M326 396 L326 440" fill="none" stroke="#534AB7" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M850 396 L850 440" fill="none" stroke="#534AB7" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ===== 服务层 ===== -->
+  <rect x="60" y="440" width="1080" height="292" rx="14" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+  <text x="76" y="466" font-size="12" fill="#534AB7">Node API 服务（Express · PM2 进程 campus-api · 端口 3000）</text>
+
+  <rect x="96" y="484" width="500" height="104" rx="10" fill="#FFFFFF" stroke="#534AB7" stroke-width="0.5"/>
+  <text x="346" y="508" font-size="14" font-weight="500" fill="#3C3489" text-anchor="middle" dominant-baseline="central">业务接口（/api/*）</text>
+  <text x="346" y="532" font-size="12" fill="#534AB7" text-anchor="middle" dominant-baseline="central">商品 · 订单 · 购物车 · 售后审核 · 会话 · 管理台图表</text>
+  <text x="346" y="554" font-size="12" fill="#534AB7" text-anchor="middle" dominant-baseline="central">JWT 鉴权 · Sequelize ORM · 事务重试</text>
+
+  <rect x="624" y="484" width="500" height="104" rx="10" fill="#FFFFFF" stroke="#534AB7" stroke-width="0.5"/>
+  <text x="874" y="508" font-size="14" font-weight="500" fill="#3C3489" text-anchor="middle" dominant-baseline="central">资金托管（账户余额 / 待存余额）</text>
+  <text x="874" y="532" font-size="12" fill="#534AB7" text-anchor="middle" dominant-baseline="central">确认收货 → 卖家收入先进「待存余额」</text>
+  <text x="874" y="554" font-size="12" fill="#534AB7" text-anchor="middle" dominant-baseline="central">每分钟定时任务解冻 24h 到期款；售后退款优先扣待存</text>
+
+  <rect x="96" y="604" width="500" height="104" rx="10" fill="#FFFFFF" stroke="#534AB7" stroke-width="0.5"/>
+  <text x="346" y="628" font-size="14" font-weight="500" fill="#3C3489" text-anchor="middle" dominant-baseline="central">AI 助手与语音（/api/agent/*）</text>
+  <text x="346" y="652" font-size="12" fill="#534AB7" text-anchor="middle" dominant-baseline="central">chat → DeepSeek V4.1 · asr → 录音上传转文字</text>
+  <text x="346" y="674" font-size="12" fill="#534AB7" text-anchor="middle" dominant-baseline="central">APK：说话 → 识别 → 回复 → 原生 TTS 朗读 → 继续听</text>
+
+  <rect x="624" y="604" width="500" height="104" rx="10" fill="#FFFFFF" stroke="#534AB7" stroke-width="0.5"/>
+  <text x="874" y="628" font-size="14" font-weight="500" fill="#3C3489" text-anchor="middle" dominant-baseline="central">图片与缩略图（/uploads）</text>
+  <text x="874" y="652" font-size="12" fill="#534AB7" text-anchor="middle" dominant-baseline="central">原图 600KB+；/uploads/t/宽度/文件名 按需 sharp 压缩</text>
+  <text x="874" y="674" font-size="12" fill="#534AB7" text-anchor="middle" dominant-baseline="central">480w 约 16KB · 首次生成后落盘缓存 · 30 天强缓存</text>
+
+  <!-- 服务层 → 存储层 -->
+  <path d="M250 688 L211 756" fill="none" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M440 688 L471 756" fill="none" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M760 688 L731 756" fill="none" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M950 688 L998 756" fill="none" stroke="#5F5E5A" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ===== 存储与外部服务层 ===== -->
+  <rect x="60" y="756" width="1080" height="116" rx="14" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+  <text x="76" y="782" font-size="12" fill="#5F5E5A">存储与外部服务</text>
+
+  <rect x="96" y="796" width="230" height="64" rx="10" fill="#FFFFFF" stroke="#5F5E5A" stroke-width="0.5"/>
+  <text x="211" y="820" font-size="14" font-weight="500" fill="#2C2C2A" text-anchor="middle" dominant-baseline="central">MySQL 数据库</text>
+  <text x="211" y="842" font-size="12" fill="#5F5E5A" text-anchor="middle" dominant-baseline="central">用户 · 商品 · 订单 · 余额</text>
+
+  <rect x="356" y="796" width="230" height="64" rx="10" fill="#FFFFFF" stroke="#5F5E5A" stroke-width="0.5"/>
+  <text x="471" y="820" font-size="14" font-weight="500" fill="#2C2C2A" text-anchor="middle" dominant-baseline="central">硅基流动 API</text>
+  <text x="471" y="842" font-size="12" fill="#5F5E5A" text-anchor="middle" dominant-baseline="central">大模型 · 语音识别</text>
+
+  <rect x="616" y="796" width="230" height="64" rx="10" fill="#FFFFFF" stroke="#5F5E5A" stroke-width="0.5"/>
+  <text x="731" y="820" font-size="14" font-weight="500" fill="#2C2C2A" text-anchor="middle" dominant-baseline="central">uploads/ 原图</text>
+  <text x="731" y="842" font-size="12" fill="#5F5E5A" text-anchor="middle" dominant-baseline="central">用户上传的原始图片</text>
+
+  <rect x="876" y="796" width="224" height="64" rx="10" fill="#FFFFFF" stroke="#5F5E5A" stroke-width="0.5"/>
+  <text x="988" y="820" font-size="14" font-weight="500" fill="#2C2C2A" text-anchor="middle" dominant-baseline="central">.cache/thumbs 缩略图</text>
+  <text x="988" y="842" font-size="12" fill="#5F5E5A" text-anchor="middle" dominant-baseline="central">磁盘缓存 · 60 天清理</text>
+
+  <!-- ===== 底部说明 ===== -->
+  <rect x="60" y="876" width="1080" height="48" rx="10" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+  <text x="600" y="894" font-size="12" fill="#633806" text-anchor="middle" dominant-baseline="central">部署：上传 zip → bash update.sh /www/wwwroot/121.40.219.139（自动保留 .env / uploads / 数据库）→ pm2 restart campus-api</text>
+  <text x="600" y="912" font-size="12" fill="#633806" text-anchor="middle" dominant-baseline="central">端口：443 nginx（网页入口）· 3000 Node API（安卓 / 桌面直连）· 注册验证码经 163 邮箱 SMTP 发送</text>
+</svg>
