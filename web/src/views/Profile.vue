@@ -23,6 +23,15 @@
       </div>
     </div>
 
+    <!-- 外观主题：三套主题直接选择（从首页悬浮移入个人中心） -->
+    <div class="profile-theme-card">
+      <div class="profile-theme-head">
+        <span class="profile-theme-title">🎨 {{ $t('theme.title') }}</span>
+        <span class="profile-theme-sub">{{ $t('theme.tip') }}</span>
+      </div>
+      <ThemeSwitcher inline />
+    </div>
+
     <el-tabs v-model="activeTab" @tab-change="loadTabData">
       <el-tab-pane :label="$t('profile.myProducts')" name="products" />
       <el-tab-pane :label="$t('profile.favorites')" name="favorites" />
@@ -190,6 +199,7 @@ import { ElMessageBox } from 'element-plus/es/components/message-box/index'
 import { productApi, favoriteApi, bookFavoriteApi, authApi, balanceApi, conversationApi, aftersaleApi } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { resolveImg } from '@/utils/image'
+import ThemeSwitcher from '@/components/ThemeSwitcher.vue'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -517,6 +527,27 @@ onUnmounted(() => { if (cooldownTimer) clearInterval(cooldownTimer) })
   border-radius: 8px;
   padding: 24px;
   margin-bottom: 20px;
+}
+.profile-theme-card {
+  background: var(--card-bg, #fff);
+  border-radius: 8px;
+  padding: 18px 20px 22px;
+  margin-bottom: 20px;
+}
+.profile-theme-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.profile-theme-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main, #1a1a1a);
+}
+.profile-theme-sub {
+  font-size: 12px;
+  color: var(--text-sub, #78909c);
 }
 .avatar-wrap {
   position: relative;

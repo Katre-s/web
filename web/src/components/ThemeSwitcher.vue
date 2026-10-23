@@ -1,28 +1,48 @@
 <template>
-  <div class="theme-switcher">
-    <transition name="pop">
-      <div v-if="open" class="ts-panel">
-        <div class="ts-title">{{ $t('theme.title') }}</div>
-        <div class="ts-grid">
-          <div
-            v-for="t in themes"
-            :key="t.id"
-            class="ts-card"
-            :class="{ active: themeStore.theme === t.id }"
-            @click="choose(t.id)"
-          >
-            <div class="ts-preview" :style="t.preview"></div>
-            <div class="ts-name">{{ $t(`theme.${t.id}`) }}</div>
-            <div class="ts-dot" v-if="themeStore.theme === t.id"></div>
+  <div class="theme-switcher" :class="{ inline }">
+    <template v-if="!inline">
+      <transition name="pop">
+        <div v-if="open" class="ts-panel">
+          <div class="ts-title">{{ $t('theme.title') }}</div>
+          <div class="ts-grid">
+            <div
+              v-for="t in themes"
+              :key="t.id"
+              class="ts-card"
+              :class="{ active: themeStore.theme === t.id }"
+              @click="choose(t.id)"
+            >
+              <div class="ts-preview" :style="t.preview"></div>
+              <div class="ts-name">{{ $t(`theme.${t.id}`) }}</div>
+              <div class="ts-dot" v-if="themeStore.theme === t.id"></div>
+            </div>
           </div>
+          <div class="ts-tip">{{ $t('theme.tip') }}</div>
         </div>
-        <div class="ts-tip">{{ $t('theme.tip') }}</div>
-      </div>
-    </transition>
+      </transition>
 
-    <button class="ts-btn" :class="{ on: open }" @click="open = !open" :title="$t('theme.title')">
-      <el-icon :size="20"><Brush /></el-icon>
-    </button>
+      <button class="ts-btn" :class="{ on: open }" @click="open = !open" :title="$t('theme.title')">
+        <el-icon :size="20"><Brush /></el-icon>
+      </button>
+    </template>
+
+    <!-- 内联模式：直接展示三套主题卡片（个人中心） -->
+    <div v-else class="ts-inline">
+      <div class="ts-grid">
+        <div
+          v-for="t in themes"
+          :key="t.id"
+          class="ts-card"
+          :class="{ active: themeStore.theme === t.id }"
+          @click="choose(t.id)"
+        >
+          <div class="ts-preview" :style="t.preview"></div>
+          <div class="ts-name">{{ $t(`theme.${t.id}`) }}</div>
+          <div class="ts-dot" v-if="themeStore.theme === t.id"></div>
+        </div>
+      </div>
+      <div class="ts-tip">{{ $t('theme.tip') }}</div>
+    </div>
   </div>
 </template>
 
@@ -30,6 +50,10 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { Brush } from '@element-plus/icons-vue'
 import { useThemeStore } from '@/stores/theme'
+
+const props = defineProps({
+  inline: { type: Boolean, default: false }
+})
 
 const themeStore = useThemeStore()
 const open = ref(false)
@@ -62,6 +86,22 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+}
+/* 内联模式：用于个人中心，不再悬浮 */
+.theme-switcher.inline {
+  position: static;
+  width: 100%;
+  display: block;
+}
+.ts-inline .ts-grid {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.ts-inline .ts-card {
+  padding: 10px;
+}
+.ts-inline .ts-preview {
+  height: 64px;
 }
 .ts-btn {
   width: 48px;

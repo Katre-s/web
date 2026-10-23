@@ -85,11 +85,13 @@
       </div>
       <div class="cat-grid">
         <button
-          v-for="c in categories"
+          v-for="(c, ci) in categories"
           :key="c.value"
           class="cat-card"
+          :class="'cat-tone-' + ci"
           @click="goTrade(c.value)"
         >
+          <span class="cat-watermark" aria-hidden="true">{{ c.icon }}</span>
           <span class="cat-emoji">{{ c.icon }}</span>
           <span class="cat-name">{{ $t('tradeCat.' + c.key) }}</span>
           <span class="cat-desc">{{ $t('tradeCatHint.' + c.key) }}</span>
@@ -409,6 +411,12 @@ onUnmounted(() => {
   bottom: -60px;
   opacity: 0.09;
   transform: rotate(-8deg);
+  animation: fish-swim 9s var(--ease-smooth) infinite alternate;
+}
+@keyframes fish-swim {
+  0% { transform: rotate(-8deg) translateY(0) translateX(0) scale(1); }
+  50% { transform: rotate(-2deg) translateY(-14px) translateX(-8px) scale(1.04); }
+  100% { transform: rotate(-10deg) translateY(4px) translateX(6px) scale(0.97); }
 }
 
 .hero-main {
@@ -454,6 +462,17 @@ onUnmounted(() => {
   font-weight: 800;
   letter-spacing: 1px;
   color: var(--ink);
+  /* 渐变文字：呼应小咸鱼的青橙水色 */
+  background: linear-gradient(115deg, var(--ink) 22%, #0e7490 48%, #e07b39 78%, var(--ink));
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: title-shimmer 8s var(--ease-smooth) infinite alternate;
+}
+@keyframes title-shimmer {
+  0% { background-position: 0% 0; }
+  100% { background-position: 100% 0; }
 }
 .hero-sub {
   font-size: 14px;
@@ -674,28 +693,41 @@ onUnmounted(() => {
   transform: translateX(3px);
 }
 
-/* 类目 */
+/* 类目：专属渐变卡面 + 元素水印 + 3D 悬浮 */
 .cat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
   gap: 12px;
 }
 .cat-card {
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 3px;
   padding: 14px 16px;
   border-radius: 18px;
-  background: var(--card-bg);
+  background: linear-gradient(135deg, var(--accent-soft), var(--accent-soft-2) 55%, transparent);
   border: 1px solid var(--card-border);
   box-shadow: var(--card-shadow);
   cursor: pointer;
   text-align: left;
   font-family: inherit;
-  transition: transform 0.28s var(--ease-spring), border-color 0.24s, box-shadow 0.28s;
+  transition: transform 0.35s var(--ease-spring), border-color 0.24s, box-shadow 0.35s;
   animation: rise 0.5s var(--ease-spring) backwards;
+  transform-style: preserve-3d;
 }
+/* 每个类目一套专属渐变卡面 */
+.cat-tone-0 { background: linear-gradient(135deg, rgba(66,165,245,.16), rgba(255,224,130,.12) 55%, transparent); }
+.cat-tone-1 { background: linear-gradient(135deg, rgba(102,187,106,.16), rgba(255,224,130,.12) 55%, transparent); }
+.cat-tone-2 { background: linear-gradient(135deg, rgba(38,198,218,.16), rgba(167,139,250,.14) 55%, transparent); }
+.cat-tone-3 { background: linear-gradient(135deg, rgba(236,64,122,.14), rgba(66,165,245,.12) 55%, transparent); }
+.cat-tone-4 { background: linear-gradient(135deg, rgba(0,150,136,.15), rgba(102,187,106,.12) 55%, transparent); }
+.cat-tone-5 { background: linear-gradient(135deg, rgba(186,104,200,.15), rgba(255,183,77,.12) 55%, transparent); }
+.cat-tone-6 { background: linear-gradient(135deg, rgba(141,110,99,.16), rgba(102,187,106,.12) 55%, transparent); }
+.cat-tone-7 { background: linear-gradient(135deg, rgba(66,165,245,.14), rgba(167,139,250,.14) 55%, transparent); }
+.cat-tone-8 { background: linear-gradient(135deg, rgba(255,152,0,.15), rgba(229,57,53,.12) 55%, transparent); }
 .cat-card:nth-child(1) { animation-delay: 0.05s; }
 .cat-card:nth-child(2) { animation-delay: 0.09s; }
 .cat-card:nth-child(3) { animation-delay: 0.13s; }
@@ -704,26 +736,49 @@ onUnmounted(() => {
 .cat-card:nth-child(6) { animation-delay: 0.25s; }
 .cat-card:nth-child(n + 7) { animation-delay: 0.29s; }
 .cat-card:hover {
-  transform: translateY(-5px) scale(1.02);
-  border-color: rgba(26, 144, 160, 0.35);
-  box-shadow: 0 16px 30px -18px rgba(16, 102, 122, 0.5);
+  transform: perspective(420px) translateY(-6px) rotateX(4deg) scale(1.03);
+  border-color: var(--accent);
+  box-shadow: 0 18px 36px -16px var(--accent-soft), 0 0 0 1px var(--accent-soft);
 }
 .cat-emoji {
   font-size: 24px;
   line-height: 1.3;
-  transition: transform 0.3s var(--ease-spring);
+  position: relative;
+  z-index: 2;
+  transition: transform 0.35s var(--ease-spring);
 }
 .cat-card:hover .cat-emoji {
-  transform: scale(1.2) rotate(-6deg);
+  transform: scale(1.28) rotate(-8deg) translateY(-2px);
+}
+/* 专属元素水印：卡片右上大号半透明元素，随主题柔和变化 */
+.cat-watermark {
+  position: absolute;
+  right: -8px;
+  top: -10px;
+  font-size: 64px;
+  opacity: 0.1;
+  z-index: 1;
+  pointer-events: none;
+  transform: rotate(12deg);
+  transition: transform 0.5s var(--ease-spring), opacity 0.3s;
+  filter: saturate(1.1);
+}
+.cat-card:hover .cat-watermark {
+  transform: rotate(0deg) scale(1.12);
+  opacity: 0.2;
 }
 .cat-name {
   font-size: 14px;
   font-weight: 700;
   color: var(--text-main);
+  position: relative;
+  z-index: 2;
 }
 .cat-desc {
   font-size: 10.5px;
   color: var(--text-sub);
+  position: relative;
+  z-index: 2;
   opacity: 0.8;
   white-space: nowrap;
   overflow: hidden;
