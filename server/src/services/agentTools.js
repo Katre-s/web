@@ -148,8 +148,8 @@ export function parseIntent(raw) {
     return { action: 'navigate', page }
   }
 
-  // 2) 加入购物车（必须有"加/放/扔/塞/添/装"这类动作词）
-  if (/购物车/.test(msg) && /(加|放|扔|塞|添|装|拉)/.test(msg)) {
+  // 2) 加入购物车（必须有"加/放/扔/塞/添/装"这类动作词，且得有书名或指代）
+  if (/购物车/.test(msg) && /(加|放|扔|塞|添|装|拉)/.test(msg) && (title || ref)) {
     return { action: 'cart_add', ref, title, isbn }
   }
 
@@ -163,8 +163,8 @@ export function parseIntent(raw) {
     return { action: 'publish', ref, title, isbn, price }
   }
 
-  // 6) 找书 / 搜索
-  if (/(有没有|找一?本|找一下|找找|找|搜索|搜一下|搜|查一?下|查查|查|有什么)/.test(msg) || title) {
+  // 6) 找书 / 搜索 —— 必须有书名/ISBN 实体才接管；开放性问题（"有什么好书推荐"）交给大模型，避免机械反问
+  if ((/(有没有|找一?本|找一下|找找|找|搜索|搜一下|搜|查一?下|查查|查|有什么)/.test(msg) || title) && (title || isbn)) {
     return { action: 'search', ref, title, isbn }
   }
 

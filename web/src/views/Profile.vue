@@ -32,6 +32,15 @@
       <ThemeSwitcher inline />
     </div>
 
+    <!-- AI 音色：男声/女声选择（与主题同款 hover 渐变动画） -->
+    <div class="profile-theme-card">
+      <div class="profile-theme-head">
+        <span class="profile-theme-title">🎙️ {{ $t('voice.title') }}</span>
+        <span class="profile-theme-sub">{{ $t('voice.tip') }}</span>
+      </div>
+      <VoiceSwitcher inline />
+    </div>
+
     <el-tabs v-model="activeTab" @tab-change="loadTabData">
       <el-tab-pane :label="$t('profile.myProducts')" name="products" />
       <el-tab-pane :label="$t('profile.favorites')" name="favorites" />
@@ -200,6 +209,7 @@ import { productApi, favoriteApi, bookFavoriteApi, authApi, balanceApi, conversa
 import { useUserStore } from '@/stores/user'
 import { resolveImg } from '@/utils/image'
 import ThemeSwitcher from '@/components/ThemeSwitcher.vue'
+import VoiceSwitcher from '@/components/VoiceSwitcher.vue'
 
 const userStore = useUserStore()
 const router = useRouter()

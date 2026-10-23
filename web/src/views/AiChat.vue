@@ -269,10 +269,22 @@ function startCall() {
   callRunning = true
   callStatus.value = 'idle'
   micError.value = false
-  // 短暂连接提示后开始聆听
+  // 接通后：先说一句欢迎语（仅此一次），然后开始聆听
   setTimeout(() => {
-    if (callRunning) beginListening()
+    if (!callRunning) return
+    greetingOnce()
+    beginListening()
   }, 700)
+}
+
+/* 接通欢迎语：只在刚接通时说一次，之后保持安静聆听，绝不重复 */
+function greetingOnce() {
+  const prompt = t('ai.callPromptNone')
+  const msgIdx = messages.value.length
+  agentStore.addMessage({ role: 'assistant', content: prompt })
+  callStatus.value = 'speaking'
+  nextTick(() => speakText(prompt, msgIdx))
+  // speakText onend 会自动 beginListening 恢复聆听
 }
 
 function hangupCall() {
@@ -307,12 +319,11 @@ function beginListening() {
 }
 
 /* 静默看门狗：每 500ms 检查一次；用户 2 秒没说话就自动应答 */
-let lastPromptAt = 0
 function startWatchdog() {
   clearWatchdog()
   watchdogTimer = setInterval(() => {
     if (!callRunning || !inCall.value) { clearWatchdog(); return }
-    // 思考中或 AI 正在朗读时不触发引导；用户开口打断朗读后由 onresult 走下一轮
+    // 思考中或 AI 正在朗读时不触发；用户开口打断朗读后由 onresult 走下一轮
     if (loading.value || callStatus.value === 'thinking') return
     if (callStatus.value === 'speaking') return
     if (Date.now() - lastSpeechAt < 2000) return
@@ -320,12 +331,8 @@ function startWatchdog() {
     if (finalTranscript.trim()) {
       // 用户说完了但停住 → 提交并等 AI 回复
       commitSpeech()
-    } else if (Date.now() - lastPromptAt > 12000) {
-      // 完全没说话 → AI 主动引导一句（12 秒内至多一次，避免刷屏"我在听"）
-      lastPromptAt = Date.now()
-      aiPromptSpeech()
     } else {
-      // 引导冷却中：继续安静聆听
+      // 完全没说话：保持安静聆听（不重复任何引导语）
       lastSpeechAt = Date.now()
       startWatchdog()
     }
@@ -349,29 +356,26 @@ function commitSpeech() {
   }
 }
 
-/* AI 引导话术：没听到内容时主动回应（同步写入聊天记录 + 朗读） */
-function aiPromptSpeech() {
-  const prompt = t('ai.callPromptNone')
-  const msgIdx = messages.value.length
-  agentStore.addMessage({ role: 'assistant', content: prompt })
-  callStatus.value = 'speaking'
-  nextTick(() => speakText(prompt, msgIdx))
-  // speakText onend 会自动恢复聆听
-}
-
 function pickZhVoice() {
   const voices = window.speechSynthesis ? speechSynthesis.getVoices() : []
   if (!voices.length) return null
-  // 优先自然音色：Edge 在线自然语音 / Google 普通话 / 系统中文
-  const prefers = [
-    'xiaoxiao online', 'xiaoyi online', 'yunxi online', 'yunyang online',
-    'google 普通话', 'google 中文', 'huihui', 'yaoyao', 'kangkang', 'tingting'
+  const mode = localStorage.getItem('ai_voice') || 'auto'
+  const femalePrefs = [
+    'xiaoxiao online', 'xiaoyi online', 'google 普通话', 'google 中文',
+    'meijia', 'xiaoxiao', 'xiaoyi', 'huihui', 'yaoyao', 'tingting', 'lili', 'anny', 'woman', 'female'
   ]
-  for (const p of prefers) {
-    const hit = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('zh') && v.name.toLowerCase().includes(p))
+  const malePrefs = [
+    'yunxi online', 'yunyang online', 'google 中文（香港）',
+    'yunxi', 'yunyang', 'kangkang', 'yunjian', 'danny', 'george', 'man', 'male'
+  ]
+  const zh = v => v.lang && v.lang.toLowerCase().startsWith('zh')
+  // 按用户选择的音色优先匹配，找不到则回退另一种性别，最后回退任意中文音色
+  const prefs = mode === 'male' ? malePrefs.concat(femalePrefs) : mode === 'female' ? femalePrefs.concat(malePrefs) : femalePrefs.concat(malePrefs)
+  for (const p of prefs) {
+    const hit = voices.find(v => zh(v) && v.name.toLowerCase().includes(p))
     if (hit) return hit
   }
-  return voices.find(v => v.lang && v.lang.toLowerCase().startsWith('zh')) || null
+  return voices.find(zh) || null
 }
 
 function stopSpeak() {

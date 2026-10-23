@@ -32,6 +32,13 @@ export default {
     tech: '科技风',
     tip: '主题会应用到全站并自动保存',
   },
+  voice: {
+    title: 'AI 音色',
+    tip: '选择 AI 朗读的声音并自动保存',
+    auto: '自动',
+    female: '女声',
+    male: '男声',
+  },
   ai: {
     pageTitle: '🐟 小咸鱼智能助手',
     tag: 'AI',

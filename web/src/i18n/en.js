@@ -32,6 +32,13 @@ export default {
     tech: 'Tech',
     tip: 'Applies site-wide and is saved automatically',
   },
+  voice: {
+    title: 'AI Voice',
+    tip: 'Choose the voice for AI replies. Saved automatically.',
+    auto: 'Auto',
+    female: 'Female',
+    male: 'Male',
+  },
   ai: {
     pageTitle: '🐟 Xiaoxianyu Assistant',
     tag: 'AI',
