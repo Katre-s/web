@@ -63,6 +63,7 @@ export default {
     callTipThinking: '稍等一下，AI 正在组织语言',
     callTipSpeaking: 'AI 正在说话，随时可以打断',
     callTipConnecting: '正在建立通话',
+    callPromptNone: '我在听，请问你想找什么书，或者想卖什么物品？',
     intent: {
       buy: '🛒 想买书',
       sell: '📤 想卖书',

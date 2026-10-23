@@ -134,12 +134,15 @@ function toggleMic() {
     return
   }
   if (isListening.value) stopMic()
-  else startMic()
+  else {
+    stopSpeak() // 手动开麦：先打断 AI 朗读
+    startMic()
+  }
 }
 
 function startMic() {
   if (!SpeechRecognition) return
-  stopSpeak() // 用户要说话时，先打断 AI 朗读（听用户先说）
+  // 注意：不在 startMic 里 stopSpeak，避免误打断；用户一开口（onresult 有内容）才打断
   try {
     recognition = new SpeechRecognition()
     recognition.lang = 'zh-CN'
@@ -154,7 +157,12 @@ function startMic() {
         if (r.isFinal) finalTranscript += r[0].transcript
         else interim += r[0].transcript
       }
-      text.value = (finalTranscript + interim).trim()
+      const combined = (finalTranscript + interim).trim()
+      text.value = combined
+      if (combined) {
+        lastSpeechAt = Date.now() // 有人在说话，刷新静默计时
+        stopSpeak() // 用户一开口立即打断 AI 朗读（听用户先说）
+      }
       scrollBottom()
     }
     recognition.onerror = (e) => {
@@ -165,20 +173,19 @@ function startMic() {
     }
     recognition.onend = () => {
       isListening.value = false
-      // 说话结束后若有完整识别结果，自动发送（实时通话体验）
-      if (finalTranscript.trim() && !loading.value) {
+      // 识别意外中断（非主动停止）：通话中自动重连，保持电话在线
+      if (callRunning && inCall.value && !loading.value) {
+        setTimeout(beginListening, 400)
+      } else if (finalTranscript.trim() && !loading.value) {
         send()
-      } else if (callRunning && inCall.value && !loading.value) {
-        // 通话模式：没听清/没说话就继续听，像电话保持在线
-        callStatus.value = 'listening'
-        startMic()
       }
     }
     recognition.start()
     isListening.value = true
   } catch (err) {
     isListening.value = false
-    ElMessage.error(t('ai.micError'))
+    if (!inCall.value) ElMessage.error(t('ai.micError'))
+    else setTimeout(beginListening, 600)
   }
 }
 
@@ -230,10 +237,7 @@ function startCall() {
   callStatus.value = 'idle'
   // 短暂连接提示后开始聆听
   setTimeout(() => {
-    if (callRunning) {
-      callStatus.value = 'listening'
-      startMic()
-    }
+    if (callRunning) beginListening()
   }, 700)
 }
 
@@ -241,8 +245,72 @@ function hangupCall() {
   callRunning = false
   inCall.value = false
   callStatus.value = 'idle'
+  clearWatchdog()
   stopMic()
   stopSpeak()
+}
+
+/* ===== 通话核心：听 → 2秒静默 → 自动应答 ===== */
+let lastSpeechAt = 0
+let watchdogTimer = null
+
+function beginListening() {
+  if (!callRunning || !inCall.value || loading.value) return
+  callStatus.value = 'listening'
+  // 新聆听轮次才重置静默计时并启动看门狗；识别异常重连时不重置，避免无限推迟应答
+  if (!watchdogTimer) {
+    lastSpeechAt = Date.now()
+    startWatchdog()
+  }
+  // 识别已在跑（用户正说话/被打断场景）就不重启，保留已识别内容
+  if (!isListening.value) startMic()
+}
+
+/* 静默看门狗：每 500ms 检查一次；用户 2 秒没说话就自动应答 */
+function startWatchdog() {
+  clearWatchdog()
+  watchdogTimer = setInterval(() => {
+    if (!callRunning || !inCall.value) { clearWatchdog(); return }
+    // 思考中或 AI 正在朗读时不触发引导；用户开口打断朗读后由 onresult 走下一轮
+    if (loading.value || callStatus.value === 'thinking') return
+    if (callStatus.value === 'speaking') return
+    if (Date.now() - lastSpeechAt < 2000) return
+    clearWatchdog()
+    if (finalTranscript.trim()) {
+      // 用户说完了但停住 → 提交并等 AI 回复
+      commitSpeech()
+    } else {
+      // 完全没说话 → AI 主动引导一句，继续听
+      aiPromptSpeech()
+    }
+  }, 500)
+}
+
+function clearWatchdog() {
+  if (watchdogTimer) { clearInterval(watchdogTimer); watchdogTimer = null }
+}
+
+function commitSpeech() {
+  const content = finalTranscript.trim()
+  if (!content || loading.value) { beginListening(); return }
+  finalTranscript = '' // 提交后清空，识别器继续听下一句
+  text.value = content
+  if (inCall.value) {
+    send()
+  } else {
+    stopMic()
+    send()
+  }
+}
+
+/* AI 引导话术：没听到内容时主动回应（同步写入聊天记录 + 朗读） */
+function aiPromptSpeech() {
+  const prompt = t('ai.callPromptNone')
+  const msgIdx = messages.value.length
+  agentStore.addMessage({ role: 'assistant', content: prompt })
+  callStatus.value = 'speaking'
+  nextTick(() => speakText(prompt, msgIdx))
+  // speakText onend 会自动恢复聆听
 }
 
 function pickZhVoice() {
@@ -267,7 +335,11 @@ function stopSpeak() {
 }
 
 function speakText(content, idx) {
-  if (!window.speechSynthesis) return
+  // 无语音合成能力时：通话模式自动继续下一轮聆听（避免卡死在 speaking）
+  if (!window.speechSynthesis) {
+    if (callRunning && inCall.value) setTimeout(beginListening, 300)
+    return
+  }
   if (speakingIndex.value === idx) { stopSpeak(); return }
   stopSpeak()
   const u = new SpeechSynthesisUtterance(content)
@@ -280,17 +352,11 @@ function speakText(content, idx) {
   u.onend = () => {
     speakingIndex.value = -1
     // 通话模式下：AI 说完自动继续听（打电话式循环）
-    if (callRunning && inCall.value) {
-      callStatus.value = 'listening'
-      startMic()
-    }
+    if (callRunning && inCall.value) beginListening()
   }
   u.onerror = () => {
     speakingIndex.value = -1
-    if (callRunning && inCall.value) {
-      callStatus.value = 'listening'
-      startMic()
-    }
+    if (callRunning && inCall.value) beginListening()
   }
   speechSynthesis.speak(u)
 }
@@ -337,7 +403,7 @@ function scrollBottom() {
 async function send() {
   const content = text.value.trim()
   if (!content || loading.value) return
-  stopMic()
+  if (!inCall.value) stopMic() // 通话模式保持识别常开，thinking 阶段也能继续听
   text.value = ''
   agentStore.addMessage({ role: 'user', content })
   loading.value = true
@@ -353,7 +419,7 @@ async function send() {
     const res = await agentApi.chat(content, history)
     const data = res.data || res
     agentStore.addMessage({ role: 'assistant', content: data.reply, intent: data.intent, actions: data.actions || [] })
-    // 通话模式下：AI 回复自动朗读，形成"打电话式"对话
+    // 通话模式下：AI 回复自动朗读，形成"打电话式"对话；朗读期间保持监听，用户开口即打断
     if (inCall.value && data.reply) {
       callStatus.value = 'speaking'
       nextTick(() => speakText(data.reply, messages.value.length - 1))
@@ -363,8 +429,7 @@ async function send() {
   } catch {
     ElMessage.error(t('ai.error'))
     if (inCall.value) {
-      callStatus.value = 'listening'
-      startMic()
+      beginListening()
     }
   } finally {
     loading.value = false

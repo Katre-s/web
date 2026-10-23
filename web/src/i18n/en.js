@@ -63,6 +63,7 @@ export default {
     callTipThinking: 'One moment, the AI is composing a reply',
     callTipSpeaking: 'AI is speaking — interrupt anytime',
     callTipConnecting: 'Establishing the call',
+    callPromptNone: "I'm listening. What book are you looking for, or what would you like to sell?",
     intent: {
       buy: '🛒 Want to buy',
       sell: '📤 Want to sell',
