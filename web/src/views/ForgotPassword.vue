@@ -1,55 +1,117 @@
 <template>
-  <div class="forgot-page">
-    <div class="forgot-card">
-      <div class="fp-header">
-        <div class="fp-seal">文</div>
-        <h2>{{ t('forgot.title') }}</h2>
-        <p class="fp-sub">{{ t('forgot.subtitle') }}</p>
+  <div class="auth-page">
+    <!-- ===== 左侧：小池塘品牌区（与登录页一致）===== -->
+    <section class="auth-brand">
+      <div class="pond">
+        <span v-for="n in 16" :key="n" class="bubble" :style="bubbleStyle(n)"></span>
+        <div class="light-beam"></div>
+        <div class="wave wave-1"></div>
+        <div class="wave wave-2"></div>
       </div>
 
-      <!-- 步骤1：输入邮箱 -->
-      <div v-if="step === 1" class="fp-step">
-        <el-input v-model="email" :placeholder="t('forgot.emailPlaceholder')" size="large" prefix-icon="Message" @keyup.enter="sendCode" />
-        <el-button type="primary" round :loading="sending" @click="sendCode" class="fp-btn">
-          {{ t('forgot.next') }}
-        </el-button>
-        <p class="fp-back"><a @click="goLogin">{{ t('forgot.backToLogin') }}</a></p>
-      </div>
-
-      <!-- 步骤2：验证码 + 新密码 -->
-      <div v-else-if="step === 2" class="fp-step">
-        <div class="fp-tip">{{ t('forgot.codeSentTo') }} {{ email }}</div>
-        <div class="code-row">
-          <el-input v-model="code" :placeholder="t('forgot.codePlaceholder')" size="large" prefix-icon="Key" maxlength="6" />
-          <el-button @click="sendCode" :disabled="codeCooldown > 0 || sending" :loading="sending" class="code-btn">
-            {{ codeCooldown > 0 ? `${codeCooldown}s` : t('forgot.resend') }}
-          </el-button>
+      <div class="brand-head">
+        <BrandLogo :size="46" />
+        <div class="brand-words">
+          <b>{{ t('login.brandName') }}</b>
+          <span>XGXY · SECOND-HAND POND</span>
         </div>
-        <el-input v-model="password" type="password" :placeholder="t('forgot.newPassword')" show-password size="large" prefix-icon="Lock" />
-        <el-input v-model="confirmPassword" type="password" :placeholder="t('forgot.confirmPassword')" show-password size="large" prefix-icon="Lock" />
-        <el-button type="primary" round :loading="submitting" @click="handleReset" class="fp-btn">
-          {{ t('forgot.submit') }}
-        </el-button>
       </div>
 
-      <!-- 步骤3：成功 -->
-      <div v-else class="fp-step fp-done">
-        <div class="fp-ok">✓</div>
-        <h3>{{ t('forgot.successTitle') }}</h3>
-        <p class="fp-sub">{{ t('forgot.successSub') }}</p>
-        <el-button type="primary" round @click="goLogin" class="fp-btn">{{ t('forgot.goLogin') }}</el-button>
+      <div class="brand-body">
+        <p class="brand-kicker">{{ t('forgot.kicker') }}</p>
+        <h1 class="brand-title">
+          {{ t('forgot.sloganTop') }}<br />
+          <em>{{ t('forgot.sloganBottom') }}</em>
+        </h1>
+        <p class="brand-desc">{{ t('forgot.brandDesc') }}</p>
+        <ul class="brand-points">
+          <li><i>🔐</i><div><b>{{ t('forgot.point1') }}</b><span>{{ t('forgot.point1d') }}</span></div></li>
+          <li><i>📮</i><div><b>{{ t('forgot.point2') }}</b><span>{{ t('forgot.point2d') }}</span></div></li>
+          <li><i>⚡</i><div><b>{{ t('forgot.point3') }}</b><span>{{ t('forgot.point3d') }}</span></div></li>
+        </ul>
       </div>
-    </div>
+
+      <div class="brand-art">
+        <BrandLogo :size="196" />
+      </div>
+      <p class="brand-foot">{{ t('forgot.brandFoot') }}</p>
+    </section>
+
+    <!-- ===== 右侧：找回密码面板 ===== -->
+    <section class="auth-panel">
+      <div class="panel-card">
+        <div class="panel-brand">
+          <BrandLogo :size="34" />
+          <b>{{ t('login.brandName') }}</b>
+        </div>
+
+        <header class="panel-head">
+          <p class="eyebrow">{{ t('forgot.eyebrow') }}</p>
+          <h2>{{ t('forgot.title') }}</h2>
+          <p class="panel-sub">{{ t('forgot.subtitle') }}</p>
+        </header>
+
+        <!-- 步骤1：输入邮箱 -->
+        <transition name="form-fade" mode="out-in">
+          <div v-if="step === 1" key="s1" class="fp-step">
+            <el-input v-model="email" :placeholder="t('forgot.emailPlaceholder')" size="large" prefix-icon="Message" @keyup.enter="sendCode" />
+            <el-button type="primary" round :loading="sending" @click="sendCode" class="submit-btn">
+              {{ t('forgot.next') }} <span class="arrow">→</span>
+            </el-button>
+            <div class="link-row">
+              <span class="back-link" @click="goLogin">{{ t('forgot.backToLogin') }}</span>
+            </div>
+          </div>
+
+          <!-- 步骤2：验证码 + 新密码 -->
+          <div v-else-if="step === 2" key="s2" class="fp-step">
+            <div class="fp-tip">
+              <span class="fp-tip-icon">📩</span>
+              {{ t('forgot.codeSentTo') }}
+              <b class="fp-mail">{{ email }}</b>
+            </div>
+            <div class="code-row">
+              <el-input v-model="code" :placeholder="t('forgot.codePlaceholder')" size="large" prefix-icon="Key" maxlength="6" />
+              <el-button @click="sendCode" :disabled="codeCooldown > 0 || sending" :loading="sending" class="code-btn">
+                {{ codeCooldown > 0 ? `${codeCooldown}s` : t('forgot.resend') }}
+              </el-button>
+            </div>
+            <el-input v-model="password" type="password" :placeholder="t('forgot.newPassword')" show-password size="large" prefix-icon="Lock" />
+            <el-input v-model="confirmPassword" type="password" :placeholder="t('forgot.confirmPassword')" show-password size="large" prefix-icon="Lock" />
+            <el-button type="primary" round :loading="submitting" @click="handleReset" class="submit-btn">
+              {{ t('forgot.submit') }} <span class="arrow">→</span>
+            </el-button>
+            <div class="link-row">
+              <span class="back-link" @click="goLogin">{{ t('forgot.backToLogin') }}</span>
+            </div>
+          </div>
+
+          <!-- 步骤3：成功 -->
+          <div v-else key="s3" class="fp-step fp-done">
+            <div class="fp-ok">
+              <span class="fp-ok-fish">🐟</span>
+            </div>
+            <h3 class="fp-done-title">{{ t('forgot.successTitle') }}</h3>
+            <p class="fp-done-sub">{{ t('forgot.successSub') }}</p>
+            <el-button type="primary" round @click="goLogin" class="submit-btn">
+              {{ t('forgot.goLogin') }} <span class="arrow">→</span>
+            </el-button>
+          </div>
+        </transition>
+      </div>
+    </section>
   </div>
 </template>
 
-<script setup>import { useI18n } from 'vue-i18n'
+<script setup>
+import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 
 import { ref, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus/es/components/message/index'
 import { authApi } from '@/api'
+import BrandLogo from '@/components/BrandLogo.vue'
 
 const router = useRouter()
 const step = ref(1)
@@ -63,6 +125,14 @@ const codeCooldown = ref(0)
 let cooldownTimer = null
 
 const emailRegex = /^[\w.+-]+@[\w-]+(\.[\w-]+)+$/
+
+function bubbleStyle(n) {
+  const left = (n * 61) % 100
+  const size = 6 + (n * 13) % 12
+  const delay = (n * 1.7) % 8
+  const dur = 7 + (n * 2.1) % 6
+  return { left: left + '%', width: size + 'px', height: size + 'px', animationDelay: delay + 's', animationDuration: dur + 's' }
+}
 
 function goLogin() {
   router.push('/login')
@@ -125,56 +195,251 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.forgot-page {
+/* ================= 整体布局（与登录页一致）================= */
+.auth-page {
+  display: flex;
   min-height: 100vh;
+  background: #f4faf9;
+}
+
+/* ================= 左侧品牌区 ================= */
+.auth-brand {
+  position: relative;
+  flex: 1.08;
+  overflow: hidden;
+  padding: 46px 56px 40px;
+  display: flex;
+  flex-direction: column;
+  color: #eaf7f5;
+  background:
+    radial-gradient(120% 90% at 85% 8%, rgba(255, 154, 90, 0.28), transparent 58%),
+    radial-gradient(90% 80% at 10% 90%, rgba(122, 217, 196, 0.22), transparent 60%),
+    linear-gradient(155deg, #082c3b 0%, #0c4356 46%, #0f5f70 100%);
+}
+.pond {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.bubble {
+  position: absolute;
+  bottom: -30px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 30%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.08));
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  animation: bubble-rise 8s linear infinite;
+  opacity: 0.5;
+}
+@keyframes bubble-rise {
+  0% { transform: translateY(0); opacity: 0; }
+  8% { opacity: 0.55; }
+  92% { opacity: 0.45; }
+  100% { transform: translateY(-110vh); opacity: 0; }
+}
+.light-beam {
+  position: absolute;
+  top: -20%;
+  left: -8%;
+  width: 64%;
+  height: 150%;
+  transform: rotate(16deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+  animation: beam-sway 9s ease-in-out infinite;
+}
+@keyframes beam-sway {
+  0%, 100% { transform: rotate(14deg) translateX(-2%); }
+  50% { transform: rotate(18deg) translateX(3%); }
+}
+.wave {
+  position: absolute;
+  bottom: -4px;
+  left: -10%;
+  width: 120%;
+  height: 90px;
+  opacity: 0.2;
+}
+.wave-1 {
+  background: radial-gradient(ellipse 50% 100% at 50% 0%, rgba(190, 242, 230, 0.4), transparent);
+  animation: wave-drift 8s ease-in-out infinite;
+}
+.wave-2 {
+  background: radial-gradient(ellipse 40% 90% at 60% 0%, rgba(255, 214, 165, 0.3), transparent);
+  animation: wave-drift 11s ease-in-out infinite reverse;
+}
+@keyframes wave-drift {
+  0%, 100% { transform: translateX(-2%); }
+  50% { transform: translateX(2%); }
+}
+.brand-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 2;
+}
+.brand-words {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.brand-words b {
+  font-size: 20px;
+  letter-spacing: 2px;
+  color: #eaf7f5;
+}
+.brand-words span {
+  font-size: 10px;
+  letter-spacing: 3.5px;
+  color: rgba(234, 247, 245, 0.65);
+}
+.brand-body {
+  position: relative;
+  margin-top: 46px;
+  z-index: 2;
+}
+.brand-kicker {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: rgba(160, 224, 210, 0.85);
+  text-transform: uppercase;
+  margin: 0 0 14px;
+}
+.brand-title {
+  margin: 0 0 14px;
+  font-size: 42px;
+  line-height: 1.22;
+  letter-spacing: 1px;
+  color: #f4fcfb;
+  font-weight: 800;
+}
+.brand-title em {
+  font-style: normal;
+  background: linear-gradient(100deg, #7fe3d0, #ffc98a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.brand-desc {
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: rgba(234, 247, 245, 0.72);
+  max-width: 400px;
+  margin: 0 0 26px;
+}
+.brand-points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 400px;
+}
+.brand-points li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.brand-points li i {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(155deg, #14151c 0%, #1e2230 45%, #2a2438 100%);
-  padding: 20px;
+  font-size: 18px;
+  font-style: normal;
 }
-.forgot-card {
-  width: 420px;
-  max-width: 100%;
-  background: linear-gradient(180deg, rgba(255, 252, 245, 0.96), rgba(250, 245, 234, 0.98));
-  border-radius: 18px;
-  border: 1px solid rgba(176, 150, 105, 0.28);
-  box-shadow: 0 24px 60px -18px rgba(0, 0, 0, 0.5);
-  padding: 40px 38px;
-  animation: fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+.brand-points li div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
-@keyframes fade-up {
-  from { opacity: 0; transform: translateY(28px); }
+.brand-points li b {
+  font-size: 14px;
+  color: #eaf7f5;
+}
+.brand-points li span {
+  font-size: 12px;
+  color: rgba(234, 247, 245, 0.6);
+}
+.brand-art {
+  position: absolute;
+  right: -40px;
+  bottom: 26px;
+  opacity: 0.28;
+  transform: rotate(-8deg);
+  z-index: 1;
+}
+.brand-foot {
+  margin-top: auto;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: rgba(234, 247, 245, 0.45);
+  z-index: 2;
+}
+
+/* ================= 右侧面板（随主题系统变色）================= */
+.auth-panel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 32px;
+  background:
+    radial-gradient(70% 60% at 100% 0%, var(--accent-soft), transparent 60%),
+    radial-gradient(60% 50% at 0% 100%, var(--accent-soft), transparent 60%),
+    var(--page-bg, #f4faf9);
+}
+.panel-card {
+  width: 100%;
+  max-width: 430px;
+  padding: 38px 38px 30px;
+  border-radius: 26px;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--card-border, rgba(16, 102, 122, 0.08));
+  box-shadow: 0 30px 70px -30px rgba(10, 60, 75, 0.35), 0 2px 8px rgba(10, 60, 75, 0.04);
+  animation: card-in 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(22px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.fp-header {
-  text-align: center;
-  margin-bottom: 30px;
-}
-.fp-seal {
-  width: 52px; height: 52px;
-  margin: 0 auto 16px;
-  background: #b5442f;
-  border-radius: 6px;
-  display: flex;
+.panel-brand {
+  display: none;
   align-items: center;
-  justify-content: center;
-  font-family: 'KaiTi', 'STKaiti', 'SimSun', serif;
-  font-size: 28px;
-  color: #f7f3ea;
-  box-shadow: 0 6px 20px rgba(181, 68, 47, 0.4), inset 0 0 0 2px rgba(247, 243, 234, 0.25);
+  gap: 9px;
+  margin-bottom: 20px;
 }
-.fp-header h2 {
-  font-family: 'KaiTi', 'STKaiti', 'SimSun', serif;
-  font-size: 26px;
-  letter-spacing: 5px;
-  color: #3b3020;
-  margin: 0 0 8px;
-}
-.fp-sub {
-  color: #9a8a6c;
-  font-size: 13px;
+.panel-brand b {
+  font-size: 17px;
   letter-spacing: 1px;
+  color: var(--text-main, #0d3b4f);
+}
+.panel-head {
+  margin-bottom: 22px;
+}
+.eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--accent, #1a90a0);
+  text-transform: uppercase;
+}
+.panel-head h2 {
+  margin: 8px 0 6px;
+  font-size: 27px;
+  letter-spacing: 1px;
+  color: var(--text-main, #0d2f3d);
+}
+.panel-sub {
+  font-size: 13px;
+  color: var(--text-sub, #849fa9);
 }
 .fp-step {
   display: flex;
@@ -182,43 +447,22 @@ onUnmounted(() => {
   gap: 14px;
 }
 .fp-tip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
-  color: #7c6438;
-  background: #f6efdd;
-  border: 1px solid #e4d8ba;
-  border-radius: 10px;
-  padding: 10px 14px;
-  text-align: center;
+  color: var(--text-sub, #0d2f3d);
+  background: var(--accent-soft, #e8f5f3);
+  border: 1px solid var(--card-border, rgba(16, 102, 122, 0.14));
+  border-radius: 12px;
+  padding: 11px 14px;
 }
-.fp-btn {
-  width: 100%;
-  height: 48px;
-  font-size: 15px;
-  letter-spacing: 4px;
-  border: none;
-  background: linear-gradient(135deg, #a58a4b 0%, #c7a75f 50%, #a58a4b 100%);
-  background-size: 200% 200%;
-  box-shadow: 0 6px 18px rgba(150, 120, 60, 0.35);
-  transition: all 0.35s ease;
-  font-family: 'KaiTi', 'STKaiti', serif;
+.fp-tip-icon { font-size: 15px; }
+.fp-mail {
+  color: var(--accent, #1a90a0);
+  font-weight: 700;
+  word-break: break-all;
 }
-.fp-btn:hover {
-  background-position: 100% 100%;
-  box-shadow: 0 8px 26px rgba(150, 120, 60, 0.5);
-}
-.fp-back {
-  text-align: center;
-  margin: 4px 0 0;
-}
-.fp-back a {
-  color: #8b7b58;
-  cursor: pointer;
-  font-size: 13px;
-  text-decoration: none;
-  border-bottom: 1px solid #bda46a;
-  padding-bottom: 1px;
-}
-.fp-back a:hover { color: #7c6438; }
 .code-row {
   display: flex;
   gap: 10px;
@@ -226,41 +470,143 @@ onUnmounted(() => {
 .code-btn {
   flex-shrink: 0;
   white-space: nowrap;
-  color: #7c6438;
-  border-color: #bda46a;
+  color: var(--accent, #1a90a0);
+  border-color: var(--card-border, rgba(16, 102, 122, 0.3));
   border-radius: 12px;
-  background: #faf5e8;
+  background: var(--card-bg, #fff);
 }
 .code-btn:disabled { opacity: 0.55; }
-.fp-done { align-items: center; text-align: center; padding: 10px 0; }
-.fp-ok {
-  width: 64px; height: 64px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #7cb342, #558b2f);
+.submit-btn {
+  width: 100%;
+  height: 50px;
+  margin-top: 6px;
+  border: 0;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 2px;
   color: #fff;
-  font-size: 30px;
+  background: linear-gradient(135deg, var(--accent, #12667a), var(--accent, #1a90a0) 55%, var(--accent, #23a7a5));
+  box-shadow: 0 12px 26px -10px var(--accent-soft, rgba(18, 102, 122, 0.65));
+  transition: transform 0.28s var(--ease-spring), box-shadow 0.28s var(--ease-smooth);
+}
+.submit-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 30px -10px var(--accent-soft, rgba(18, 102, 122, 0.75)), 0 0 24px var(--accent-soft);
+}
+.submit-btn .arrow {
+  display: inline-block;
+  margin-left: 6px;
+  transition: transform 0.28s;
+}
+.submit-btn:hover .arrow {
+  transform: translateX(4px);
+}
+.link-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+}
+.back-link {
+  font-size: 12.5px;
+  color: var(--text-sub, #849fa9);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.back-link:hover {
+  color: var(--accent, #1a90a0);
+}
+/* 成功态 */
+.fp-done {
+  align-items: center;
+  text-align: center;
+  padding: 10px 0;
+}
+.fp-ok {
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent, #1a90a0), var(--accent, #23a7a5));
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 10px auto 16px;
-  box-shadow: 0 8px 22px rgba(124, 179, 66, 0.4);
+  margin: 6px auto 18px;
+  font-size: 34px;
+  box-shadow: 0 12px 30px var(--accent-soft, rgba(124, 179, 66, 0.4));
+  animation: fp-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.fp-done h3 {
-  font-family: 'KaiTi', 'STKaiti', serif;
+@keyframes fp-pop {
+  from { transform: scale(0.4); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.fp-ok-fish { filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.2)); }
+.fp-done-title {
   font-size: 20px;
-  letter-spacing: 3px;
-  color: #3b3020;
-  margin: 0 0 6px;
+  letter-spacing: 2px;
+  color: var(--text-main, #0d2f3d);
+  margin: 0 0 8px;
 }
+.fp-done-sub {
+  font-size: 13px;
+  color: var(--text-sub, #849fa9);
+  margin: 0 0 22px;
+}
+
+/* Element Plus 细节（随主题）*/
 :deep(.el-input__wrapper) {
   border-radius: 12px;
-  box-shadow: 0 0 0 1px #dcd2ba inset;
-  padding: 4px 14px;
-  background: rgba(255, 253, 248, 0.85);
+  background: var(--card-bg, #f8fcfb);
+  box-shadow: 0 0 0 1.5px var(--card-border, #e2efee) inset;
+  padding: 3px 13px;
+  transition: all 0.22s ease;
+}
+:deep(.el-input__wrapper:hover) {
+  box-shadow: 0 0 0 1.5px var(--accent-soft, #bfe0dc) inset;
 }
 :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 2px #a58a4b inset;
+  background: var(--card-bg, #fff);
+  box-shadow: 0 0 0 2px var(--accent, #1a90a0) inset, 0 6px 16px var(--accent-soft) !important;
 }
-:deep(.el-input__inner) { height: 44px; font-size: 15px; color: #3b3020; }
-:deep(.el-input__inner::placeholder) { color: #b5a583; }
+:deep(.el-input__inner) {
+  height: 44px;
+  font-size: 14.5px;
+  color: var(--text-main, #0d2f3d);
+}
+:deep(.el-input__inner::placeholder) {
+  color: var(--text-sub, #a9bfc6);
+}
+.form-fade-enter-active,
+.form-fade-leave-active {
+  transition: all 0.25s ease;
+}
+.form-fade-enter-from {
+  opacity: 0;
+  transform: translateY(12px);
+}
+.form-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-12px);
+}
+
+@media (max-width: 1024px) {
+  .auth-brand {
+    flex: 1;
+    padding: 36px 34px;
+  }
+  .brand-title { font-size: 32px; }
+}
+@media (max-width: 820px) {
+  .auth-brand {
+    display: none;
+  }
+  .auth-panel {
+    padding: 24px 18px;
+  }
+  .panel-card {
+    padding: 30px 24px 24px;
+  }
+  .panel-brand {
+    display: flex;
+  }
+}
 </style>
