@@ -316,21 +316,65 @@ html {
   transition: transform 0.22s var(--ease-spring), box-shadow 0.25s var(--ease-smooth),
     background-color 0.25s var(--ease-smooth), border-color 0.25s var(--ease-smooth), color 0.25s var(--ease-smooth);
 }
-.el-button--primary {
+/* 只有实心主按钮才用蓝色渐变。
+   必须排除 plain / text / link：这三个变体本是"浅底 + 蓝字"，
+   一旦被这里的背景覆盖就成了深蓝底 + 蓝字，完全看不清。 */
+.el-button--primary:not(.is-plain):not(.is-text):not(.is-link) {
   background-image: linear-gradient(120deg, var(--accent-2), var(--accent) 48%, var(--accent-strong));
   background-size: 160% 100%;
   background-position: 0% 0;
   transition: transform 0.22s var(--ease-spring), box-shadow 0.3s var(--ease-smooth),
     background-position 0.5s var(--ease-smooth), filter 0.3s;
 }
-.el-button--primary:hover {
+.el-button--primary:not(.is-plain):not(.is-text):not(.is-link):hover {
   transform: translateY(-1px);
   box-shadow: 0 8px 22px var(--accent-soft);
   background-position: 90% 0;
   filter: brightness(1.04);
 }
-.el-button--primary:active {
+.el-button--primary:not(.is-plain):not(.is-text):not(.is-link):active {
   transform: translateY(0) scale(0.96);
+}
+
+/* plain 主按钮：白底 + 深蓝字（#1565c0 在白底上对比度约 6:1，小字也清楚） */
+.el-button--primary.is-plain {
+  --el-button-bg-color: #ffffff;
+  --el-button-text-color: #1565c0;
+  --el-button-border-color: var(--accent);
+  --el-button-hover-bg-color: #f2f8ff;
+  --el-button-hover-text-color: #0d47a1;
+  --el-button-hover-border-color: var(--accent-strong);
+  --el-button-active-bg-color: #e8f2fe;
+  --el-button-active-border-color: #0d47a1;
+}
+/* 粉色主题：白底粉字要压深，否则发虚 */
+[data-theme='cute'] .el-button--primary.is-plain {
+  --el-button-text-color: #d6336c;
+  --el-button-border-color: rgba(214, 51, 108, 0.45);
+  --el-button-hover-bg-color: #fff5f9;
+  --el-button-hover-text-color: #b02a5b;
+  --el-button-hover-border-color: #d6336c;
+}
+/* text / link 变体：加深主色文字，灰底时也清晰 */
+.el-button--primary.is-text,
+.el-button--primary.is-link {
+  --el-button-text-color: #1565c0;
+  --el-button-hover-text-color: #42a5f5;
+  --el-button-bg-color: transparent;
+}
+[data-theme='cute'] .el-button--primary.is-text,
+[data-theme='cute'] .el-button--primary.is-link {
+  --el-button-text-color: #d6336c;
+  --el-button-hover-text-color: #ff6b9d;
+}
+/* 科技风是深色底，白底按钮会刺眼、浅青字又会糊；改成深底亮字 */
+[data-theme='tech'] .el-button--primary.is-plain {
+  --el-button-bg-color: rgba(34, 211, 238, 0.12);
+  --el-button-text-color: #67e8f9;
+  --el-button-border-color: rgba(103, 232, 249, 0.45);
+  --el-button-hover-bg-color: rgba(34, 211, 238, 0.2);
+  --el-button-hover-text-color: #a5f3fc;
+  --el-button-hover-border-color: rgba(103, 232, 249, 0.7);
 }
 .el-card {
   border-radius: var(--radius-lg);

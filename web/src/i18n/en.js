@@ -43,10 +43,10 @@ export default {
   ai: {
     pageTitle: '🐟 Xiaoxianyu Assistant',
     tag: 'AI',
-    placeholder: 'Ask me: how to buy books? Recommend CS books?',
+    placeholder: 'Ask me: any good deals on gadgets? Add the desk lamp to my cart',
     send: 'Send',
     typing: 'Thinking…',
-    welcome: "Hi! I'm the Xiaoxianyu assistant. I can find books, add them to your cart, list second-hand items for sale, or just chat with you!",
+    welcome: "Hi! I'm the Xiaoxianyu assistant. I can find any second-hand item, add it to your cart, list your stuff for sale, or just chat with you!",
     error: 'AI service is temporarily unavailable. Please try again later.',
     collapse: 'Collapse',
     hideFloat: 'Hide float window',
@@ -54,6 +54,9 @@ export default {
     floatTitle: 'Xiaoxianyu Assistant',
     draftFilled: 'Filled in from the chat. Confirm the price to publish.',
     voiceReply: 'Voice reply',
+    clear: 'Clear',
+    clearConfirm: 'This conversation will be gone for good. Continue?',
+    cleared: 'Conversation cleared',
     speak: '🔊 Speak',
     stopSpeak: '⏹ Stop',
     micTip: 'Voice input (real-time to text)',
@@ -73,14 +76,14 @@ export default {
     callTipThinking: 'One moment, the AI is composing a reply',
     callTipSpeaking: 'AI is speaking — interrupt anytime',
     callTipConnecting: 'Establishing the call',
-    callPromptNone: "I'm listening. What book are you looking for, or what would you like to sell?",
+    callPromptNone: "I'm listening. What are you looking for, or what would you like to sell?",
     needHttps: 'Voice calls require an HTTPS secure context (browser security policy). Open https://121.40.219.139/ai-chat or run locally on localhost.',
     callMicError: 'Microphone unavailable',
     callMicErrorTip: 'Cannot access the microphone: check browser permission and make sure you visit via HTTPS or localhost. Hang up and retry.',
     intent: {
       buy: '🛒 Want to buy',
       sell: '📤 Want to sell',
-      search: '🔍 Find books',
+      search: '🔍 Find items',
       order: '📦 Orders',
       help: '💡 Platform help',
       chat: '💬 Chat'
@@ -88,7 +91,7 @@ export default {
     action: {
       buy: '🛒 Go to Trade',
       sell: '📤 Go to Publish',
-      search: '🔍 Find Books',
+      search: '🔍 Find Items',
       order: '📦 View Orders'
     }
   },

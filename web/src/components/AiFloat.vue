@@ -50,7 +50,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@/stores/user'
@@ -145,7 +145,12 @@ function restore() {
 
 window.addEventListener('ai-float-restore', restore)
 
-onMounted(() => {
+onMounted(async () => {
+  // 浮动球和 AI 助手页共用同一套会话，必须同样按用户隔离
+  if (userStore.token && !userStore.userInfo?.id) {
+    await userStore.fetchProfile().catch(() => {})
+  }
+  agentStore.bindUser(userStore.userInfo?.id)
   // 仅当没有任何历史记录时，才插入欢迎语
   if (agentStore.messages.length === 0) {
     agentStore.addMessage({
@@ -155,6 +160,12 @@ onMounted(() => {
       welcome: true
     })
   }
+  nextTick(scrollBottom)
+})
+
+// 换账号时立刻切到对应记录
+watch(() => userStore.userInfo?.id, (id) => {
+  agentStore.bindUser(id)
 })
 
 onUnmounted(() => {

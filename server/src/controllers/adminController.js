@@ -259,6 +259,7 @@ export async function listBoards(req, res, next) {
     const isbns = books.map(b => b.isbn).filter(Boolean)
     const titles = books.map(b => b.bookTitle).filter(Boolean)
     const countBy = new Map()
+    const coverByKey = new Map()
     const queries = []
     if (isbns.length) {
       queries.push(
@@ -280,10 +281,42 @@ export async function listBoards(req, res, next) {
         }).then(rows => rows.forEach(r => countBy.set(`title:${r.book_title}`, Number(r.cnt))))
       )
     }
+    // 回填目录封面：优先 Product.bookCover，其次 product_images 首图（用户上传的照片常只存在图片表）
+    if (isbns.length || titles.length) {
+      const coverWhere = {}
+      const or = []
+      if (isbns.length) or.push({ isbn: isbns })
+      if (titles.length) or.push({ bookTitle: titles })
+      coverWhere[Op.or] = or
+      queries.push((async () => {
+        const covers = await Product.findAll({ where: coverWhere, attributes: ['id', 'isbn', 'bookTitle', 'bookCover'], raw: true })
+        const needImgIds = covers.filter(c => !c.bookCover).map(c => c.id)
+        const imgByProduct = new Map()
+        if (needImgIds.length) {
+          const imgs = await ProductImage.findAll({
+            where: { productId: needImgIds },
+            attributes: ['productId', 'imagePath', 'sortOrder'],
+            order: [['sortOrder', 'ASC'], ['id', 'ASC']],
+            raw: true
+          })
+          for (const img of imgs) if (!imgByProduct.has(img.productId)) imgByProduct.set(img.productId, img.imagePath)
+        }
+        for (const c of covers) {
+          const cover = c.bookCover || imgByProduct.get(c.id)
+          if (!cover) continue
+          if (c.isbn && !coverByKey.has(`isbn:${c.isbn}`)) coverByKey.set(`isbn:${c.isbn}`, cover)
+          if (c.bookTitle && !coverByKey.has(`title:${c.bookTitle}`)) coverByKey.set(`title:${c.bookTitle}`, cover)
+        }
+      })())
+    }
     await Promise.all(queries)
 
     const result = books.map(b => ({
       ...b.toJSON(),
+      bookCover: b.bookCover
+        || coverByKey.get(b.isbn ? `isbn:${b.isbn}` : `title:${b.bookTitle}`)
+        || coverByKey.get(`title:${b.bookTitle}`)
+        || '',
       productCount: b.isbn
         ? (countBy.get(`isbn:${b.isbn}`) || (countBy.get(`title:${b.bookTitle}`) || 0))
         : (countBy.get(`title:${b.bookTitle}`) || 0)
@@ -464,6 +497,47 @@ export async function listBookBoards(req, res, next) {
       offset: (Number(page) - 1) * Number(pageSize),
       limit: Number(pageSize)
     })
+
+    // 批量取在售商品的封面回填到目录：普通用户上传的图书，封面只存在 Product.bookCover，
+    // Book.bookCover 经常为空（见 productController.create 的历史 bug），导致后台「图书种类」不显示图片。
+    const isbns = rows.map(b => b.isbn).filter(Boolean)
+    const titles = rows.map(b => b.bookTitle).filter(Boolean)
+    const coverByKey = new Map()
+    if (isbns.length || titles.length) {
+      // 不限定 status：已售/已下架商品的照片同样是这本书的封面，后台目录应尽量显示出来
+      const coverWhere = {}
+      const or = []
+      if (isbns.length) or.push({ isbn: isbns })
+      if (titles.length) or.push({ bookTitle: titles })
+      coverWhere[Op.or] = or
+      const covers = await Product.findAll({
+        where: coverWhere,
+        attributes: ['id', 'isbn', 'bookTitle', 'bookCover'],
+        raw: true
+      })
+      // 普通用户上传的照片存在 product_images 表里，历史商品的 book_cover 常为空，
+      // 只读 Product.bookCover 会导致后台「图书种类」里看不到这些照片。这里补图片表兜底。
+      const needImgIds = covers.filter(c => !c.bookCover).map(c => c.id)
+      const imgByProduct = new Map()
+      if (needImgIds.length) {
+        const imgs = await ProductImage.findAll({
+          where: { productId: needImgIds },
+          attributes: ['productId', 'imagePath', 'sortOrder'],
+          order: [['sortOrder', 'ASC'], ['id', 'ASC']],
+          raw: true
+        })
+        for (const img of imgs) {
+          if (!imgByProduct.has(img.productId)) imgByProduct.set(img.productId, img.imagePath)
+        }
+      }
+      for (const c of covers) {
+        const cover = c.bookCover || imgByProduct.get(c.id)
+        if (!cover) continue
+        if (c.isbn && !coverByKey.has(`isbn:${c.isbn}`)) coverByKey.set(`isbn:${c.isbn}`, cover)
+        if (c.bookTitle && !coverByKey.has(`title:${c.bookTitle}`)) coverByKey.set(`title:${c.bookTitle}`, cover)
+      }
+    }
+
     const list = []
     for (const b of rows) {
       const cond = b.isbn
@@ -473,7 +547,11 @@ export async function listBookBoards(req, res, next) {
         Product.count({ where: { ...cond, status: 'available' } }),
         Product.count({ where: { ...cond, status: 'sold' } })
       ])
-      list.push({ ...b.toJSON(), availableCount, soldCount })
+      const cover = b.bookCover
+        || coverByKey.get(b.isbn ? `isbn:${b.isbn}` : `title:${b.bookTitle}`)
+        || coverByKey.get(`title:${b.bookTitle}`)
+        || ''
+      list.push({ ...b.toJSON(), bookCover: cover, availableCount, soldCount })
     }
     success(res, { list, total: count })
   } catch (err) { next(err) }

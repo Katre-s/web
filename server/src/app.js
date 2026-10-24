@@ -193,13 +193,13 @@ async function start() {
 
   // 启动清理：非图书类目的板块，下挂商品已全部售罄的自动移除（图书板块保留）
   try {
-    const { Op: sqOp, Book, Product } = await import('./models/index.js')
+    const { Book, Product } = await import('./models/index.js')
     const boards = await Book.findAll({ attributes: ['id', 'isbn', 'bookTitle'] })
     let removedBoards = 0
     for (const board of boards) {
       const prodCond = board.isbn
         ? { isbn: board.isbn }
-        : { [sqOp.or]: [{ bookTitle: board.bookTitle }, { title: board.bookTitle }] }
+        : { [SequelizeOp.or]: [{ bookTitle: board.bookTitle }, { title: board.bookTitle }] }
       const prods = await Product.findAll({ where: prodCond, attributes: ['category', 'status'] })
       if (!prods.length || prods.some(p => p.category === '图书')) continue
       if (!prods.some(p => p.status === 'available')) {

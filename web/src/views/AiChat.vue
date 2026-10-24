@@ -4,6 +4,10 @@
       <span class="ai-title">{{ $t('ai.pageTitle') }}</span>
       <span class="ai-tag">{{ $t('ai.tag') }}</span>
       <div class="ai-header-right">
+        <el-button size="small" round @click="clearChat">
+          <el-icon :size="14"><Delete /></el-icon>
+          <span>{{ $t('ai.clear') }}</span>
+        </el-button>
         <el-button size="small" round class="ai-call-btn" :class="{ calling: inCall }" @click="toggleCall">
           <el-icon :size="14"><Phone /></el-icon>
           <span>{{ inCall ? $t('ai.hangup') : $t('ai.call') }}</span>
@@ -103,18 +107,21 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { agentApi } from '@/api'
 import { ElMessage } from 'element-plus/es/components/message/index'
-import { Microphone, Phone, PhoneFilled } from '@element-plus/icons-vue'
+import { ElMessageBox } from 'element-plus/es/components/message-box/index'
+import { Microphone, Phone, PhoneFilled, Delete } from '@element-plus/icons-vue'
+import { useUserStore } from '@/stores/user'
 import { useAgentStore } from '@/stores/agent'
 import { runAgentAction } from '@/utils/agentAction'
 
 const router = useRouter()
 const { t } = useI18n()
 const agentStore = useAgentStore()
+const userStore = useUserStore()
 const text = ref('')
 const loading = ref(false)
 const msgBox = ref(null)
@@ -813,6 +820,41 @@ function scrollBottom() {
   })
 }
 
+/** 历史为空时补一条欢迎语（换账号 / 清空后都要重新补） */
+function ensureWelcome() {
+  if (agentStore.messages.length === 0) {
+    agentStore.addMessage({
+      role: 'assistant',
+      content: t('ai.welcome'),
+      intent: 'chat',
+      welcome: true
+    })
+  }
+}
+
+/**
+ * 把 AI 会话绑定到当前登录用户。
+ * 未登录或刚登录时 userInfo 可能还没拉回来，先补一次资料再绑定，
+ * 否则会先落到 guest 会话、登录后又变成另一个人，记录看着像"串号"。
+ */
+async function syncChatOwner() {
+  if (userStore.token && !userStore.userInfo?.id) {
+    await userStore.fetchProfile().catch(() => {})
+  }
+  agentStore.bindUser(userStore.userInfo?.id)
+  ensureWelcome()
+}
+
+async function clearChat() {
+  try {
+    await ElMessageBox.confirm(t('ai.clearConfirm'), t('common.hint'), { type: 'warning' })
+    agentStore.clear()
+    ensureWelcome()
+    scrollBottom()
+    ElMessage.success(t('ai.cleared'))
+  } catch {}
+}
+
 async function send() {
   const content = text.value.trim()
   if (!content || loading.value) return
@@ -850,22 +892,25 @@ async function send() {
   }
 }
 
-onMounted(() => {
-  // 仅当没有任何历史记录时，才插入欢迎语
-  if (agentStore.messages.length === 0) {
-    agentStore.addMessage({
-      role: 'assistant',
-      content: t('ai.welcome'),
-      intent: 'chat',
-      welcome: true
-    })
-  }
+onMounted(async () => {
+  // 先把会话绑定到当前用户，再决定要不要补欢迎语
+  await syncChatOwner()
+  // 打开页面直接停在最新一条，不用手动往下拖
+  scrollBottom()
+  // 图片/字体加载完成后高度还会变，补一次
+  setTimeout(scrollBottom, 150)
   // 预加载语音列表（部分浏览器异步加载 voices）+ 监听就绪事件
   if (window.speechSynthesis) {
     speechSynthesis.getVoices()
     speechSynthesis.onvoiceschanged = () => setTimeout(refreshVoiceCache, 0)
     setTimeout(refreshVoiceCache, 400)
   }
+})
+
+// 换账号登录 / 退出时，立刻切到对应的那套记录
+watch(() => userStore.userInfo?.id, async () => {
+  await syncChatOwner()
+  scrollBottom()
 })
 
 onUnmounted(() => {

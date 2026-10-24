@@ -406,11 +406,14 @@ async function handleSubmit() {
   }
 }
 
-// AI 对话里说"卖《XXX》"，会带着草稿跳到这里：把书籍信息填好，用户只需确认/填写售价
+// AI 对话里说"卖《XXX》/卖台灯30元"，会带着草稿跳到这里：把信息填好，用户只需确认/填写售价
 function applyPublishDraft(draft) {
   if (!draft) return
+  const name = draft.title || draft.bookTitle || ''
   isbn.value = draft.isbn || ''
-  form.bookTitle = draft.bookTitle || ''
+  // 图书走 bookTitle，其他类目走 title；两个都填一份，避免草稿落到错误的输入框
+  form.bookTitle = draft.bookTitle || name
+  form.title = draft.title || name
   form.bookAuthor = draft.bookAuthor || ''
   form.bookPublisher = draft.bookPublisher || ''
   form.edition = draft.edition || ''

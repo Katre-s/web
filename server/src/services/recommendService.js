@@ -41,11 +41,12 @@ function summarize(behaviors) {
 }
 
 /**
- * 让本地大模型根据最近的搜索 / 浏览推断偏好。
- * 只走 CHAT_API_URL（本地 Ollama / LM Studio 等），未配置或超时即回落规则。
+ * 让模型根据最近的搜索 / 浏览推断偏好。
+ * 推荐是后台轻量能力：默认走云端 AI_API_*（快），避免和"本地对话模型"抢资源、避免 4s 超时。
+ * 也可以用 RECOMMEND_* 单独指定端点/模型/超时；未配置或超时即回落规则。
  */
 async function analyzeWithLlm(behaviors, fallback) {
-  const apiUrl = process.env.CHAT_API_URL
+  const apiUrl = process.env.RECOMMEND_API_URL || process.env.AI_API_URL || process.env.CHAT_API_URL
   if (!apiUrl) return { source: 'rule', ...fallback }
 
   const lines = behaviors.slice(0, 20).map((b) => {
@@ -61,18 +62,18 @@ ${lines.join('\n')}
 categories 只能从这些里选：${TRADE_CATEGORIES.join('、')}，最多 2 个；keywords 最多 3 个，尽量是具体商品名或品牌。`
 
   try {
-    const key = process.env.CHAT_API_KEY
+    const key = process.env.RECOMMEND_API_KEY || process.env.AI_API_KEY || process.env.CHAT_API_KEY
     const headers = { 'Content-Type': 'application/json' }
     if (key) headers.Authorization = `Bearer ${key}`
 
     const res = await axios.post(apiUrl, {
-      model: process.env.CHAT_API_MODEL || 'qwen2.5:7b',
+      model: process.env.RECOMMEND_API_MODEL || process.env.AI_MODEL || process.env.CHAT_API_MODEL || 'qwen2.5:7b',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.2,
       stream: false
     }, {
       headers,
-      timeout: Number(process.env.RECOMMEND_TIMEOUT) || 4000
+      timeout: Number(process.env.RECOMMEND_TIMEOUT) || 8000
     })
 
     const text = String(res.data.choices?.[0]?.message?.content || '')

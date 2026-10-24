@@ -291,7 +291,7 @@
               <el-table-column v-if="!isMobile" prop="id" label="ID" width="60" />
               <el-table-column :label="$t('admin.cover')" width="70">
                 <template #default="{ row }">
-                  <img v-if="row.bookCover" :src="thumb(row.bookCover, 320)" style="width:36px;height:46px;object-fit:cover;border-radius:4px" @error="imgFallback" loading="lazy" />
+                  <img v-if="row.bookCover" :src="resolveImg(row.bookCover)" style="width:36px;height:46px;object-fit:cover;border-radius:4px" @error="imgFallback" loading="lazy" />
                 </template>
               </el-table-column>
               <el-table-column :label="$t('admin.boardTitle')" min-width="160" show-overflow-tooltip>

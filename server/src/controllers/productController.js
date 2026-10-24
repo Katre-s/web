@@ -132,9 +132,12 @@ export async function create(req, res, next) {
 
     // 只有图书才维护「书目板块」，其他类目是独立的二手商品
     if (isBook) {
+      // 注意：必须传实际上传的封面 finalCover（而非请求体里的 bookCover 字段），
+      // 否则用户上传图片发布的书，Book 目录表的 bookCover 会一直是空，
+      // 后台「图书种类」里就看不到其他用户上传的图书照片。
       await findOrCreateBook({
         isbn, bookTitle: title, bookAuthor, bookPublisher,
-        bookCover: bookCover || '', edition, originalPrice, userId
+        bookCover: finalCover, edition, originalPrice, userId
       })
     }
 
