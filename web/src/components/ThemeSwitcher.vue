@@ -26,14 +26,19 @@
       </button>
     </template>
 
-    <!-- 内联模式（个人中心）：紧凑入口，鼠标悬停自动渐变展开，带主题照片预览 -->
-    <div v-else class="ts-inline" @mouseenter="open = true" @mouseleave="open = false">
-      <div class="ts-trigger">
+    <!-- 内联模式（个人中心）：点击展开的紧凑面板，带主题照片预览 -->
+    <div v-else class="ts-inline" :class="{ open }">
+      <button
+        type="button"
+        class="ts-trigger"
+        :aria-expanded="open"
+        @click="open = !open"
+      >
         <el-icon :size="15"><Brush /></el-icon>
         <span class="ts-trigger-label">{{ $t('theme.title') }}</span>
         <span class="ts-current">{{ $t(`theme.${themeStore.theme}`) }}</span>
         <el-icon :size="12" class="ts-caret"><ArrowDown /></el-icon>
-      </div>
+      </button>
       <transition name="pop">
         <div v-if="open" class="ts-panel-sm">
           <div
@@ -73,6 +78,8 @@ const themes = [
 
 function choose(t) {
   themeStore.setTheme(t)
+  // 内联面板选中即收起，避免挡住下面的内容
+  if (props.inline) open.value = false
 }
 
 function onDocClick(e) {
@@ -80,8 +87,18 @@ function onDocClick(e) {
   if (!e.target.closest('.theme-switcher')) open.value = false
 }
 
-onMounted(() => document.addEventListener('click', onDocClick))
-onUnmounted(() => document.removeEventListener('click', onDocClick))
+function onKeydown(e) {
+  if (e.key === 'Escape') open.value = false
+}
+
+onMounted(() => {
+  document.addEventListener('click', onDocClick)
+  document.addEventListener('keydown', onKeydown)
+})
+onUnmounted(() => {
+  document.removeEventListener('click', onDocClick)
+  document.removeEventListener('keydown', onKeydown)
+})
 </script>
 
 <style scoped>
@@ -94,14 +111,16 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
   flex-direction: column;
   align-items: flex-end;
 }
-/* 内联模式：个人中心紧凑入口 + hover 渐变面板 */
+/* 内联模式：个人中心紧凑入口 + 点击展开的迷你面板 */
 .theme-switcher.inline {
   position: static;
   width: 100%;
   display: block;
 }
+/* 关键：inline-block，热区只覆盖胶囊本身，不再撑满整张卡片 */
 .ts-inline {
   position: relative;
+  display: inline-block;
 }
 .ts-trigger {
   display: inline-flex;
@@ -112,11 +131,14 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
   background: var(--accent-soft, rgba(66, 165, 245, 0.1));
   border: 1px solid var(--card-border, rgba(180, 160, 120, 0.2));
   color: var(--text-main);
+  font-family: inherit;
   font-size: 13px;
   font-weight: 600;
+  line-height: 1.4;
   cursor: pointer;
   transition: box-shadow 0.25s var(--ease-smooth), transform 0.2s var(--ease-spring);
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 .ts-trigger:hover {
   box-shadow: 0 6px 18px var(--accent-soft, rgba(66, 165, 245, 0.18));
@@ -132,54 +154,66 @@ onUnmounted(() => document.removeEventListener('click', onDocClick))
   color: var(--text-sub, #78909c);
   transition: transform 0.25s var(--ease-smooth);
 }
-.ts-inline:hover .ts-caret {
+.ts-inline.open .ts-caret {
   transform: rotate(180deg);
 }
+.ts-inline.open .ts-trigger {
+  box-shadow: 0 6px 18px var(--accent-soft, rgba(66, 165, 245, 0.18));
+}
+/* 迷你面板：214px 宽，3 列小图，整体高度约 120px */
 .ts-panel-sm {
   position: absolute;
   left: 0;
-  top: calc(100% + 8px);
-  width: 292px;
-  padding: 12px;
-  border-radius: 16px;
+  top: 100%;
+  margin-top: 6px;
+  width: 214px;
+  padding: 8px;
+  border-radius: 14px;
   background: var(--nav-bg, rgba(255, 255, 255, 0.97));
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   border: 1px solid var(--card-border, rgba(180, 160, 120, 0.2));
-  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.16);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.16);
   z-index: 60;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 6px;
 }
 .ts-card-sm {
   position: relative;
   cursor: pointer;
-  border-radius: 12px;
-  padding: 5px;
+  border-radius: 10px;
+  padding: 3px;
   border: 2px solid transparent;
   transition: all 0.22s var(--ease-spring);
   text-align: center;
 }
 .ts-card-sm:hover {
-  transform: translateY(-3px);
+  transform: translateY(-2px);
 }
 .ts-card-sm.active {
   border-color: var(--accent);
-  box-shadow: 0 6px 18px var(--accent-soft, rgba(66, 165, 245, 0.2));
+  box-shadow: 0 5px 14px var(--accent-soft, rgba(66, 165, 245, 0.2));
 }
 .ts-photo {
-  height: 58px;
-  border-radius: 9px;
+  height: 38px;
+  border-radius: 7px;
   background-size: cover;
   background-position: center;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
 }
 .ts-name-sm {
-  font-size: 11.5px;
+  font-size: 10.5px;
+  line-height: 1.3;
   color: var(--text-sub);
   font-weight: 600;
+}
+.ts-card-sm .ts-dot {
+  top: 5px;
+  right: 5px;
+  width: 6px;
+  height: 6px;
 }
 .pop-enter-active,
 .pop-leave-active {

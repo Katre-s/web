@@ -25,14 +25,19 @@
       </button>
     </template>
 
-    <!-- 内联模式（个人中心）：胶囊入口，hover 渐变展开，与主题一致 -->
-    <div v-else class="vs-inline" @mouseenter="open = true" @mouseleave="open = false">
-      <div class="vs-trigger">
+    <!-- 内联模式（个人中心）：点击展开的紧凑面板，与主题一致 -->
+    <div v-else class="vs-inline" :class="{ open }">
+      <button
+        type="button"
+        class="vs-trigger"
+        :aria-expanded="open"
+        @click="open = !open"
+      >
         <el-icon :size="15"><Microphone /></el-icon>
         <span class="vs-trigger-label">{{ $t('voice.title') }}</span>
         <span class="vs-current">{{ currentLabel }}</span>
         <el-icon :size="12" class="vs-caret"><ArrowDown /></el-icon>
-      </div>
+      </button>
       <transition name="pop">
         <div v-if="open" class="vs-panel-sm">
           <div class="vs-quick">
@@ -151,6 +156,8 @@ function choose(id) {
   localStorage.setItem('ai_voice', id)
   current.value = id
   window.dispatchEvent(new CustomEvent('ai-voice-changed', { detail: id }))
+  // 内联面板选中即收起，避免挡住下面的内容
+  if (props.inline) open.value = false
 }
 
 function refreshVoices(names) {
@@ -175,8 +182,13 @@ function onDocClick(e) {
   if (!e.target.closest('.voice-switcher')) open.value = false
 }
 
+function onKeydown(e) {
+  if (e.key === 'Escape') open.value = false
+}
+
 onMounted(() => {
   document.addEventListener('click', onDocClick)
+  document.addEventListener('keydown', onKeydown)
   window.addEventListener('ai-voice-changed', onVoiceChanged)
   window.addEventListener('ai-voices-ready', onVoicesReady)
   refreshVoices()
@@ -188,6 +200,7 @@ onMounted(() => {
 })
 onUnmounted(() => {
   document.removeEventListener('click', onDocClick)
+  document.removeEventListener('keydown', onKeydown)
   window.removeEventListener('ai-voice-changed', onVoiceChanged)
   window.removeEventListener('ai-voices-ready', onVoicesReady)
 })
@@ -208,8 +221,10 @@ onUnmounted(() => {
   width: 100%;
   display: block;
 }
+/* 关键：inline-block，热区只覆盖胶囊本身，不再撑满整张卡片 */
 .vs-inline {
   position: relative;
+  display: inline-block;
 }
 .vs-trigger {
   display: inline-flex;
@@ -220,11 +235,14 @@ onUnmounted(() => {
   background: var(--accent-soft, rgba(66, 165, 245, 0.1));
   border: 1px solid var(--card-border, rgba(180, 160, 120, 0.2));
   color: var(--text-main);
+  font-family: inherit;
   font-size: 13px;
   font-weight: 600;
+  line-height: 1.4;
   cursor: pointer;
   transition: box-shadow 0.25s var(--ease-smooth), transform 0.2s var(--ease-spring);
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 .vs-trigger:hover {
   box-shadow: 0 6px 18px var(--accent-soft, rgba(66, 165, 245, 0.18));
@@ -240,74 +258,91 @@ onUnmounted(() => {
   color: var(--text-sub, #78909c);
   transition: transform 0.25s var(--ease-smooth);
 }
-.vs-inline:hover .vs-caret {
+.vs-inline.open .vs-caret {
   transform: rotate(180deg);
 }
+.vs-inline.open .vs-trigger {
+  box-shadow: 0 6px 18px var(--accent-soft, rgba(66, 165, 245, 0.18));
+}
+/* 迷你面板：218px 宽，音色列表限高滚动，整体不再拉很长 */
 .vs-panel-sm {
   position: absolute;
   left: 0;
-  top: calc(100% + 8px);
-  width: 288px;
-  padding: 12px;
-  border-radius: 16px;
+  top: 100%;
+  margin-top: 6px;
+  width: 218px;
+  padding: 8px;
+  border-radius: 14px;
   background: var(--nav-bg, rgba(255, 255, 255, 0.97));
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   border: 1px solid var(--card-border, rgba(180, 160, 120, 0.2));
-  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.16);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.16);
   z-index: 60;
+  max-height: 290px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .vs-quick {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 6px;
+  margin-bottom: 6px;
 }
 .vs-card-sm {
   position: relative;
   cursor: pointer;
-  border-radius: 12px;
-  padding: 8px 5px 6px;
+  border-radius: 10px;
+  padding: 4px 3px 3px;
   border: 2px solid transparent;
   transition: all 0.22s var(--ease-spring);
   text-align: center;
 }
 .vs-card-sm:hover {
-  transform: translateY(-3px);
+  transform: translateY(-2px);
   background: var(--accent-soft, rgba(66, 165, 245, 0.08));
 }
 .vs-card-sm.active {
   border-color: var(--accent);
-  box-shadow: 0 6px 18px var(--accent-soft, rgba(66, 165, 245, 0.2));
+  box-shadow: 0 5px 14px var(--accent-soft, rgba(66, 165, 245, 0.2));
 }
 .vs-emoji-sm {
-  font-size: 26px;
-  margin-bottom: 4px;
+  font-size: 18px;
+  line-height: 1.2;
+  margin-bottom: 1px;
 }
 .vs-name-sm {
-  font-size: 11.5px;
+  font-size: 10.5px;
+  line-height: 1.3;
   color: var(--text-sub);
   font-weight: 600;
 }
+.vs-card-sm .vs-dot {
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+}
 .vs-group {
   border-top: 1px dashed var(--card-border, rgba(180, 160, 120, 0.25));
-  padding-top: 8px;
-  margin-top: 4px;
+  padding-top: 5px;
+  margin-top: 3px;
 }
 .vs-group-title {
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--text-sub, #78909c);
   font-weight: 700;
-  margin-bottom: 6px;
+  margin-bottom: 3px;
 }
 .vs-voice-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 5px 9px;
-  border-radius: 9px;
+  padding: 4px 7px;
+  border-radius: 7px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11.5px;
+  line-height: 1.4;
   color: var(--text-main);
   transition: background 0.18s var(--ease-smooth);
 }
@@ -324,8 +359,8 @@ onUnmounted(() => {
   font-weight: 800;
 }
 .vs-no-voice {
-  padding: 10px 4px 4px;
-  font-size: 11.5px;
+  padding: 6px 4px 2px;
+  font-size: 11px;
   color: var(--text-sub, #78909c);
   text-align: center;
   border-top: 1px dashed var(--card-border, rgba(180, 160, 120, 0.25));
