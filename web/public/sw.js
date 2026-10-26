@@ -1,11 +1,11 @@
 // 徐工院小咸鱼 - 离线壳 & 静态资源缓存
-// v2：assets 用「缓存优先 + 哈希文件名」，上传图走独立运行时缓存并限量，避免缓存无限膨胀导致手机端变慢
-const VERSION = 'xiaoxianyu-v2'
+// v3：换 logo 后图标 URL 加 ?v=2 参数破缓存；版本号升 v3 会清掉全部旧缓存重新拉
+const VERSION = 'xiaoxianyu-v3'
 const SHELL_CACHE = `${VERSION}-shell`
 const ASSET_CACHE = `${VERSION}-assets`
 const IMG_CACHE = `${VERSION}-img`
 const IMG_CACHE_LIMIT = 80
-const APP_SHELL = ['/', '/manifest.json', '/icons/icon-192.png', '/icons/icon-512.png']
+const APP_SHELL = ['/', '/manifest.json', '/icons/icon-192.png?v=2', '/icons/icon-512.png?v=2']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
