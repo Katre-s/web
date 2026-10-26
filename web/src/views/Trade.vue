@@ -14,6 +14,12 @@
       </button>
     </div>
 
+    <!-- 交易安全提醒（红色醒目条） -->
+    <div class="safety-tip">
+      <span class="safety-icon">⚠️</span>
+      <span>{{ $t('trade.safetyTip') }}</span>
+    </div>
+
     <!-- 出行类目的三级界面：出售 / 出租 -->
     <div class="deal-bar" v-if="supportsDealType(category)">
       <button
@@ -624,12 +630,34 @@ watch(() => route.query.dealType, (v) => {
 /* ---------------- 类目栏 ---------------- */
 .cat-bar {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   overflow-x: auto;
   padding: 4px 2px 10px;
   margin-bottom: 4px;
   scrollbar-width: none;
   animation: rise 0.45s var(--ease-smooth) backwards;
+}
+
+/* 交易安全提醒：红色醒目条，紧跟类目栏 */
+.safety-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 4px 0 10px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: rgba(229, 72, 77, 0.07);
+  border: 1px solid rgba(229, 72, 77, 0.28);
+  color: #d32f2f;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.6;
+  animation: rise 0.45s var(--ease-smooth) 0.06s backwards;
+}
+.safety-icon {
+  flex-shrink: 0;
+  font-size: 15px;
+  line-height: 1.5;
 }
 .cat-bar::-webkit-scrollbar {
   display: none;
@@ -639,20 +667,20 @@ watch(() => route.query.dealType, (v) => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  min-width: 68px;
-  padding: 10px 12px;
-  border-radius: 14px;
+  gap: 5px;
+  min-width: 96px;
+  padding: 15px 18px;
+  border-radius: 16px;
   border: 1px solid var(--card-border);
   background: var(--card-bg);
   color: var(--text-sub);
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.25s var(--ease-spring), border-color 0.22s, box-shadow 0.28s, color 0.22s;
 }
 .cat-icon {
-  font-size: 20px;
+  font-size: 27px;
   line-height: 1;
   transition: transform 0.3s var(--ease-spring);
 }

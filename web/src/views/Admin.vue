@@ -177,11 +177,6 @@
           </div>
 
           <div class="panel">
-            <h3 class="panel-title">{{ $t('admin.logTip') }}</h3>
-            <p class="muted-text">{{ $t('admin.logTipDesc') }}</p>
-          </div>
-
-          <div class="panel">
             <div class="panel-toolbar">
               <h3 class="panel-title">{{ $t('admin.sentNotifs') }}</h3>
               <el-button size="small" @click="loadNotifList">{{ $t('common.refresh') }}</el-button>

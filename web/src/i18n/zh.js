@@ -388,6 +388,7 @@ export default {
   },
   trade: {
     searchPlaceholder: '搜索书名、作者或 ISBN 码',
+    safetyTip: '交易提醒：线下交易请当面验货再付款，切勿提前转账；明显低于市场价、或要求先付定金才能看的，请提高警惕。',
     uploadBook: '上传书籍',
     sellers: '个卖家',
     empty: '暂无书籍，点击右上角 + 上传',
@@ -627,8 +628,6 @@ export default {
     refreshUsers: '刷新用户列表',
     selectUser: '选择用户',
     notifContent: '通知内容',
-    logTip: '操作日志提示',
-    logTipDesc: '用户端的通知会显示在右上角铃铛中，点击可标记已读。',
     sentNotifs: '已发送通知',
     type: '类型',
     broadcastType: '广播',

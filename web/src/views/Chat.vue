@@ -339,7 +339,9 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 12px;
 }
-.msg-row { display: flex; flex-direction: column; gap: 4px; }
+/* align-items: flex-start 让气泡按内容收缩：
+   不写的话默认 stretch，对方发一个字气泡也撑满整行 */
+.msg-row { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .msg-row.mine { align-items: flex-end; }
 .msg-bubble {
   max-width: 70%;

@@ -337,6 +337,7 @@ export default {
   },
   trade: {
     searchPlaceholder: 'Search by title, author or ISBN',
+    safetyTip: 'Safety tip: inspect items in person before paying, never transfer money in advance. Be cautious of prices far below market or sellers asking for deposits first.',
     uploadBook: 'Upload Book',
     uploadList: 'Upload List',
     sellers: ' sellers',
@@ -758,8 +759,6 @@ export default {
     refreshUsers: 'Refresh Users',
     selectUser: 'Select user',
     notifContent: 'Notification content',
-    logTip: 'Operation Log Tips',
-    logTipDesc: 'User-side notifications appear in the bell at the top right. Click to mark as read.',
     sentNotifs: 'Sent Notifications',
     type: 'Type',
     broadcastType: 'Broadcast',
