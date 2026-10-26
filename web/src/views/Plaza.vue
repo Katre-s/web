@@ -78,6 +78,56 @@
             class="post-img"
           />
         </div>
+
+        <!-- 回复入口 -->
+        <div class="post-actions">
+          <button class="reply-toggle" type="button" :class="{ on: rs(post.id).open }" @click="toggleReply(post.id)">
+            <span class="rt-icon">💬</span>
+            <span>{{ Number(post.replyCount) > 0 ? $t('plaza.replyCount', { n: post.replyCount }) : $t('plaza.reply') }}</span>
+            <span class="rt-caret">▾</span>
+          </button>
+        </div>
+
+        <!-- 回复区：列表 + 输入框 -->
+        <div class="reply-wrap" v-if="rs(post.id).open">
+          <div class="reply-list" v-loading="rs(post.id).loading">
+            <div v-for="r in rs(post.id).list" :key="r.id" class="reply-item">
+              <img class="reply-avatar" :src="thumb(r.author?.avatar, 64) || defaultAvatar" @error="avatarFallback" loading="lazy" />
+              <div class="reply-body">
+                <div class="reply-meta">
+                  <b>{{ r.author?.nickname || $t('plaza.authorFallback') }}</b>
+                  <span>{{ formatTime(r.createdAt || r.created_at) }}</span>
+                </div>
+                <p class="reply-text">{{ r.content }}</p>
+              </div>
+              <button v-if="canDeleteReply(post, r)" class="reply-del" type="button" @click="removeReply(post, r)">
+                {{ $t('common.delete') }}
+              </button>
+            </div>
+            <p v-if="!rs(post.id).loading && !rs(post.id).list.length" class="reply-empty">
+              {{ $t('plaza.replyEmpty') }}
+            </p>
+          </div>
+
+          <div class="reply-input">
+            <el-input
+              v-model="rs(post.id).text"
+              :placeholder="$t('plaza.replyPlaceholder')"
+              maxlength="300"
+              show-word-limit
+              @keyup.enter="sendReply(post)"
+            />
+            <el-button
+              type="primary"
+              class="reply-send"
+              :loading="rs(post.id).sending"
+              :disabled="!rs(post.id).text.trim()"
+              @click="sendReply(post)"
+            >
+              {{ $t('plaza.replySend') }}
+            </el-button>
+          </div>
+        </div>
       </article>
 
       <el-empty v-if="!loading && !list.length" :description="$t('plaza.empty')" />
@@ -90,7 +140,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus/es/components/message/index'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index'
@@ -219,6 +269,73 @@ async function removePost(post) {
   } catch {
     // 取消或失败：失败时 interceptor 已提示
   }
+}
+
+/* ------------------------------ 帖子回复 ------------------------------ */
+// 每条帖子独立的展开状态 / 回复列表 / 草稿，互不干扰
+const replyMap = reactive({})
+
+function rs(postId) {
+  if (!replyMap[postId]) {
+    replyMap[postId] = { open: false, list: [], loading: false, loaded: false, text: '', sending: false }
+  }
+  return replyMap[postId]
+}
+
+async function toggleReply(postId) {
+  const s = rs(postId)
+  s.open = !s.open
+  // 第一次展开才拉取，之后靠本地缓存
+  if (s.open && !s.loaded) await loadReplies(postId)
+}
+
+async function loadReplies(postId) {
+  const s = rs(postId)
+  s.loading = true
+  try {
+    const res = await plazaApi.replies(postId)
+    s.list = Array.isArray(res.data) ? res.data : []
+    s.loaded = true
+  } catch {
+  } finally {
+    s.loading = false
+  }
+}
+
+// 回复本人、楼主、管理员都能删
+function canDeleteReply(post, reply) {
+  const u = me.value
+  if (!u) return false
+  return reply.userId === u.id || post.userId === u.id || u.role === 'admin'
+}
+
+async function sendReply(post) {
+  const s = rs(post.id)
+  const text = s.text.trim()
+  if (!text || s.sending) return
+  s.sending = true
+  try {
+    const res = await plazaApi.reply(post.id, text)
+    s.list.push(res.data)
+    s.text = ''
+    s.loaded = true
+    post.replyCount = Number(post.replyCount || 0) + 1
+    ElMessage.success(t('plaza.replyDone'))
+  } catch {
+  } finally {
+    s.sending = false
+  }
+}
+
+async function removeReply(post, reply) {
+  try {
+    await ElMessageBox.confirm(t('plaza.replyDeleteConfirm'), t('common.warning'), { type: 'warning' })
+    await plazaApi.removeReply(reply.id)
+    const s = rs(post.id)
+    s.list = s.list.filter((x) => x.id !== reply.id)
+    post.replyCount = Math.max(0, Number(post.replyCount || 0) - 1)
+    ElMessage.success(t('common.deleted'))
+  } catch {}
 }
 
 onMounted(() => loadPage(1))
@@ -475,6 +592,125 @@ onUnmounted(clearPreviews)
   color: var(--text-main);
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* ---------------- 回复 ---------------- */
+.post-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--card-border, rgba(180, 160, 120, 0.16));
+}
+.reply-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-sub, #78909c);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.reply-toggle:hover,
+.reply-toggle.on {
+  background: var(--accent-soft, rgba(66, 165, 245, 0.1));
+  color: var(--accent);
+}
+.rt-caret {
+  font-size: 10px;
+  transition: transform 0.25s;
+}
+.reply-toggle.on .rt-caret {
+  transform: rotate(180deg);
+}
+.reply-wrap {
+  margin-top: 10px;
+}
+.reply-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 8px;
+}
+.reply-item {
+  display: flex;
+  gap: 9px;
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: var(--accent-soft, rgba(66, 165, 245, 0.06));
+}
+.reply-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #eef4f6;
+}
+.reply-body {
+  flex: 1;
+  min-width: 0;
+}
+.reply-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+}
+.reply-meta b {
+  color: var(--text-main);
+  font-weight: 700;
+}
+.reply-meta span {
+  color: var(--text-sub, #9db2ba);
+  font-size: 11px;
+}
+.reply-text {
+  margin-top: 3px;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--text-main);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.reply-del {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  color: #b0bec5;
+  font-size: 11.5px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+.reply-del:hover {
+  color: #e5484d;
+  background: rgba(229, 72, 77, 0.08);
+}
+.reply-empty {
+  padding: 8px 2px;
+  font-size: 12.5px;
+  color: var(--text-sub, #9db2ba);
+}
+.reply-input {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.reply-input :deep(.el-input) {
+  flex: 1;
+}
+.reply-send {
+  flex-shrink: 0;
+  border-radius: 10px;
 }
 .post-images {
   display: grid;

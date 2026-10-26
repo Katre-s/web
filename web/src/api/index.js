@@ -133,8 +133,12 @@ export const recommendApi = {
 
 export const plazaApi = {
   list: (params) => request.get('/plaza', { params }),
+  my: (params) => request.get('/plaza/my', { params }),
   create: (formData) => request.post('/plaza', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
-  remove: (id) => request.delete(`/plaza/${id}`)
+  remove: (id) => request.delete(`/plaza/${id}`),
+  replies: (postId) => request.get(`/plaza/${postId}/replies`),
+  reply: (postId, content) => request.post(`/plaza/${postId}/replies`, { content }),
+  removeReply: (replyId) => request.delete(`/plaza/replies/${replyId}`)
 }
 
 export const conversationApi = {

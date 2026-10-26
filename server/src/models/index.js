@@ -142,6 +142,15 @@ export const PlazaPost = sequelize.define('PlazaPost', {
   status: { type: DataTypes.STRING(20), defaultValue: 'active' }
 }, { tableName: 'plaza_posts' })
 
+// 广场帖子的回复：一条帖子多条回复，删除帖子时一并清理
+export const PlazaReply = sequelize.define('PlazaReply', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  postId: { type: DataTypes.INTEGER, allowNull: false, field: 'post_id' },
+  userId: { type: DataTypes.INTEGER, allowNull: false, field: 'user_id' },
+  content: { type: DataTypes.TEXT, allowNull: false },
+  status: { type: DataTypes.STRING(20), defaultValue: 'active' }
+}, { tableName: 'plaza_replies' })
+
 export const Notification = sequelize.define('Notification', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   userId: { type: DataTypes.INTEGER, allowNull: false, field: 'user_id' },
@@ -204,6 +213,11 @@ Hotspot.belongsTo(User, { foreignKey: 'user_id', as: 'user' })
 
 User.hasMany(PlazaPost, { foreignKey: 'user_id', as: 'plazaPosts' })
 PlazaPost.belongsTo(User, { foreignKey: 'user_id', as: 'author' })
+
+// 帖子 ↔ 回复
+PlazaPost.hasMany(PlazaReply, { foreignKey: 'post_id', as: 'replies', onDelete: 'CASCADE' })
+PlazaReply.belongsTo(PlazaPost, { foreignKey: 'post_id', as: 'post' })
+PlazaReply.belongsTo(User, { foreignKey: 'user_id', as: 'author' })
 
 export const Book = sequelize.define('Book', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },

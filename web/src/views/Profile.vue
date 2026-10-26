@@ -29,6 +29,7 @@
     <el-tabs v-model="activeTab" @tab-change="loadTabData">
       <el-tab-pane :label="$t('profile.myProducts')" name="products" />
       <el-tab-pane :label="$t('profile.favorites')" name="favorites" />
+      <el-tab-pane :label="$t('profile.myPosts')" name="posts" />
     </el-tabs>
 
     <div v-loading="loading">
@@ -118,6 +119,26 @@
         </div>
         <el-empty v-if="!favList.length" :description="t('common.empty')" />
       </div>
+
+      <!-- 我的帖子：广场里自己发的动态 -->
+      <div v-else-if="activeTab === 'posts'" class="my-posts">
+        <article v-for="p in myPosts" :key="p.id" class="my-post-card">
+          <div class="mp-head">
+            <span class="mp-time">{{ formatPostTime(p.createdAt || p.created_at) }}</span>
+            <el-tag v-if="p.status === 'hidden'" size="small" type="info">{{ t('profile.postHidden') }}</el-tag>
+            <span class="mp-replies">💬 {{ Number(p.replyCount) || 0 }}</span>
+            <el-button text type="danger" size="small" class="mp-del" @click="removeMyPost(p)">
+              {{ $t('common.delete') }}
+            </el-button>
+          </div>
+          <p class="mp-text" v-if="p.content">{{ p.content }}</p>
+          <div class="mp-images" v-if="p.images && p.images.length">
+            <img v-for="(img, i) in p.images.slice(0, 3)" :key="i" :src="thumb(img, 240)" class="mp-img" loading="lazy" />
+            <span v-if="p.images.length > 3" class="mp-more">+{{ p.images.length - 3 }}</span>
+          </div>
+        </article>
+        <el-empty v-if="!myPosts.length" :description="$t('profile.myPostsEmpty')" />
+      </div>
     </div>
 
     <el-dialog v-model="showEmailDialog" :title="$t('profile.changeEmailTitle')" width="440px">
@@ -190,7 +211,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus/es/components/message/index'
 import { ElMessageBox } from 'element-plus/es/components/message-box/index'
-import { productApi, favoriteApi, bookFavoriteApi, authApi, balanceApi, conversationApi, aftersaleApi } from '@/api'
+import { productApi, favoriteApi, bookFavoriteApi, authApi, balanceApi, conversationApi, aftersaleApi, plazaApi } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { resolveImg, thumb } from '@/utils/image'
 import ThemeSwitcher from '@/components/ThemeSwitcher.vue'
@@ -199,6 +220,7 @@ import VoiceSwitcher from '@/components/VoiceSwitcher.vue'
 const userStore = useUserStore()
 const router = useRouter()
 const activeTab = ref('products')
+const myPosts = ref([])
 const tabData = ref([])
 const favList = ref([])
 const loading = ref(false)
@@ -399,9 +421,32 @@ async function loadTabData() {
           book: b
         }))
       ]
+    } else if (activeTab.value === 'posts') {
+      const res = await plazaApi.my({ pageSize: 30 })
+      myPosts.value = res?.data?.list || []
     }
   } finally {
     loading.value = false
+  }
+}
+
+/* ------------------------------ 我的帖子 ------------------------------ */
+function formatPostTime(ts) {
+  if (!ts) return ''
+  const d = new Date(ts)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+async function removeMyPost(post) {
+  try {
+    await ElMessageBox.confirm(t('plaza.deleteConfirm'), t('common.warning'), { type: 'warning' })
+    await plazaApi.remove(post.id)
+    myPosts.value = myPosts.value.filter((p) => p.id !== post.id)
+    ElMessage.success(t('plaza.deleted'))
+  } catch {
+    // 取消：什么都不做
   }
 }
 
@@ -766,6 +811,75 @@ onUnmounted(() => { if (cooldownTimer) clearInterval(cooldownTimer) })
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* 我的帖子 */
+.my-posts {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.my-post-card {
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--card-border, rgba(180, 160, 120, 0.18));
+  border-radius: 12px;
+  padding: 14px 16px;
+  transition: box-shadow 0.22s ease;
+}
+.my-post-card:hover {
+  box-shadow: 0 8px 22px -14px rgba(13, 40, 71, 0.4);
+}
+.mp-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mp-time {
+  font-size: 12px;
+  color: var(--text-sub, #9db2ba);
+}
+.mp-replies {
+  font-size: 12px;
+  color: var(--text-sub, #78909c);
+}
+.mp-del {
+  margin-left: auto;
+}
+.mp-text {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-main);
+  white-space: pre-wrap;
+  word-break: break-word;
+  /* 太长的动态收一收，列表里保持一眼能扫 */
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.mp-images {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  align-items: center;
+}
+.mp-img {
+  width: 78px;
+  height: 78px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #f0f4f6;
+}
+.mp-more {
+  font-size: 12px;
+  color: var(--text-sub, #9db2ba);
+}
+@media (max-width: 480px) {
+  .mp-img {
+    width: 62px;
+    height: 62px;
+  }
 }
 .fav-product-card {
   display: flex;
