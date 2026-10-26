@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { openAuthDialog } from '@/stores/authDialog'
+import { openAuthDialog, visible as authDialogVisible } from '@/stores/authDialog'
 import { ElMessage } from 'element-plus/es/components/message/index'
 
 const routes = [
@@ -8,8 +8,8 @@ const routes = [
   { path: '/login', redirect: '/' },
   // 忘记密码是独立流程页，未登录也能进
   { path: '/forgot-password', name: 'ForgotPassword', component: () => import('@/views/ForgotPassword.vue'), meta: { public: true } },
-  // 首页对未登录用户开放，这是唯一的公开页面
-  { path: '/', name: 'Home', component: () => import('@/views/Home.vue'), meta: { public: true } },
+  // 首页也要登录：未登录进首页会弹登录窗（电脑端、手机端一致）
+  { path: '/', name: 'Home', component: () => import('@/views/Home.vue'), meta: { auth: true } },
   { path: '/trade', name: 'Trade', component: () => import('@/views/Trade.vue'), meta: { auth: true } },
   { path: '/plaza', name: 'Plaza', component: () => import('@/views/Plaza.vue'), meta: { auth: true } },
   { path: '/book/:key', name: 'BookDetail', component: () => import('@/views/BookDetail.vue'), meta: { auth: true } },
@@ -32,12 +32,16 @@ const router = createRouter({
 router.beforeEach((to) => {
   const userStore = useUserStore()
 
-  // 未登录：只放行首页和忘记密码，其余一律弹登录/注册窗并把人留在首页。
+  // 未登录：除了忘记密码，其余（含首页）一律弹登录窗。
   // 目标路径记下来，登录成功后由 AuthDialog 自动送回去。
   const isPublic = to.meta.public === true
   if (!isPublic && !userStore.isLoggedIn) {
-    openAuthDialog('login', to.fullPath)
-    return to.name === 'Home' ? false : { name: 'Home' }
+    // 重复进入（例如从 /trade 跳回首页再次触发守卫）时不再弹，避免把 redirect 覆盖掉
+    if (!authDialogVisible.value) {
+      openAuthDialog('login', to.fullPath)
+    }
+    // 首页允许继续渲染（被登录窗遮住），其他页面跳回首页再弹
+    return to.name === 'Home' ? true : { name: 'Home' }
   }
 
   if (to.meta.admin && userStore.userInfo?.role !== 'admin') {
