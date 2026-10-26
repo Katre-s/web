@@ -14,6 +14,20 @@
       </button>
     </div>
 
+    <!-- 出行类目的三级界面：出售 / 出租 -->
+    <div class="deal-bar" v-if="supportsDealType(category)">
+      <button
+        v-for="d in dealTabs"
+        :key="d.value"
+        class="deal-item"
+        :class="{ active: dealType === d.value }"
+        @click="switchDealType(d.value)"
+      >
+        <span class="deal-icon" v-if="d.icon">{{ d.icon }}</span>
+        <span>{{ $t('trade.deal' + d.key) }}</span>
+      </button>
+    </div>
+
     <div class="cat-meta">
       <span class="cat-hint">{{ categoryHint }}</span>
       <span class="cat-count" v-if="!loading">{{ totalCount }}{{ isBook ? $t('trade.booksOnSale') : $t('trade.itemsOnSale') }}</span>
@@ -199,12 +213,13 @@
             />
             <div v-else class="goods-cover-placeholder">{{ currentCategory.icon }}</div>
             <span class="goods-badge">{{ $t('tradeCat.' + categoryKey(p.category)) }}</span>
+            <span class="deal-flag" v-if="p.dealType === 'rent'">🔑 {{ $t('trade.dealRent') }}</span>
           </div>
           <div class="goods-info">
             <h3 class="goods-title">{{ p.title || p.bookTitle }}</h3>
             <p class="goods-desc">{{ p.description || categoryHint }}</p>
             <div class="goods-bottom">
-              <span class="goods-price">¥{{ p.price }}</span>
+              <span class="goods-price">¥{{ p.price }}<em v-if="p.dealType === 'rent'" class="rent-unit">{{ $t('trade.rentUnit') }}</em></span>
               <span class="goods-cond" v-if="p.condition && category !== '租房'">{{ p.condition }}</span>
             </div>
             <p class="goods-seller" v-if="p.seller">
@@ -232,7 +247,7 @@ import { ElMessage } from 'element-plus/es/components/message/index'
 import { Search, Plus, UploadFilled, Notebook, Document, Camera, Loading, Filter, Close } from '@element-plus/icons-vue'
 import { booksApi, bookApi, productApi, recommendApi } from '@/api'
 import { resolveImg, thumb } from '@/utils/image'
-import { TRADE_CATEGORIES, DEFAULT_CATEGORY, isValidCategory, getCategory, categoryKey } from '@/constants/categories'
+import { TRADE_CATEGORIES, DEFAULT_CATEGORY, isValidCategory, getCategory, categoryKey, DEAL_TYPE_OPTIONS, supportsDealType } from '@/constants/categories'
 
 const router = useRouter()
 const route = useRoute()
@@ -243,6 +258,10 @@ const currentCategory = computed(() => getCategory(category.value))
 const isBook = computed(() => category.value === '图书')
 const categoryLabel = computed(() => t('tradeCat.' + currentCategory.value.key))
 const categoryHint = computed(() => t('tradeCatHint.' + currentCategory.value.key))
+
+// 出行类目的三级筛选：'' = 全部，sell = 出售，rent = 出租
+const dealTabs = [{ value: '', key: 'All', icon: '' }, ...DEAL_TYPE_OPTIONS]
+const dealType = ref('')
 
 const keyword = ref('')
 const books = ref([])
@@ -289,13 +308,27 @@ function switchCategory(value) {
   scanView.value = null
   books.value = []
   products.value = []
+  // 换类目时交易方式回到「全部」（出行以外本来也没有这个维度）
+  dealType.value = ''
   const query = { ...route.query, category: value }
   delete query.from
   delete query.isbn
   delete query.title
   delete query.keyword
+  delete query.dealType
   router.replace({ path: '/trade', query })
   reload()
+}
+
+// 出行类目下的三级切换：全部 / 出售 / 出租
+function switchDealType(value) {
+  if (dealType.value === value) return
+  dealType.value = value
+  const query = { ...route.query, category: category.value }
+  if (value) query.dealType = value
+  else delete query.dealType
+  router.replace({ path: '/trade', query })
+  loadProducts()
 }
 
 function trackSearch() {
@@ -333,6 +366,8 @@ async function loadProducts() {
   loading.value = true
   try {
     const params = { keyword: keyword.value, category: category.value, pageSize: 60 }
+    // 出行类目的三级筛选，其它类目不传
+    if (supportsDealType(category.value) && dealType.value) params.dealType = dealType.value
     if (filterMin.value !== null && filterMin.value !== '') params.minPrice = filterMin.value
     if (filterMax.value !== null && filterMax.value !== '') params.maxPrice = filterMax.value
     const res = await productApi.list(params)
@@ -519,6 +554,10 @@ onMounted(() => {
   const qCategory = route.query.category
   if (qCategory && isValidCategory(String(qCategory))) category.value = String(qCategory)
 
+  // 出行类目的三级：/trade?category=出行&dealType=rent
+  const qDeal = route.query.dealType
+  if (qDeal === 'rent' || qDeal === 'sell') dealType.value = String(qDeal)
+
   // 识别筛选视图: /trade?isbn=xxx&title=xxx&from=scan 或 keyword+field
   const qIsbn = route.query.isbn
   const qTitle = route.query.title ? decodeURIComponent(route.query.title) : ''
@@ -554,6 +593,14 @@ watch(() => route.query.category, (v) => {
   books.value = []
   products.value = []
   reload()
+})
+
+// 地址栏里的交易方式变化（前进/后退、外部链接带 dealType=rent）
+watch(() => route.query.dealType, (v) => {
+  const next = v === 'rent' || v === 'sell' ? String(v) : ''
+  if (next === dealType.value) return
+  dealType.value = next
+  if (!isBook.value) loadProducts()
 })
 </script>
 
@@ -615,6 +662,44 @@ watch(() => route.query.category, (v) => {
 }
 .cat-item:hover .cat-icon {
   transform: scale(1.15);
+}
+
+/* 出行类目的三级界面：全部 / 出售 / 出租 */
+.deal-bar {
+  display: flex;
+  gap: 8px;
+  margin: 14px 0 2px;
+  flex-wrap: wrap;
+}
+.deal-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  color: var(--text-sub);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.22s ease;
+}
+.deal-item:hover {
+  border-color: var(--accent-soft);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+.deal-item.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: 0 6px 16px -10px var(--accent);
+}
+.deal-icon {
+  font-size: 13px;
+  line-height: 1;
 }
 .cat-item.active {
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
@@ -853,6 +938,26 @@ watch(() => route.query.category, (v) => {
   color: #fff;
   font-size: 11px;
   backdrop-filter: blur(4px);
+}
+/* 出租商品在封面上右上角打标，一眼能和出售区分开 */
+.deal-flag {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  padding: 3px 9px;
+  border-radius: 10px;
+  background: rgba(255, 152, 0, 0.94);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 4px 10px -4px rgba(255, 152, 0, 0.9);
+}
+.rent-unit {
+  margin-left: 2px;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 500;
+  color: var(--text-sub);
 }
 .goods-info {
   padding: 12px 14px 14px;

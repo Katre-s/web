@@ -18,6 +18,24 @@ export const TRADE_CATEGORIES = [
 
 export const DEFAULT_CATEGORY = '图书'
 
+/**
+ * 交易方式（三级）：目前只对「出行」类目开放
+ * - sell 出售：一次性买断
+ * - rent 出租：按天/按月租用（价格字段沿用 price）
+ * value 直接存 product.dealType
+ */
+export const DEAL_TYPE_OPTIONS = [
+  { value: 'sell', key: 'Sell', icon: '💰' },
+  { value: 'rent', key: 'Rent', icon: '🔑' }
+]
+
+export const DEFAULT_DEAL_TYPE = 'sell'
+
+/** 只有出行类目才需要区分出售/出租 */
+export function supportsDealType(category) {
+  return category === '出行'
+}
+
 export const CATEGORY_VALUES = TRADE_CATEGORIES.map((c) => c.value)
 
 export function getCategory(value) {

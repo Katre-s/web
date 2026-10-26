@@ -91,7 +91,23 @@ async function start() {
   await sequelize.sync(syncAlter ? { alter: true } : {})
   console.log(`[DB] sync 完成${syncAlter ? '(alter=true)' : ''}`)
 
-  // sync() 不会给已存在的表加新列，这里手动幂等补列（orders.aftersale_status）
+  // sync() 不会给已存在的表加新列，这里手动幂等补列
+  // products.deal_type：出行类目的「出售 / 出租」，老库没有这列
+  try {
+    const productDesc = await sequelize.getQueryInterface().describeTable('products')
+    if (!productDesc.deal_type) {
+      await sequelize.getQueryInterface().addColumn('products', 'deal_type', {
+        type: 'VARCHAR(10)',
+        allowNull: false,
+        defaultValue: 'sell'
+      })
+      console.log('[迁移] products 表已补充 deal_type 列')
+    }
+  } catch (err) {
+    console.error('[迁移products列] 失败:', err.message)
+  }
+
+  // orders.aftersale_status
   try {
     const tableDesc = await sequelize.getQueryInterface().describeTable('orders')
     if (!tableDesc.aftersale_status) {

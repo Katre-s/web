@@ -9,6 +9,15 @@ const orderMap = {
   price_desc: [['price', 'DESC']]
 }
 
+/**
+ * 交易方式只对「出行」类目开放（自行车、电动车可以租），其余类目一律按出售处理。
+ * 这样前端就算传了 rent，也不会出现"租一个台灯"这种脏数据。
+ */
+function normalizeDealType(value, category) {
+  if (category !== '出行') return 'sell'
+  return String(value || '').toLowerCase() === 'rent' ? 'rent' : 'sell'
+}
+
 async function findOrCreateBook({ isbn, bookTitle, bookAuthor, bookPublisher, bookCover, edition, originalPrice, userId }) {
   if (!bookTitle) return null
   const cleanIsbn = (isbn || '').replace(/[-\s]/g, '')
@@ -45,7 +54,7 @@ async function findOrCreateBook({ isbn, bookTitle, bookAuthor, bookPublisher, bo
 
 export async function list(req, res, next) {
   try {
-    const { keyword, category, sort = 'newest', page = 1, pageSize = 20 } = req.query
+    const { keyword, category, sort = 'newest', page = 1, pageSize = 20, dealType } = req.query
     const where = { status: 'available' }
     if (keyword) {
       where[Op.or] = [
@@ -56,6 +65,10 @@ export async function list(req, res, next) {
       ]
     }
     if (category) where.category = category
+    // 出行类目的三级筛选：出售 / 出租。
+    // 老数据这列可能是 NULL（补列没跑成时），「出售」要把 NULL 也算进来，否则老商品会集体消失
+    if (dealType === 'rent') where.dealType = 'rent'
+    else if (dealType === 'sell') where.dealType = { [Op.or]: ['sell', null] }
 
     const { rows, count } = await Product.findAndCountAll({
       where,
@@ -116,6 +129,7 @@ export async function create(req, res, next) {
       price,
       condition: condition || (category === '租房' ? '' : '九成新'),
       category,
+      dealType: normalizeDealType(req.body.dealType, category),
       description,
       status: 'available'
     })
@@ -150,7 +164,12 @@ export async function update(req, res, next) {
     const product = await Product.findByPk(req.params.id)
     if (!product) return fail(res, '商品不存在', 404)
     if (product.userId !== req.user.id) return fail(res, '无权操作', 403)
-    await product.update(req.body)
+    const patch = { ...req.body }
+    // 改类目或交易方式时重新归一：非出行类目强制回 sell
+    if (patch.dealType !== undefined || patch.category !== undefined) {
+      patch.dealType = normalizeDealType(patch.dealType ?? product.dealType, patch.category ?? product.category)
+    }
+    await product.update(patch)
     success(res, product, '更新成功')
   } catch (err) { next(err) }
 }

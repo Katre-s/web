@@ -119,6 +119,16 @@
         </el-radio-group>
       </el-form-item>
 
+      <!-- 出行类目：出售 / 出租 -->
+      <el-form-item :label="$t('publish.dealType')" v-if="needDealType">
+        <el-radio-group v-model="form.dealType" class="deal-picker">
+          <el-radio-button v-for="d in dealOptions" :key="d.value" :value="d.value">
+            {{ d.icon }} {{ $t('trade.deal' + d.key) }}
+          </el-radio-button>
+        </el-radio-group>
+        <p class="deal-tip">{{ form.dealType === 'rent' ? $t('publish.dealRentTip') : $t('publish.dealSellTip') }}</p>
+      </el-form-item>
+
       <el-form-item :label="isBook ? $t('publish.bookTitle') : $t('publish.goodsTitle')" required>
         <el-input
           v-if="isBook"
@@ -190,7 +200,7 @@ import { Plus, Notebook } from '@element-plus/icons-vue'
 import { bookApi, productApi } from '@/api'
 import { resolveImg } from '@/utils/image'
 import { DRAFT_KEYS, takeDraft } from '@/utils/agentAction'
-import { TRADE_CATEGORIES, DEFAULT_CATEGORY, isValidCategory } from '@/constants/categories'
+import { TRADE_CATEGORIES, DEFAULT_CATEGORY, isValidCategory, DEAL_TYPE_OPTIONS, DEFAULT_DEAL_TYPE, supportsDealType } from '@/constants/categories'
 
 const router = useRouter()
 const route = useRoute()
@@ -224,12 +234,17 @@ const form = reactive({
   edition: '',
   condition: '九成新',
   category: DEFAULT_CATEGORY,
+  // 出行类目才用：sell 出售 / rent 出租
+  dealType: DEFAULT_DEAL_TYPE,
   delivery: true,
   description: '',
   originalPrice: 0
 })
 
 const isBook = computed(() => form.category === '图书')
+// 只有出行类目才需要选出售 / 出租
+const needDealType = computed(() => supportsDealType(form.category))
+const dealOptions = DEAL_TYPE_OPTIONS
 
 async function handleIsbnLookup() {
   if (!isbn.value) {
@@ -386,6 +401,8 @@ async function handleSubmit() {
     fd.append('condition', form.category === '租房' ? '' : form.condition)
     fd.append('delivery', form.delivery)
     fd.append('description', form.description)
+    // 非出行类目后端会强制按 sell 存，这里只传有意义的值
+    fd.append('dealType', needDealType.value ? form.dealType : 'sell')
 
     if (isBook.value) {
       fd.append('isbn', isbn.value)
@@ -400,7 +417,10 @@ async function handleSubmit() {
 
     await productApi.create(fd)
     ElMessage.success(t('publish.success'))
-    router.push({ path: '/trade', query: { category: form.category } })
+    // 发布完直接落到对应类目，出租的带上 dealType，卖家能立刻看到自己的商品
+    const query = { category: form.category }
+    if (needDealType.value) query.dealType = form.dealType
+    router.push({ path: '/trade', query })
   } finally {
     submitting.value = false
   }
@@ -477,6 +497,18 @@ onUnmounted(() => {
 .cat-picker :deep(.el-radio-button__inner) {
   border-radius: 10px;
   border-left: 1px solid var(--el-border-color);
+}
+/* 出行类目的出售 / 出租 */
+.deal-picker :deep(.el-radio-button__inner) {
+  border-radius: 10px;
+  border-left: 1px solid var(--el-border-color);
+  font-weight: 600;
+}
+.deal-tip {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-sub, #78909c);
 }
 .scan-book-preview {
   display: flex;

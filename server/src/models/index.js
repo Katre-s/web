@@ -51,7 +51,9 @@ export const Product = sequelize.define('Product', {
   bookCover: { type: DataTypes.STRING(500), field: 'book_cover', defaultValue: '' },
   edition: { type: DataTypes.STRING(50), defaultValue: '' },
   delivery: { type: DataTypes.BOOLEAN, defaultValue: true },
-  originalPrice: { type: DataTypes.DECIMAL(10, 2), field: 'original_price', defaultValue: 0 }
+  originalPrice: { type: DataTypes.DECIMAL(10, 2), field: 'original_price', defaultValue: 0 },
+  // 交易方式：sell 出售 / rent 出租。目前只有「出行」类目会用到，其余类目一律 sell
+  dealType: { type: DataTypes.STRING(10), field: 'deal_type', defaultValue: 'sell' }
 }, { tableName: 'products' })
 
 export const ProductImage = sequelize.define('ProductImage', {

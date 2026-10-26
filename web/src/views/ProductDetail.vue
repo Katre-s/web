@@ -9,8 +9,11 @@
         <p class="detail-author" v-if="product.bookAuthor">{{ $t('bookdetail.authorPrefix') }}{{ product.bookAuthor }}</p>
         <p class="detail-publisher" v-if="product.bookPublisher">{{ $t('bookdetail.publisherPrefix') }}{{ product.bookPublisher }}</p>
         <p class="detail-isbn" v-if="product.isbn">ISBN：{{ product.isbn }}</p>
-        <div class="detail-price">¥{{ product.price }}</div>
+        <div class="detail-price">
+          ¥{{ product.price }}<em v-if="product.dealType === 'rent'" class="detail-rent-unit">{{ $t('trade.rentUnit') }}</em>
+        </div>
         <div class="detail-meta">
+          <span class="meta-tag deal-rent" v-if="product.dealType === 'rent'">🔑 {{ $t('trade.dealRent') }}</span>
           <span class="meta-tag" v-if="product.condition">{{ product.condition }}</span>
           <span class="meta-tag" v-if="product.category">{{ $t('tradeCat.' + categoryKey(product.category)) }}</span>
         </div>
@@ -173,6 +176,19 @@ onMounted(loadProduct)
   color: #e53935;
   font-weight: 700;
   margin: 16px 0;
+}
+/* 出租商品的租金单位，跟大字价格区分开 */
+.detail-rent-unit {
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 500;
+  color: #9db2ba;
+  margin-left: 3px;
+}
+.meta-tag.deal-rent {
+  background: rgba(255, 152, 0, 0.14);
+  color: #e67e00;
+  font-weight: 700;
 }
 .detail-meta {
   display: flex;
