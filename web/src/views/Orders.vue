@@ -28,7 +28,6 @@
           </div>
           <div class="cart-footer">
             <el-checkbox v-model="selectAll" @change="toggleSelectAll">{{ $t('cart.selectAll') }}</el-checkbox>
-            <el-button type="warning" round @click="contactAllSellers" :disabled="!cartItems.length" :loading="contactingAll">{{ $t('cart.contactAll') }}</el-button>
             <span class="total-price">{{ $t('common.total') }}¥{{ totalPrice }}</span>
             <el-button type="primary" :disabled="!selectedItems.length" @click="checkout">{{ $t('cart.checkout') }}</el-button>
           </div>
@@ -143,7 +142,6 @@ const router = useRouter()
 const userStore = useUserStore()
 const activeTab = ref(['cart', 'pending', 'completed'].includes(route.query.tab) ? route.query.tab : 'cart')
 const loading = ref(false)
-const contactingAll = ref(false)
 const orders = ref([])
 const cartItems = ref([])
 
@@ -233,38 +231,6 @@ async function contactItemSeller(item) {
     ElMessage.success(t('common.convCreated'))
     goChat(res?.data?.conversationId)
   } catch {}
-}
-
-async function contactAllSellers() {
-  const sellerMap = new Map()
-  for (const item of cartItems.value) {
-    const s = item.product?.seller
-    if (!s || s.id === userStore.userInfo?.id) continue
-    if (!sellerMap.has(s.id)) {
-      sellerMap.set(s.id, { sellerId: s.id, productId: item.product.id, nickname: s.nickname || s.userNo })
-    }
-  }
-  if (!sellerMap.size) {
-    ElMessage.warning(t('cart.noContactable'))
-    return
-  }
-  contactingAll.value = true
-  let success = 0
-  let firstConvId = null
-  for (const [, info] of sellerMap) {
-    try {
-      const res = await conversationApi.start(info.sellerId, info.productId)
-      if (!firstConvId) firstConvId = res?.data?.conversationId
-      success++
-    } catch {}
-  }
-  contactingAll.value = false
-  if (success) {
-    ElMessage.success(t('cart.contacted', { n: success }))
-    goChat(firstConvId)
-  } else {
-    ElMessage.warning(t('cart.contactFail'))
-  }
 }
 
 async function confirmOrder(order) {
