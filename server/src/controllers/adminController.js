@@ -21,7 +21,7 @@ export async function stats(req, res, next) {
 
 export async function users(req, res, next) {
   try {
-    const { keyword = '', page = 1, pageSize = 20 } = req.query
+    const { keyword = '', page = 1, pageSize = 20, statusFilter = '' } = req.query
     const where = {}
     if (keyword) {
       where[Op.or] = [
@@ -30,6 +30,10 @@ export async function users(req, res, next) {
         { realName: { [Op.like]: `%${keyword}%` } }
       ]
     }
+    // 默认不显示已注销用户（注销是软删除，记录要留，但列表不该出现）。
+    // statusFilter: 'cancelled' 只看注销的，'all' 全部
+    if (statusFilter === 'cancelled') where.status = 'cancelled'
+    else if (statusFilter !== 'all') where.status = { [Op.ne]: 'cancelled' }
     const { rows, count } = await User.findAndCountAll({
       where,
       attributes: ['id', 'email', 'userNo', 'nickname', 'realName', 'campus', 'role', 'status', 'balance', ['created_at', 'created_at']],

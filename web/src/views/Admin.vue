@@ -535,9 +535,16 @@
           <div class="panel">
             <div class="panel-toolbar">
               <h3 class="panel-title">{{ $t('admin.userList') }}</h3>
-              <el-input v-model="userKeyword" :placeholder="$t('admin.searchUserPlaceholder')" clearable style="width: 240px" @keyup.enter="loadUsers" @clear="loadUsers">
-                <template #append><el-button @click="loadUsers">{{ $t('common.search') }}</el-button></template>
-              </el-input>
+              <div class="user-toolbar">
+                <el-select v-model="userStatusFilter" style="width: 130px" @change="onStatusFilterChange">
+                  <el-option :label="$t('admin.filterActive')" value="" />
+                  <el-option :label="$t('admin.filterCancelled')" value="cancelled" />
+                  <el-option :label="$t('admin.filterAll')" value="all" />
+                </el-select>
+                <el-input v-model="userKeyword" :placeholder="$t('admin.searchUserPlaceholder')" clearable style="width: 240px" @keyup.enter="loadUsers" @clear="loadUsers">
+                  <template #append><el-button @click="loadUsers">{{ $t('common.search') }}</el-button></template>
+                </el-input>
+              </div>
             </div>
             <el-table :data="userList" size="small">
               <el-table-column v-if="!isMobile" prop="id" :label="$t('admin.id')" width="55" />
@@ -1121,13 +1128,20 @@ const userTotal = ref(0)
 const userPage = ref(1)
 const userPageSize = 10
 const userKeyword = ref('')
+// '' 默认只看在册用户（已注销的不出现），cancelled 只看注销，all 全部
+const userStatusFilter = ref('')
 
 async function loadUsers() {
   try {
-    const res = await adminApi.users({ page: userPage.value, pageSize: userPageSize, keyword: userKeyword.value })
+    const res = await adminApi.users({ page: userPage.value, pageSize: userPageSize, keyword: userKeyword.value, statusFilter: userStatusFilter.value })
     userList.value = res.data?.list || []
     userTotal.value = res.data?.total || 0
   } catch {}
+}
+// 切状态筛选时回到第一页再查
+function onStatusFilterChange() {
+  userPage.value = 1
+  loadUsers()
 }
 async function toggleBan(row) {
   const ban = row.status !== 'banned'
@@ -1765,6 +1779,13 @@ onMounted(() => {
 .row-actions :deep(.el-button) {
   margin-left: 0;
   padding: 4px 6px;
+}
+/* 用户列表工具栏：状态筛选 + 搜索框并排 */
+.user-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 /* 充值弹窗里"充值后余额"的预览 */
 .recharge-preview {
