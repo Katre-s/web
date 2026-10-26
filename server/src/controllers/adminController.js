@@ -72,6 +72,27 @@ export async function updateUser(req, res, next) {
   } catch (err) { next(err) }
 }
 
+/**
+ * 注销用户：不物理删除账号（订单、聊天、流水都要留着），
+ * 但把邮箱改成 cancelled_<id>_<原邮箱>，释放原邮箱让本人能重新注册。
+ * 同时清空 userNo，避免 8 位 ID 被占着。
+ */
+export async function cancelUser(req, res, next) {
+  try {
+    const { id } = req.params
+    const user = await User.findByPk(id)
+    if (!user) return fail(res, '用户不存在', 404)
+    if (Number(id) === req.user.id) return fail(res, '不能注销自己')
+    if (user.role === 'admin') return fail(res, '管理员账号不能注销，请先取消管理员身份')
+    if (user.status === 'cancelled') return fail(res, '该用户已经是注销状态')
+
+    // 前缀带 id，保证即使截断也不会跟别人的邮箱撞车
+    const freedEmail = `cancelled_${user.id}_${user.email}`.slice(0, 100)
+    await user.update({ status: 'cancelled', email: freedEmail, userNo: '' })
+    success(res, null, '已注销，原邮箱可以重新注册')
+  } catch (err) { next(err) }
+}
+
 export async function updateUserNo(req, res, next) {
   try {
     const { id } = req.params

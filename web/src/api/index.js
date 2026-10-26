@@ -93,6 +93,7 @@ export const adminApi = {
   users: (params) => request.get('/admin/users', { params }),
   updateUser: (id, data) => request.put(`/admin/users/${id}`, data),
   updateUserNo: (id, userNo) => request.patch(`/admin/users/${id}/user-no`, { userNo }),
+  cancelUser: (id) => request.post(`/admin/users/${id}/cancel`),
   createBook: (formData) => request.post('/admin/products', formData),
   deleteProduct: (id) => request.delete(`/admin/products/${id}`),
   listBoards: (params) => request.get('/admin/boards', { params }),

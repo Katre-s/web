@@ -3,7 +3,7 @@ import { adminOnly } from '../middlewares/admin.js'
 import { adminList, adminUpdate, adminRemove } from '../controllers/plazaController.js'
 import { listAfterSales, reviewAfterSale, reviewSellerReject, reviewAppeal } from '../controllers/afterSaleController.js'
 import { upload } from '../utils/upload.js'
-import { stats, charts, users, updateUser, updateUserNo, createBook, deleteProduct, listItems, updateItem, listBoards, deleteBoard, updateBoard, updateBoardCover, listNotifications, deleteNotification, listBookBoards, createBookBoard, updateBookBoard, deleteBookBoard, listSoldOrders } from '../controllers/adminController.js'
+import { stats, charts, users, updateUser, updateUserNo, cancelUser, createBook, deleteProduct, listItems, updateItem, listBoards, deleteBoard, updateBoard, updateBoardCover, listNotifications, deleteNotification, listBookBoards, createBookBoard, updateBookBoard, deleteBookBoard, listSoldOrders } from '../controllers/adminController.js'
 
 const router = Router()
 
@@ -14,6 +14,8 @@ router.get('/charts', charts)
 router.get('/users', users)
 router.put('/users/:id', updateUser)
 router.patch('/users/:id/user-no', updateUserNo)
+// 注销用户：账号保留（订单/聊天要留），邮箱释放给本人重新注册
+router.post('/users/:id/cancel', cancelUser)
 router.post('/products', upload.array('images', 6), createBook)
 router.delete('/products/:id', deleteProduct)
 router.get('/items', listItems)

@@ -362,14 +362,16 @@
               <el-table-column :label="$t('admin.orderTime')" width="150">
                 <template #default="{ row }">{{ formatDate(row.created_at || row.createdAt) }}</template>
               </el-table-column>
-              <el-table-column :label="$t('common.actions')" :width="isMobile ? 140 : 150" :fixed="isMobile ? false : 'right'">
+              <el-table-column :label="$t('common.actions')" :width="isMobile ? 150 : 210" :fixed="isMobile ? false : 'right'">
                 <template #default="{ row }">
-                  <el-button size="small" text type="primary" @click="contactUser(row.buyer?.id)">{{ $t('admin.contactBuyerBtn') }}</el-button>
-                  <el-button
-                    v-if="firstSellerId(row)"
-                    size="small" text type="primary"
-                    @click="contactUser(firstSellerId(row), firstProductId(row))"
-                  >{{ $t('admin.contactSellerBtn') }}</el-button>
+                  <div class="row-actions">
+                    <el-button size="small" text type="primary" :disabled="!row.buyer?.id" @click="contactUser(row.buyer?.id)">{{ $t('admin.contactBuyerBtn') }}</el-button>
+                    <el-button
+                      v-if="firstSellerId(row)"
+                      size="small" text type="primary"
+                      @click="contactUser(firstSellerId(row), firstProductId(row))"
+                    >{{ $t('admin.contactSellerBtn') }}</el-button>
+                  </div>
                 </template>
               </el-table-column>
             </el-table>
@@ -558,9 +560,12 @@
                   <el-tag size="small" :type="row.role === 'admin' ? 'danger' : 'info'">{{ row.role === 'admin' ? t('common.admin') : t('common.user') }}</el-tag>
                 </template>
               </el-table-column>
-              <el-table-column :label="$t('admin.status')" width="75">
+              <el-table-column :label="$t('admin.status')" width="85">
                 <template #default="{ row }">
-                  <el-tag size="small" :type="row.status === 'banned' ? 'danger' : 'success'">{{ row.status === 'banned' ? t('common.banned') : t('common.normal') }}</el-tag>
+                  <el-tag
+                    size="small"
+                    :type="row.status === 'banned' ? 'danger' : row.status === 'cancelled' ? 'info' : 'success'"
+                  >{{ row.status === 'banned' ? t('common.banned') : row.status === 'cancelled' ? t('admin.cancelled') : t('common.normal') }}</el-tag>
                 </template>
               </el-table-column>
               <el-table-column :label="$t('admin.balance')" width="95">
@@ -568,14 +573,22 @@
                   <span class="balance-cell">¥{{ Number(row.balance ?? 0).toFixed(2) }}</span>
                 </template>
               </el-table-column>
-              <el-table-column :label="$t('common.actions')" :width="isMobile ? 140 : 300" :fixed="isMobile ? false : 'right'">
+              <el-table-column :label="$t('common.actions')" :width="isMobile ? 160 : 390" :fixed="isMobile ? false : 'right'">
                 <template #default="{ row }">
-                  <el-button size="small" text type="primary" @click="openBalanceDialog(row)">{{ $t('admin.setBalance') }}</el-button>
-                  <el-button size="small" text type="primary" @click="openUserNoDialog(row)">{{ $t('admin.changeNo') }}</el-button>
-                  <el-button size="small" text type="primary" @click="toggleRole(row)">{{ row.role === 'admin' ? t('common.unmakeAdmin') : t('common.makeAdmin') }}</el-button>
-                  <el-button size="small" :type="row.status === 'banned' ? 'success' : 'danger'" plain @click="toggleBan(row)">
-                    {{ row.status === 'banned' ? t('common.unban') : t('common.ban') }}
-                  </el-button>
+                  <div class="row-actions">
+                    <el-button size="small" text type="primary" @click="openBalanceDialog(row)">{{ $t('admin.rechargeBalance') }}</el-button>
+                    <el-button size="small" text type="primary" @click="openUserNoDialog(row)">{{ $t('admin.changeNo') }}</el-button>
+                    <el-button size="small" text type="primary" @click="toggleRole(row)">{{ row.role === 'admin' ? t('common.unmakeAdmin') : t('common.makeAdmin') }}</el-button>
+                    <!-- 封号 / 注销都是危险操作：并排对齐、统一红色文字 -->
+                    <template v-if="row.status !== 'cancelled'">
+                      <el-button size="small" text type="danger" @click="toggleBan(row)">
+                        {{ row.status === 'banned' ? t('common.unban') : t('common.ban') }}
+                      </el-button>
+                      <el-button size="small" text type="danger" @click="cancelAccount(row)">
+                        {{ t('admin.cancelUser') }}
+                      </el-button>
+                    </template>
+                  </div>
                 </template>
               </el-table-column>
             </el-table>
@@ -646,10 +659,13 @@
     <el-dialog v-model="showBalanceDialog" :title="$t('admin.setBalanceTitle')" width="440px">
       <p class="user-no-tip">{{ $t('common.user') }}：{{ balanceForm.nickname }}（{{ $t('admin.currentBalance') }}：¥{{ Number(balanceForm.oldBalance).toFixed(2) }}）</p>
       <el-form label-position="top">
-        <el-form-item :label="$t('admin.balance')">
-          <el-input-number v-model="balanceForm.newBalance" :min="0" :precision="2" :step="10" style="width: 100%" />
+        <el-form-item :label="$t('admin.rechargeAmount')">
+          <el-input-number v-model="balanceForm.amount" :min="0" :precision="2" :step="10" style="width: 100%" />
         </el-form-item>
       </el-form>
+      <p class="recharge-preview" v-if="Number(balanceForm.amount) > 0">
+        {{ $t('admin.rechargeAfter', { n: (Number(balanceForm.oldBalance) + Number(balanceForm.amount)).toFixed(2) }) }}
+      </p>
       <template #footer>
         <el-button @click="showBalanceDialog = false">{{ $t('common.cancel') }}</el-button>
         <el-button type="primary" @click="submitBalance">{{ $t('common.save') }}</el-button>
@@ -1127,6 +1143,20 @@ async function toggleBan(row) {
     loadUsers()
   } catch {}
 }
+
+// 注销账号：账号记录保留（订单/聊天/流水要留），原邮箱释放出来可以重新注册
+async function cancelAccount(row) {
+  try {
+    await ElMessageBox.confirm(
+      t('admin.cancelUserConfirm', { name: row.nickname || row.email }),
+      t('common.warning'),
+      { type: 'warning', confirmButtonText: t('admin.cancelUser'), confirmButtonClass: 'el-button--danger' }
+    )
+    await adminApi.cancelUser(row.id)
+    ElMessage.success(t('admin.cancelUserDone'))
+    loadUsers()
+  } catch {}
+}
 async function toggleRole(row) {
   const makeAdmin = row.role !== 'admin'
   try {
@@ -1167,27 +1197,32 @@ async function submitUserNo() {
 }
 
 const showBalanceDialog = ref(false)
-const balanceForm = ref({ id: null, nickname: '', oldBalance: 0, newBalance: 0 })
+// amount 是"本次充值多少"，不是最终余额；oldBalance 只用来算预览
+const balanceForm = ref({ id: null, nickname: '', oldBalance: 0, amount: 0 })
 
 function openBalanceDialog(row) {
   balanceForm.value = {
     id: row.id,
-    nickname: row.nickname,
+    nickname: row.nickname || row.email,
     oldBalance: Number(row.balance ?? 0),
-    newBalance: Number(row.balance ?? 0)
+    amount: 0
   }
   showBalanceDialog.value = true
 }
 
 async function submitBalance() {
-  const { id, newBalance } = balanceForm.value
-  if (newBalance == null || newBalance < 0) {
-    ElMessage.warning(t('admin.balanceInvalid'))
+  const { id, oldBalance, amount } = balanceForm.value
+  const add = Number(amount)
+  if (!Number.isFinite(add) || add <= 0) {
+    ElMessage.warning(t('admin.rechargeInvalid'))
     return
   }
   try {
-    await adminApi.updateUser(id, { balance: Number(newBalance) })
-    ElMessage.success(t('admin.balanceSet'))
+    // 后端接口是"设置成某个余额"，这里自己加上去，
+    // 这样流水里记的就是一笔上调，而不是把余额拽到另一个数
+    const next = Number((oldBalance + add).toFixed(2))
+    await adminApi.updateUser(id, { balance: next })
+    ElMessage.success(t('admin.rechargeDone', { n: add.toFixed(2) }))
     showBalanceDialog.value = false
     loadUsers()
   } catch {}
@@ -1720,6 +1755,26 @@ onMounted(() => {
   font-size: 14px;
 }
 .balance-cell {
+  font-weight: 600;
+  color: #26a69a;
+}
+
+/* 表格操作列：按钮并排不换行，行与行之间才对得齐
+   （原来列宽 150 装不下「联系买家 + 联系卖家」，第二个换行后就错位了） */
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: nowrap;
+}
+.row-actions :deep(.el-button) {
+  margin-left: 0;
+  padding: 4px 6px;
+}
+/* 充值弹窗里"充值后余额"的预览 */
+.recharge-preview {
+  margin-top: -6px;
+  font-size: 12.5px;
   font-weight: 600;
   color: #26a69a;
 }
