@@ -1,17 +1,17 @@
 {
   "name": "wenheng-desktop",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "徐工院小咸鱼 - 校园二手集市 Windows 客户端",
   "author": "小咸鱼团队",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "smoke": "electron . --smoke-test",
+    "smoke": "node verify-smoke.js",
     "build:web": "npm --prefix ../web run build:desktop",
     "prepare:electron": "node scripts/prepare-electron.js",
-    "pack": "npm run build:web && npm run prepare:electron && electron-builder --win --x64 -c.electronDist=.electron-dist",
-    "pack:dir": "npm run build:web && npm run prepare:electron && electron-builder --win --dir -c.electronDist=.electron-dist"
+    "pack": "npm run build:web && electron-builder --win --x64 -c.electronDist=node_modules/electron/dist",
+    "pack:dir": "npm run build:web && electron-builder --win --dir -c.electronDist=node_modules/electron/dist"
   },
   "devDependencies": {
     "electron": "^33.4.11",
@@ -22,7 +22,7 @@
     "productName": "Xiaoxianyu",
     "copyright": "Copyright © 2026 Xiaoxianyu",
     "directories": {
-      "output": "release",
+      "output": "dist-desktop",
       "buildResources": "build"
     },
     "files": [

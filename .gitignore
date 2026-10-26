@@ -1,11 +1,14 @@
 node_modules
 dist
 desktop/release
+desktop/dist-*
 desktop/.electron-dist
 desktop/.electron-dist-old-*
 *.log
 *.zip
 *.apk
+*.exe
+小咸鱼-电脑端/
 *.tar.gz
 *.err
 .env

@@ -9,6 +9,11 @@ const SCHEME = 'app'
 const HOST = 'wenheng'
 const SMOKE = process.argv.includes('--smoke-test')
 const DEV = !app.isPackaged
+const FORCE_SOFT_RENDER = process.argv.includes('--disable-gpu')
+
+// 老显卡驱动 / 受限环境下 GPU 进程会直接崩溃（0xC0000005），表现为白屏。
+// 带 --disable-gpu 启动时彻底关掉硬件加速，走软件渲染，保证至少能显示出界面。
+if (FORCE_SOFT_RENDER) app.disableHardwareAcceleration()
 
 // 打包后 web/dist 被放到 resources/web；开发时直接用仓库里的 web/dist
 const WEB_ROOT = app.isPackaged
@@ -76,7 +81,10 @@ function log(...args) {
   const line = `[${new Date().toISOString()}] ${args.join(' ')}`
   console.log(line)
   try {
-    fs.appendFileSync(path.join(app.getPath('userData'), 'desktop.log'), line + os.EOL)
+    const dir = app.getPath('userData')
+    // 首次运行时 userData 目录可能还不存在，不先建好就写不进日志（排查白屏时最需要它）
+    fs.mkdirSync(dir, { recursive: true })
+    fs.appendFileSync(path.join(dir, 'desktop.log'), line + os.EOL)
   } catch {}
 }
 
@@ -209,7 +217,17 @@ function runSmokeTest() {
   mainWindow.webContents.once('did-finish-load', async () => {
     try {
       const result = await mainWindow.webContents.executeJavaScript(`(async () => {
-        const mounted = !!(document.querySelector('#app') && document.querySelector('#app').children.length)
+        // did-finish-load 时 Vue 可能还没挂载（路由是异步组件），轮询等一会儿更可靠
+        const waitMounted = async (limit) => {
+          const t0 = Date.now()
+          while (Date.now() - t0 < limit) {
+            const el = document.querySelector('#app')
+            if (el && el.children.length) return true
+            await new Promise((r) => setTimeout(r, 100))
+          }
+          return false
+        }
+        const mounted = await waitMounted(5000)
         let apiOk = false, apiText = ''
         try {
           const r = await fetch('http://121.40.219.139:3000/api/health')
