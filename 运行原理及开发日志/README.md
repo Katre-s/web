@@ -41,7 +41,7 @@
                                   └────────────────────────────────────┘
 ```
 
-**请求链路示例**（Web 端）：
+**请求链路示例**（Web 端）：  
 `浏览器 → Nginx(80) → /api/auth/login → Express:3000 → MySQL`，前端构建产物内的 API 前缀为 `/api`（同源，走 Nginx 反代，无跨域问题）。
 
 **Android App 差异**：Capacitor 将 `web/dist` 内嵌为本地资源，`web/.env.production` 使用绝对地址 `http://121.40.219.139:3000/api` 直连后端（CORS 全开，可跨域）。
@@ -50,14 +50,14 @@
 
 ## 二、技术栈
 
-| 端 | 技术 |
-| --- | --- |
-| Web 前端 | Vue 3 · Vite 5 · Pinia · Vue Router 4 · Element Plus · Axios · vue-i18n（中/英） |
-| Android | Capacitor 8（`@capacitor/android` · app · status-bar），内嵌本地资源打包 |
-| PWA | manifest.json + Service Worker（sw.js，导航 network-first / 静态资源 cache-first） |
-| 后端 | Node.js · Express 4（ESM）· Sequelize 6 · mysql2 · JWT · bcryptjs · multer · sharp · nodemailer |
-| AI/OCR | SiliconFlow 视觉模型（扫码识别书籍）· 百度 OCR（书单解析）· OpenLibrary/Google Books（ISBN 查书） |
-| 部署 | 宝塔面板 · PM2 · Nginx 反向代理 · MySQL 5.7/8.0 |
+| 端       | 技术                                                                                            |
+| ------- | --------------------------------------------------------------------------------------------- |
+| Web 前端  | Vue 3 · Vite 5 · Pinia · Vue Router 4 · Element Plus · Axios · vue-i18n（中/英）                  |
+| Android | Capacitor 8（`@capacitor/android` · app · status-bar），内嵌本地资源打包                                 |
+| PWA     | manifest.json + Service Worker（sw.js，导航 network-first / 静态资源 cache-first）                     |
+| 后端      | Node.js · Express 4（ESM）· Sequelize 6 · mysql2 · JWT · bcryptjs · multer · sharp · nodemailer |
+| AI/OCR  | SiliconFlow 视觉模型（扫码识别书籍）· 百度 OCR（书单解析）· OpenLibrary/Google Books（ISBN 查书）                     |
+| 部署      | 宝塔面板 · PM2 · Nginx 反向代理 · MySQL 5.7/8.0                                                       |
 
 ---
 
@@ -162,50 +162,50 @@ npm run dev               # 启动 Vite dev server，默认 http://localhost:517
 
 ### 后端 `server/.env`
 
-| 变量 | 说明 |
-| --- | --- |
-| `PORT` | API 端口，默认 3000 |
-| `DB_HOST / DB_PORT / DB_NAME / DB_USER / DB_PASSWORD` | MySQL 连接（库名 `campus_trade`，编码 utf8mb4） |
-| `JWT_SECRET / JWT_EXPIRES` | 登录令牌密钥与有效期 |
-| `MAIL_HOST / MAIL_PORT / MAIL_USER / MAIL_PASS` | SMTP 邮件（发送验证码、找回密码） |
-| `AI_API_KEY / AI_API_URL / AI_MODEL` | 通用 AI（视觉模型 Qwen3-VL-8B 扫码识别、书单解析走这里） |
-| `CHAT_API_URL / CHAT_API_KEY / CHAT_API_MODEL` | **仅 AI 对话助手专用**，指向本地大模型（Ollama/LM Studio/vLLM 等 OpenAI 兼容接口）；未配置则回退到 `AI_API_*`。**模型若在本地电脑而非服务器**：本机开 SSH 反向隧道 `ssh -R 11434:localhost:11434 root@服务器IP`，服务器侧 `CHAT_API_URL` 仍填 `http://127.0.0.1:11434/v1/chat/completions` 即可（隧道把本地 Ollama 映射进服务器本地端口） |
-| `BAIDU_OCR_API_KEY / BAIDU_OCR_SECRET_KEY` | 百度 OCR（书单图片解析） |
-| `OPEN_LIBRARY_URL / GOOGLE_BOOKS_URL` | ISBN 查书接口地址 |
-| `WEATHER_DEFAULT_LAT / WEATHER_DEFAULT_LON / WEATHER_DEFAULT_CITY` | 首页实时天气的默认坐标与城市名，默认 `34.2538 / 117.2264 / 徐州云龙区`（数据源 Open-Meteo，免 Key） |
-| `MAX_FILE_SIZE` | 上传大小限制 |
+| 变量                                                                 | 说明                                                                                                                                                                                                                                                       |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`                                                             | API 端口，默认 3000                                                                                                                                                                                                                                           |
+| `DB_HOST / DB_PORT / DB_NAME / DB_USER / DB_PASSWORD`              | MySQL 连接（库名 `campus_trade`，编码 utf8mb4）                                                                                                                                                                                                                   |
+| `JWT_SECRET / JWT_EXPIRES`                                         | 登录令牌密钥与有效期                                                                                                                                                                                                                                               |
+| `MAIL_HOST / MAIL_PORT / MAIL_USER / MAIL_PASS`                    | SMTP 邮件（发送验证码、找回密码）                                                                                                                                                                                                                                      |
+| `AI_API_KEY / AI_API_URL / AI_MODEL`                               | 通用 AI（视觉模型 Qwen3-VL-8B 扫码识别、书单解析走这里）                                                                                                                                                                                                                     |
+| `CHAT_API_URL / CHAT_API_KEY / CHAT_API_MODEL`                     | **仅 AI 对话助手专用**，指向本地大模型（Ollama/LM Studio/vLLM 等 OpenAI 兼容接口）；未配置则回退到 `AI_API_*`。**模型若在本地电脑而非服务器**：本机开 SSH 反向隧道 `ssh -R 11434:localhost:11434 root@服务器IP`，服务器侧 `CHAT_API_URL` 仍填 `http://127.0.0.1:11434/v1/chat/completions` 即可（隧道把本地 Ollama 映射进服务器本地端口） |
+| `BAIDU_OCR_API_KEY / BAIDU_OCR_SECRET_KEY`                         | 百度 OCR（书单图片解析）                                                                                                                                                                                                                                           |
+| `OPEN_LIBRARY_URL / GOOGLE_BOOKS_URL`                              | ISBN 查书接口地址                                                                                                                                                                                                                                              |
+| `WEATHER_DEFAULT_LAT / WEATHER_DEFAULT_LON / WEATHER_DEFAULT_CITY` | 首页实时天气的默认坐标与城市名，默认 `34.2538 / 117.2264 / 徐州云龙区`（数据源 Open-Meteo，免 Key）                                                                                                                                                                                    |
+| `MAX_FILE_SIZE`                                                    | 上传大小限制                                                                                                                                                                                                                                                   |
 
 > 未配置 AI Key 时：书单解析走内置兜底逻辑，ISBN 查书仍可用免费接口。
 
 ### 前端 `web/.env.*`
 
-| 文件 | 变量 | 说明 |
-| --- | --- | --- |
-| `.env.development` | `VITE_API_BASE=/api` | 本地 dev 走 vite proxy |
-| `.env.development` | `VITE_API_TARGET=http://121.40.219.139:3000` | proxy 目标 |
-| `.env.production` | `VITE_API_BASE=/api` | **Web 部署走同源**（站点反代 /api，https 下也不会混合内容） |
-| `.env.production` | `VITE_API_ORIGIN=http://121.40.219.139:3000` | 仅 Android 壳内（capacitor://）拼绝对地址用 |
-| `.env.desktop` | `VITE_API_ORIGIN=http://121.40.219.139:3000` | 电脑端（app:// 源）同样走绝对地址，换服务器改这里 |
+| 文件                 | 变量                                           | 说明                                      |
+| ------------------ | -------------------------------------------- | --------------------------------------- |
+| `.env.development` | `VITE_API_BASE=/api`                         | 本地 dev 走 vite proxy                     |
+| `.env.development` | `VITE_API_TARGET=http://121.40.219.139:3000` | proxy 目标                                |
+| `.env.production`  | `VITE_API_BASE=/api`                         | **Web 部署走同源**（站点反代 /api，https 下也不会混合内容） |
+| `.env.production`  | `VITE_API_ORIGIN=http://121.40.219.139:3000` | 仅 Android 壳内（capacitor://）拼绝对地址用        |
+| `.env.desktop`     | `VITE_API_ORIGIN=http://121.40.219.139:3000` | 电脑端（app:// 源）同样走绝对地址，换服务器改这里            |
 
 ---
 
 ## 七、API 概览（前缀 `/api`）
 
-| 前缀 | 功能 | 鉴权 |
-| --- | --- | --- |
-| `/api/auth` | 注册、登录、发送验证码、忘记密码（send-reset-code / reset-password）、获取当前用户 | 部分 |
-| `/api/books` · `/api/book` · `/api/products` | 书籍/商品查询、发布、上下架、详情 | 写操作需登录 |
-| `/api/cart` | 购物车 | 登录 |
-| `/api/orders` | 订单（含买家/卖家视图） | 登录 |
-| `/api/wishlist` | 求购清单（含扫码识别创建） | 登录 |
-| `/api/favorites` · `/api/book-favorites` | 收藏 | 登录 |
-| `/api/conversations` · `/api/messages` | 站内聊天（会话 + 消息） | 登录 |
-| `/api/notifications` | 通知 | 登录 |
-| `/api/hotspots` | 首页热点/公告 | 读公开 |
-| `/api/agent` | **AI 助手对话（多轮记忆、界面跳转）** | 登录 |
-| `/api/weather` | 首页实时天气（Open-Meteo，默认徐州云龙区；`?lat=&lon=` 可临时覆盖） | 公开 |
-| `/api/admin` | 管理后台 | admin |
-| `/uploads` | 上传图片静态访问 | 公开 |
+| 前缀                                           | 功能                                                        | 鉴权     |
+| -------------------------------------------- | --------------------------------------------------------- | ------ |
+| `/api/auth`                                  | 注册、登录、发送验证码、忘记密码（send-reset-code / reset-password）、获取当前用户 | 部分     |
+| `/api/books` · `/api/book` · `/api/products` | 书籍/商品查询、发布、上下架、详情                                         | 写操作需登录 |
+| `/api/cart`                                  | 购物车                                                       | 登录     |
+| `/api/orders`                                | 订单（含买家/卖家视图）                                              | 登录     |
+| `/api/wishlist`                              | 求购清单（含扫码识别创建）                                             | 登录     |
+| `/api/favorites` · `/api/book-favorites`     | 收藏                                                        | 登录     |
+| `/api/conversations` · `/api/messages`       | 站内聊天（会话 + 消息）                                             | 登录     |
+| `/api/notifications`                         | 通知                                                        | 登录     |
+| `/api/hotspots`                              | 首页热点/公告                                                   | 读公开    |
+| `/api/agent`                                 | **AI 助手对话（多轮记忆、界面跳转）**                                    | 登录     |
+| `/api/weather`                               | 首页实时天气（Open-Meteo，默认徐州云龙区；`?lat=&lon=` 可临时覆盖）             | 公开     |
+| `/api/admin`                                 | 管理后台                                                      | admin  |
+| `/uploads`                                   | 上传图片静态访问                                                  | 公开     |
 
 认证方式：`Authorization: Bearer <JWT>`；未带/失效 → 401；管理员接口无 admin 权限 → 403。
 
@@ -250,6 +250,9 @@ location /api/ {
 location ^~ /uploads/ {
   proxy_pass http://127.0.0.1:3000/uploads/;   # 必须带 ^~，否则被图片静态规则劫持 404
 }
+```
+
+
 ```
 
 ---
