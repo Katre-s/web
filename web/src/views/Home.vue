@@ -70,37 +70,6 @@
       </div>
     </section>
 
-    <!-- ===== 平台全部商品（接在推荐后面） ===== -->
-    <section class="block" v-if="allProducts.length">
-      <div class="block-head">
-        <div>
-          <h2>{{ $t('home.allProducts') }}</h2>
-          <p>{{ $t('home.allProductsSub') }}</p>
-        </div>
-        <button class="head-link" @click="goTrade()">{{ $t('home.viewAll') }}<span>→</span></button>
-      </div>
-
-      <div class="rec-grid">
-        <article
-          v-for="p in allProducts"
-          :key="'all-' + p.id"
-          class="rec-card"
-          @click="openRec(p)"
-        >
-          <div class="rec-cover" :style="coverStyle(p.bookCover || p.images?.[0]?.imagePath)">
-            <span class="rec-cat">{{ $t('tradeCat.' + categoryKey(p.category)) }}</span>
-          </div>
-          <div class="rec-info">
-            <h3>{{ p.title || p.bookTitle }}</h3>
-            <div class="rec-meta">
-              <span class="rec-price">¥{{ p.price }}</span>
-              <span class="rec-seller" v-if="p.seller?.campus">{{ p.seller.campus }}</span>
-            </div>
-          </div>
-        </article>
-      </div>
-    </section>
-
     <!-- ===== 发布 CTA ===== -->
     <section class="cta">
       <div class="cta-fish"><BrandLogo :size="96" /></div>
@@ -121,7 +90,7 @@ const { t } = useI18n()
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { recommendApi, productApi } from '@/api'
+import { recommendApi } from '@/api'
 import { openAuthDialog } from '@/stores/authDialog'
 import { thumb } from '@/utils/image'
 import BrandLogo from '@/components/BrandLogo.vue'
@@ -159,20 +128,6 @@ async function loadRecommend() {
     }
   } catch {
     recs.value = { items: [], source: 'random', basis: { categories: [], keywords: [] } }
-  }
-}
-
-/* ------------------------------ 平台全部商品 ------------------------------ */
-const allProducts = ref([])
-
-async function loadAllProducts() {
-  try {
-    // /api/products 是公开接口，游客首页也能看到全站商品
-    const res = await productApi.list({ pageSize: 12, sort: 'newest' })
-    const list = Array.isArray(res.data) ? res.data : []
-    allProducts.value = list.slice(0, 12)
-  } catch {
-    allProducts.value = []
   }
 }
 
@@ -216,7 +171,6 @@ watch(
 
 onMounted(() => {
   loadRecommend()
-  loadAllProducts()
 })
 </script>
 

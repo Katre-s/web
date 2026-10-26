@@ -298,8 +298,6 @@ export default {
     mottoEvening: 'Sunset and the aroma of books',
     mottoNight: 'It is late. Rest well',
     recommend: 'Recommended for you',
-    allProducts: 'All items on the platform',
-    allProductsSub: 'What everyone is selling — take a look around',
     guestRecTitle: 'Sign in for picks made for you',
     guestRecDesc: 'We recommend items based on your campus and browsing history',
     guestRecBtn: 'Sign in / Sign up',

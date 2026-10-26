@@ -349,8 +349,6 @@ export default {
     mottoEvening: '夕阳西下，书韵悠长',
     mottoNight: '夜深了，注意休息',
     recommend: '为你推荐',
-    allProducts: '平台全部商品',
-    allProductsSub: '同学们都在卖的，随便逛逛',
     guestRecTitle: '登录后，为你挑好物',
     guestRecDesc: '按你的校区和浏览记录，推荐更合适的二手好物',
     guestRecBtn: '登录 / 注册',
