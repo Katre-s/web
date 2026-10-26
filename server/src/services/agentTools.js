@@ -43,12 +43,35 @@ const PAGE_STOPWORDS = ['广场', '购物车', '订单', '页面', '交易', '�
 // 指代词不能被当成书名（"那本书" 曾被抓成《书》，导致去搜"书"）
 const GENERIC_TITLES = ['书', '本', '一本', '这本书', '那本书', '这本', '那本', '这个', '那个', '它', '这些', '那些', '什么', '啥', '东西', '物品', '商品', '二手', '闲置']
 
+// 剥掉量词后只剩一个字时，只有常见单字商品才认（"辆车"→"车"），
+// 否则宁可保留原文（"本田"不该被剥成"田"）
+const SINGLE_CHAR_NOUNS = new Set(
+  '车书鞋包灯伞桌椅床锅碗杯笔机表帽衣裤裙球琴镜箱柜架扇壶盆刀剪尺碟褥垫枕套瓶罐盒袋带'.split('')
+)
+
 // 推荐类泛化词：不该被当成具体商品名去搜（"有什么好书推荐"应交给大模型给建议）
 const RECO_RE = /(推荐|好书|好物|划算|性价比|值得|便宜|捡漏)/
 
-function cleanTitle(raw) {
-  const title = String(raw || '')
+export function cleanTitle(raw) {
+  let title = String(raw || '')
     .replace(/^[的地得\s]+/, '')
+
+  // 量词前缀不属于商品名（"帮我找辆自行车" 曾抽出 "辆自行车" 去 LIKE，必然落空）
+  const noQuantifier = title.replace(
+    /^(?:[一二两三四五六七八九十几\d]+)?(?:辆|个|台|本|张|件|部|条|只|把|双|套|支|瓶|盒|箱|副|顶|份|袋|根|片|颗|架|间|盏|面|枚|串|束|堆|包|册|匹|艘|栋|门|扇|罐|桶|盘|碗|杯)\s*/,
+    ''
+  )
+  // 剥完只剩一个字：只有常见单字商品才接受（"找辆车"→"车"），
+  // 否则保留原文（"本田"不该被剥成"田"）
+  if (noQuantifier.length >= 2 || SINGLE_CHAR_NOUNS.has(noQuantifier)) title = noQuantifier
+
+  // 预算前缀同样不属于商品名（"二百左右的自行车" → "自行车"）
+  title = title.replace(
+    /^(?:预算|价格)?\s*(?:\d{1,6}(?:\.\d{1,2})?|[一二两三四五六七八九十百千]{1,6})\s*(?:元|块钱|块|左右|上下|以内|以下|之内|出头)\s*(?:左右|上下|以内|以下|之内|出头)?\s*的?\s*/,
+    ''
+  )
+
+  title = title
     .replace(/^(我的|我想要|我想|我要|我|这个|那个|这本|那本|这台|那台|这部|那部|这件|那件|这条|那条|这双|那双|这辆|那辆|一下|一本叫|一本|一个|一件|一条|一双|一台|一部|一只|一张|一套|一辆|有个叫|有个|下这个|下那个|下了|入到|进到)/, '')
     .replace(PARTICLE_RE, '')
     .replace(/\d+(?:\.\d+)?\s*(?:元|块钱|块)$/, '')
@@ -110,15 +133,73 @@ function extractPriceSubject(msg) {
   return cleanTitle(m[1].replace(/[买卖要收]\s*$/, ''))
 }
 
-/** 预算上限："预算300左右""500 元以内""不超过 200" → 300 / 500 / 200 */
+/** 预算上限："预算300左右""500 元以内""不超过 200""二百左右的自行车" → 300 / 500 / 200 */
+// 中文数字：「二百」「两百」「一百五」「三十」都要能认，否则"找一辆二百左右的自行车"永远拿不到预算
+const CN_DIGITS = { 零: 0, 〇: 0, 一: 1, 壹: 1, 二: 2, 两: 2, 贰: 2, 三: 3, 叁: 3, 四: 4, 肆: 4, 五: 5, 伍: 5, 六: 6, 陆: 6, 七: 7, 柒: 7, 八: 8, 捌: 8, 九: 9, 玖: 9 }
+const CN_UNITS = { 十: 10, 拾: 10, 百: 100, 佰: 100, 千: 1000, 仟: 1000, 万: 10000 }
+
+function cnToNumber(str) {
+  const s = String(str || '').replace(/[元块钱\s]/g, '')
+  if (!s) return null
+  if (/^\d+$/.test(s)) return Number(s)
+  let total = 0
+  let section = 0
+  let num = 0
+  let seen = false
+  for (const ch of s) {
+    if (ch in CN_DIGITS) {
+      num = CN_DIGITS[ch]
+      seen = true
+    } else if (ch in CN_UNITS) {
+      const u = CN_UNITS[ch]
+      seen = true
+      if (u === 10000) {
+        section = (section + num) * u
+        total += section
+        section = 0
+        num = 0
+      } else {
+        // 「十五」里的十前面没有数字，按 1 算
+        if (num === 0) num = 1
+        section += num * u
+        num = 0
+      }
+    } else {
+      return null
+    }
+  }
+  let value = total + section + num
+  // 口语省略：百位后直接跟个位数 = 十位（「一百五」150），千位后跟个位数 = 百位（「一千二」1200）
+  if (num > 0 && num < 10) {
+    const head = s.slice(0, -1)
+    if (/[百佰]$/.test(head)) value = total + section + num * 10
+    else if (/[千仟]$/.test(head)) value = total + section + num * 100
+  }
+  return seen && value > 0 ? value : null
+}
+
 export function extractBudget(msg) {
   const text = String(msg || '')
-  // 必须有预算语境词，否则"高等数学2"里的 2 会被当成预算
-  if (!/(预算|以内|以下|左右|不超过|最多|封顶|块钱|元|块)/.test(text)) return null
-  const m = text.match(/(\d{1,6})(?:\.\d{1,2})?/)
-  if (!m) return null
-  const n = Number(m[1])
-  return Number.isFinite(n) && n > 0 && n <= 100000 ? n : null
+  if (!text) return null
+
+  // 阿拉伯数字 或 中文数字
+  const NUM = '(\\d{1,6}(?:\\.\\d{1,2})?|[一二两三四五六七八九十百千]{1,6})'
+  const patterns = [
+    // 预算300 / 不超过两百 / 最多 500 / 封顶300 / 低于200
+    new RegExp(`(?:预算|不超过|最多|封顶|不到|低于|小于)\\s*${NUM}`),
+    // 300左右 / 二百上下 / 500 元以内 / 200以下 / 300之内 / 200出头
+    new RegExp(`${NUM}\\s*(?:元|块钱|块)?\\s*(?:左右|上下|以内|以下|之内|出头)`),
+    // 300元 / 两百块
+    new RegExp(`${NUM}\\s*(?:元|块钱|块)`)
+  ]
+
+  for (const re of patterns) {
+    const m = text.match(re)
+    if (!m) continue
+    const n = cnToNumber(m[1])
+    if (Number.isFinite(n) && n > 0 && n <= 100000) return n
+  }
+  return null
 }
 
 /** ISBN（10 位或 13 位，允许中间带 - 或空格） */
@@ -173,6 +254,10 @@ function variantTitles(title) {
   return [...new Set(list.filter(Boolean))]
 }
 
+// 问价的触发词。注意不能只放「价格」两个字：
+// "找一辆自行车，价格在二百左右" 是预算描述，不是提问，裸「价格」会把它误送进 price_query。
+const PRICE_ASK_RE = /(多少钱|什么价|什么价格|价格多少|价格是多少|贵不贵|贵吗|便宜吗|几个卖家|有人卖|值多少|卖多少)/
+
 /* ------------------------------ 意图解析 ------------------------------ */
 /**
  * @returns {null | {action:string, title?:string, isbn?:string, price?:number|null, page?:object}}
@@ -193,14 +278,14 @@ export function parseIntent(raw) {
   const page = PAGES.find(p => p.keys.some(k => lower.includes(k.toLowerCase())))
 
   // 0) 指代 + 问价："那本多少钱" → 用上下文那本书查价（必须在 HOWTO 之前，否则会被当成咨询丢掉）
-  if (ref && /(多少钱|什么价|价格|贵不贵|贵吗|便宜吗|几个卖家|有人卖)/.test(msg)) {
+  if (ref && PRICE_ASK_RE.test(msg)) {
     return { action: 'price_query', ref, title, isbn }
   }
 
   // 0.2) 点名商品 + 问价："军事理论教程多少钱""听说教程什么价格"
   //     以前这类句子被 HOWTO_RE 里的"多少钱/价格"拦成 null，用户只收到一句"没查到"。
   const priceSubject = title || extractPriceSubject(msg)
-  if (priceSubject && /(多少钱|什么价|什么价格|价格|贵不贵|贵吗|便宜吗|几个卖家|有人卖|值多少|卖多少)/.test(msg)) {
+  if (priceSubject && PRICE_ASK_RE.test(msg)) {
     return { action: 'price_query', title: priceSubject, isbn, category }
   }
 
@@ -233,6 +318,17 @@ export function parseIntent(raw) {
     return { action: 'cart_list' }
   }
 
+  // 3.4) 只有预算 + 名词、没有动词："预算300左右的耳机""两百块以内的球鞋"
+  //      extractTitle 要求"找/买/查"之类动词，这类句子抓不到名称；
+  //      如果直接落到下面的类目分支，就会退化成"把整个类目列一遍"，用户想找的那件反而沉了。
+  const bareBudget = extractBudget(msg)
+  if (!title && !isbn && bareBudget) {
+    const bare = cleanTitle(msg.replace(/^(?:预算|价格)\s*/, ''))
+    if (bare && bare.length >= 2 && bare.length <= 12 && !TRADE_CATEGORIES.includes(bare)) {
+      return { action: 'search', title: bare, category, maxPrice: bareBudget }
+    }
+  }
+
   // 3.5) 只说了类目、没有具体商品名："我要租房""有什么数码产品"
   //      → 直接列该类目在售商品（只给个"去交易页"的空话，用户会觉得 AI 什么都不会）
   //      带"发布/出售/出租"的是上架意图，交给后面的发布分支，别误判成找货
@@ -252,7 +348,8 @@ export function parseIntent(raw) {
 
   // 6) 找商品 / 搜索 —— 必须有名称/ISBN 实体才接管；开放性问题交给大模型，避免机械反问
   if ((/(有没有|找一?本|找一下|找找|找|搜索|搜一下|搜|查一?下|查查|查|有什么)/.test(msg) || title) && (title || isbn)) {
-    return { action: 'search', ref, title, isbn, category }
+    // 带预算的搜索也要把上限传下去（"找一辆二百左右的自行车"）
+    return { action: 'search', ref, title, isbn, category, maxPrice: extractBudget(msg) }
   }
 
   // 7) 打开 / 跳转页面
@@ -703,12 +800,33 @@ async function searchItems({ title, isbn, category, maxPrice, recommend }) {
   or.push(...bookWhereByTitle(variants))
   if (!or.length && title) or.push({ title: { [Op.like]: `%${title}%` } })
 
+  const budget = Number(maxPrice) > 0 ? Number(maxPrice) : 0
+  const baseWhere = { status: 'available', [Op.or]: or }
+
   // 类目软过滤：先按类目查，查不到再放开（历史商品 category 可能为空）
-  const products = await findAllByCategory(
-    { status: 'available', [Op.or]: or },
+  let products = await findAllByCategory(
+    budget ? { ...baseWhere, price: { [Op.lte]: budget } } : baseWhere,
     category,
     { order: [['price', 'ASC']], limit: 5 }
   )
+
+  // 预算内没有：放开预算再看一眼，把真实最低价报出来，
+  // 比回一句"没找到"有用得多（用户其实是在问"我这个钱能买到什么样的"）
+  if (budget && !products.length) {
+    const overBudget = await findAllByCategory(baseWhere, category, { order: [['price', 'ASC']], limit: 5 })
+    if (overBudget.length) {
+      const low = overBudget[0]
+      const lowName = low.bookTitle || low.title
+      return {
+        intent: 'search',
+        reply: `${budget} 元以内暂时没有「${title || isbn}」，最便宜的是「${lowName}」¥${Number(low.price)}，要不要看看？`,
+        actions: [
+          { type: 'navigate', path: itemLink(low, lowName), label: `看「${lowName}」` },
+          { type: 'navigate', path: '/trade', label: '去交易页' }
+        ]
+      }
+    }
+  }
 
   if (!products.length && !books.length) {
     return {

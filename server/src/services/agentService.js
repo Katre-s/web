@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { parseIntent, runAgentAction, extractTitle, extractCategory, extractBudget, PAGES } from './agentTools.js'
+import { parseIntent, runAgentAction, extractTitle, extractCategory, extractBudget, cleanTitle, PAGES } from './agentTools.js'
 import { TRADE_CATEGORIES } from '../config/categories.js'
 
 // 中介模型（router）用：允许它发起工具调用，工具定义通过 tools 参数传入
@@ -317,7 +317,7 @@ async function tryToolCalling(router, messages, userId, responder, userMessage) 
     let args = {}
     try { args = JSON.parse(call?.function?.arguments || '{}') } catch { args = {} }
     console.log('[AI] 中介调用', name, JSON.stringify(args).slice(0, 160))
-    const result = await runToolCall(name, args, userId)
+    const result = await runToolCall(name, args, userId, userMessage)
     if (!result) continue
     // 后端已真实执行完毕，交给云端 DeepSeek 用自己的话复述给用户
     return polishReply(responder, result, name, userMessage, messages)
@@ -426,18 +426,22 @@ function toToolCall(obj) {
 }
 
 /** 把模型给出的工具名+参数映射为真实后端操作 */
-async function runToolCall(name, args, userId) {
+async function runToolCall(name, args, userId, userMessage = '') {
   // 各家模型对"关键词"的字段名不统一：keyword / query / q / title / name 都见过
-  const keyword = String(
+  const rawKeyword = String(
     args?.keyword || args?.query || args?.q || args?.keywords || args?.title || args?.name || ''
   ).trim()
+  // 模型给的词不一定干净（"帮我找辆自行车" 常被抽成 "辆自行车"），
+  // 统一过一遍清洗规则；清洗后变空说明原词太泛，退回原词让搜索层自己处理
+  const keyword = rawKeyword ? (cleanTitle(rawKeyword) || rawKeyword) : ''
   const rawCat = String(args?.category || args?.cat || '').trim()
   // 模型常把类目说成"数码""穿搭"这种简称，模糊归一回去；实在对不上就当没给
   let category = TRADE_CATEGORIES.includes(rawCat) ? rawCat : ''
   if (!category && rawCat) {
     category = TRADE_CATEGORIES.find(c => c.includes(rawCat) || rawCat.includes(c)) || ''
   }
-  const maxPrice = Number(args?.maxPrice || args?.price || args?.budget) || null
+  // 模型经常漏掉预算（"二百左右"这种中文数字它更不会传），用规则从原话里补一次
+  const maxPrice = Number(args?.maxPrice || args?.price || args?.budget) || extractBudget(userMessage) || null
 
   switch (name) {
     case 'search_items':
@@ -488,7 +492,7 @@ async function plainChat(apiUrl, apiKey, model, messages, userMessage, userId) {
       let args = {}
       try { args = JSON.parse(call?.function?.arguments || '{}') } catch { args = {} }
       try {
-        const result = await runToolCall(name, args, userId)
+        const result = await runToolCall(name, args, userId, userMessage)
         if (result) return result
       } catch (err) {
         console.error('AI 文本工具调用执行失败:', err.message)
