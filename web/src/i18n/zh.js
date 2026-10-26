@@ -354,6 +354,7 @@ export default {
     guestRecBtn: '登录 / 注册',
     recommendSubLlm: '根据你最近的搜索和浏览',
     recommendSubRule: '根据你的浏览记录推荐',
+    recommendSubTime: '全站商品都在这里，最新上架的在前',
     recommendSubRandom: '随便看看，说不定有惊喜',
     tagline: '徐州工程学院 · 校园二手集市',
     heroSub: '让闲置在校园里游起来',

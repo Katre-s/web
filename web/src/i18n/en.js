@@ -303,6 +303,7 @@ export default {
     guestRecBtn: 'Sign in / Sign up',
     recommendSubLlm: 'Based on your recent searches and views',
     recommendSubRule: 'Based on your browsing history',
+    recommendSubTime: 'Everything on the platform, newest first',
     recommendSubRandom: 'Take a look — you might find something',
     tagline: 'XZIT · Campus second-hand market',
     heroSub: 'Let your idle stuff swim around campus',

@@ -106,9 +106,10 @@ const recommendSub = computed(() => {
   const map = {
     llm: 'home.recommendSubLlm',
     rule: 'home.recommendSubRule',
+    time: 'home.recommendSubTime',
     random: 'home.recommendSubRandom'
   }
-  return t(map[recs.value.source] || map.random)
+  return t(map[recs.value.source] || map.time)
 })
 
 async function loadRecommend() {
@@ -119,7 +120,8 @@ async function loadRecommend() {
     return
   }
   try {
-    const res = await recommendApi.home({ limit: 8 })
+    // 铺开全站商品，后端按兴趣排好序（感兴趣的在前），前端只管展示
+    const res = await recommendApi.home({ limit: 60 })
     const data = res.data || {}
     recs.value = {
       items: Array.isArray(data.items) ? data.items : [],

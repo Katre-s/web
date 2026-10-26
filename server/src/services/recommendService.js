@@ -113,43 +113,12 @@ function productInclude() {
   ]
 }
 
-async function randomProducts(userId, limit, excludeIds = []) {
-  if (limit <= 0) return []
-  const where = { status: 'available', userId: { [Op.ne]: userId } }
-  if (excludeIds.length) where.id = { [Op.notIn]: excludeIds }
-  return Product.findAll({
-    where,
-    include: productInclude(),
-    order: sequelize.literal('RAND()'),
-    limit
-  })
-}
-
-async function preferenceProducts(userId, { categories, keywords }, limit) {
-  const or = []
-  if (categories.length) or.push({ category: { [Op.in]: categories } })
-  for (const k of keywords) {
-    const like = `%${k}%`
-    or.push({ title: { [Op.like]: like } }, { bookTitle: { [Op.like]: like } }, { description: { [Op.like]: like } })
-  }
-  if (!or.length) return []
-
-  const where = { status: 'available', userId: { [Op.ne]: userId }, [Op.or]: or }
-  return Product.findAll({
-    where,
-    include: productInclude(),
-    order: sequelize.literal('RAND()'),
-    limit
-  })
-}
-
 /**
- * 首页推荐：
- * 1) 没有搜索/点击记录 → 随机推荐
- * 2) 有记录 → 本地模型推断偏好；模型不可用则用规则聚合
- * 3) 偏好命中的商品不足时，用随机商品补齐
+ * 首页推荐：全站在售商品一次铺开，把用户感兴趣的排在前面。
+ * 排序规则：类目命中 +3，标题/书名/描述命中行为关键词 +2；同分按上架时间最新的在前。
+ * 没有任何行为记录的用户，直接按时间倒序（等同于"最新上架"）。
  */
-export async function getRecommendations(userId, limit = 8) {
+export async function getRecommendations(userId, limit = 60) {
   const cached = cache.get(userId)
   if (cached && Date.now() - cached.at < CACHE_TTL) return cached.data
 
@@ -160,32 +129,41 @@ export async function getRecommendations(userId, limit = 8) {
     raw: true
   })
 
-  let data
-  if (!behaviors.length) {
-    const items = await randomProducts(userId, limit)
-    data = {
-      source: 'random',
-      basis: { categories: [], keywords: [] },
-      items: items.map(serializeProduct)
-    }
-  } else {
+  // 有行为 → 规则（或可选 LLM）推断偏好；没有 → 空 profile，商品按时间排
+  let profile = { categories: [], keywords: [] }
+  if (behaviors.length) {
     const fallback = summarize(behaviors)
-    const profile = await analyzeWithLlm(behaviors, fallback)
+    profile = await analyzeWithLlm(behaviors, fallback)
+  }
+  const cats = profile.categories || []
+  const kws = (profile.keywords || []).filter(Boolean)
 
-    let items = await preferenceProducts(userId, profile, limit)
-    if (items.length < limit) {
-      const fill = await randomProducts(userId, limit - items.length, items.map((i) => i.id))
-      items = items.concat(fill)
-    }
-    if (!items.length) {
-      items = await randomProducts(userId, limit)
-      data = { source: 'random', basis: { categories: [], keywords: [] }, items: items.map(serializeProduct) }
-    } else {
-      data = {
-        source: profile.source,
-        basis: { categories: profile.categories, keywords: profile.keywords },
-        items: items.map(serializeProduct)
-      }
+  // 一次拉全站在售商品（排除自己的），内存打分排序——校园站商品量级完全撑得住
+  const products = await Product.findAll({
+    where: { status: 'available', userId: { [Op.ne]: userId } },
+    include: productInclude(),
+    order: [['created_at', 'DESC']]
+  })
+
+  let data
+  if (!products.length) {
+    data = { source: 'random', basis: profile, items: [] }
+  } else {
+    const scored = products.map((p) => {
+      let score = 0
+      if (cats.includes(p.category)) score += 3
+      const text = `${p.title || ''}${p.bookTitle || ''}${p.description || ''}`
+      for (const k of kws) if (k && text.includes(k)) score += 2
+      const json = serializeProduct(p)
+      return { json, score, at: new Date(json.created_at || json.createdAt || 0).getTime() || 0 }
+    })
+    scored.sort((a, b) => b.score - a.score || b.at - a.at)
+
+    data = {
+      // 有偏好且真的命中过才叫 rule，否则就是纯时间序
+      source: behaviors.length && (cats.length || kws.length) ? 'rule' : 'time',
+      basis: { categories: cats, keywords: kws },
+      items: scored.slice(0, limit).map((x) => x.json)
     }
   }
 
