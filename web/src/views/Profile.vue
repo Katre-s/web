@@ -14,31 +14,16 @@
         <h3>{{ userStore.userInfo?.nickname }}</h3>
         <p class="user-no">ID：{{ userStore.userInfo?.userNo || t('common.unassigned') }}</p>
         <p>{{ $t('profile.email') }}：{{ userStore.userInfo?.email }} <el-button text type="primary" size="small" @click="showEmailDialog = true">{{ $t('profile.change') }}</el-button></p>
-        <p class="profile-balance">
+        <div class="profile-balance">
           {{ $t('profile.balance') }}：<b>¥{{ Number(userStore.userInfo?.balance ?? 0).toFixed(2) }}</b>
           <span class="pending-balance">{{ $t('profile.pendingBalance') }}：<b>¥{{ Number(userStore.userInfo?.pendingBalance ?? 0).toFixed(2) }}</b></span>
           <el-button type="primary" size="small" round @click="showRechargeDialog = true">{{ $t('profile.rechargeTitle') }}</el-button>
           <el-button size="small" round @click="openLogs">{{ $t('profile.balanceLogs') }}</el-button>
-        </p>
+          <!-- 主题 / AI 音色：从两张整块卡片收成两个小按钮，跟在余额流水右边 -->
+          <ThemeSwitcher inline compact />
+          <VoiceSwitcher inline compact />
+        </div>
       </div>
-    </div>
-
-    <!-- 外观主题：三套主题直接选择（从首页悬浮移入个人中心） -->
-    <div class="profile-theme-card">
-      <div class="profile-theme-head">
-        <span class="profile-theme-title">🎨 {{ $t('theme.title') }}</span>
-        <span class="profile-theme-sub">{{ $t('theme.tip') }}</span>
-      </div>
-      <ThemeSwitcher inline />
-    </div>
-
-    <!-- AI 音色：男声/女声选择（与主题同款 hover 渐变动画） -->
-    <div class="profile-theme-card">
-      <div class="profile-theme-head">
-        <span class="profile-theme-title">🎙️ {{ $t('voice.title') }}</span>
-        <span class="profile-theme-sub">{{ $t('voice.tip') }}</span>
-      </div>
-      <VoiceSwitcher inline />
     </div>
 
     <el-tabs v-model="activeTab" @tab-change="loadTabData">
@@ -537,27 +522,6 @@ onUnmounted(() => { if (cooldownTimer) clearInterval(cooldownTimer) })
   border-radius: 8px;
   padding: 24px;
   margin-bottom: 20px;
-}
-.profile-theme-card {
-  background: var(--card-bg, #fff);
-  border-radius: 8px;
-  padding: 18px 20px 22px;
-  margin-bottom: 20px;
-}
-.profile-theme-head {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-.profile-theme-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text-main, #1a1a1a);
-}
-.profile-theme-sub {
-  font-size: 12px;
-  color: var(--text-sub, #78909c);
 }
 .avatar-wrap {
   position: relative;

@@ -27,7 +27,7 @@
     </template>
 
     <!-- 内联模式（个人中心）：点击展开的紧凑面板，带主题照片预览 -->
-    <div v-else class="ts-inline" :class="{ open }">
+    <div v-else class="ts-inline" :class="{ open, compact }">
       <button
         type="button"
         class="ts-trigger"
@@ -64,7 +64,9 @@ import { Brush } from '@element-plus/icons-vue'
 import { useThemeStore } from '@/stores/theme'
 
 const props = defineProps({
-  inline: { type: Boolean, default: false }
+  inline: { type: Boolean, default: false },
+  // 紧凑模式：只留图标 + 当前值，用于个人中心余额行这种窄位置
+  compact: { type: Boolean, default: false }
 })
 
 const themeStore = useThemeStore()
@@ -159,6 +161,18 @@ onUnmounted(() => {
 }
 .ts-inline.open .ts-trigger {
   box-shadow: 0 6px 18px var(--accent-soft, rgba(66, 165, 245, 0.18));
+}
+/* 紧凑模式：藏掉「选择主题」这层说明文字，只留图标 + 当前主题 + 箭头 */
+.ts-inline.compact .ts-trigger-label {
+  display: none;
+}
+.ts-inline.compact .ts-trigger {
+  padding: 4px 10px;
+  font-size: 12.5px;
+  gap: 5px;
+}
+.ts-inline.compact .ts-current {
+  font-size: 12px;
 }
 /* 迷你面板：214px 宽，3 列小图，整体高度约 120px */
 .ts-panel-sm {

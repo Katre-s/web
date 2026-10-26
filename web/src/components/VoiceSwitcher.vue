@@ -26,7 +26,7 @@
     </template>
 
     <!-- 内联模式（个人中心）：点击展开的紧凑面板，与主题一致 -->
-    <div v-else class="vs-inline" :class="{ open }">
+    <div v-else class="vs-inline" :class="{ open, compact }">
       <button
         type="button"
         class="vs-trigger"
@@ -91,11 +91,16 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Microphone, ArrowDown } from '@element-plus/icons-vue'
 
 const props = defineProps({
-  inline: { type: Boolean, default: false }
+  inline: { type: Boolean, default: false },
+  // 紧凑模式：只留图标 + 当前音色，用于个人中心余额行这种窄位置
+  compact: { type: Boolean, default: false }
 })
+
+const { t } = useI18n()
 
 const open = ref(false)
 const current = ref(localStorage.getItem('ai_voice') || 'auto')
@@ -132,7 +137,8 @@ function isActive(id) {
 }
 
 const currentLabel = computed(() => {
-  if (['auto', 'female', 'male'].includes(current.value)) return current.value
+  // 三档快捷值走 i18n（自动 / 女声 / 男声），具体音色名保留浏览器给的原文
+  if (['auto', 'female', 'male'].includes(current.value)) return t(`voice.${current.value}`)
   return shortName(current.value)
 })
 
@@ -263,6 +269,18 @@ onUnmounted(() => {
 }
 .vs-inline.open .vs-trigger {
   box-shadow: 0 6px 18px var(--accent-soft, rgba(66, 165, 245, 0.18));
+}
+/* 紧凑模式：藏掉「AI 音色」这层说明文字，只留图标 + 当前音色 + 箭头 */
+.vs-inline.compact .vs-trigger-label {
+  display: none;
+}
+.vs-inline.compact .vs-trigger {
+  padding: 4px 10px;
+  font-size: 12.5px;
+  gap: 5px;
+}
+.vs-inline.compact .vs-current {
+  font-size: 12px;
 }
 /* 迷你面板：218px 宽，音色列表限高滚动，整体不再拉很长 */
 .vs-panel-sm {

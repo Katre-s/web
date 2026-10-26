@@ -1,11 +1,17 @@
 import { Notification, User } from '../models/index.js'
+import { sequelize } from '../config/database.js'
 import { success, fail } from '../utils/response.js'
 
 export async function myList(req, res, next) {
   try {
     const list = await Notification.findAll({
       where: { userId: req.user.id },
-      order: [['id', 'DESC']],
+      // 管理员发出的通知永远置顶，其余按时间倒序。
+      // broadcast = 管理台群发公告，admin = 管理员操作触发的通知，single = 管理员单独发给某个用户
+      order: [
+        sequelize.literal("CASE WHEN `type` IN ('broadcast','admin','single') THEN 0 ELSE 1 END ASC"),
+        ['id', 'DESC']
+      ],
       limit: 100
     })
     const unread = list.filter((n) => !n.isRead).length
