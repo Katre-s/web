@@ -46,6 +46,13 @@ function summarize(behaviors) {
  * 也可以用 RECOMMEND_* 单独指定端点/模型/超时；未配置或超时即回落规则。
  */
 async function analyzeWithLlm(behaviors, fallback) {
+  // 默认不走 LLM：云端模型偶尔超时（15s）会拖垮整个推荐接口，前端等不到就报「请求失败」，
+  // 推荐区直接消失。规则聚合（按类目/关键词）已经能给出不错的结果，LLM 只作可选增强。
+  // 需要开启时在 .env 里设 RECOMMEND_USE_LLM=true。
+  if (String(process.env.RECOMMEND_USE_LLM || '').toLowerCase() !== 'true') {
+    return { source: 'rule', ...fallback }
+  }
+
   const apiUrl = process.env.RECOMMEND_API_URL || process.env.AI_API_URL || process.env.CHAT_API_URL
   if (!apiUrl) return { source: 'rule', ...fallback }
 
