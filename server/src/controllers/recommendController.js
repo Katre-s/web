@@ -1,10 +1,11 @@
 import { getRecommendations, recordBehavior } from '../services/recommendService.js'
 import { success, fail } from '../utils/response.js'
 
-/** 首页推荐（登录用户） */
+/** 首页推荐（登录用户）：全站在售商品铺开，按兴趣排序，一次性返回 */
 export async function home(req, res, next) {
   try {
-    const limit = Math.min(Math.max(Number(req.query.limit) || 8, 1), 20)
+    // 上限 500：校园站商品量级远达不到，等于"全部返回"
+    const limit = Math.min(Math.max(Number(req.query.limit) || 300, 1), 500)
     const data = await getRecommendations(req.user.id, limit)
     success(res, data)
   } catch (err) { next(err) }

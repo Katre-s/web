@@ -121,7 +121,7 @@ async function loadRecommend() {
   }
   try {
     // 铺开全站商品，后端按兴趣排好序（感兴趣的在前），前端只管展示
-    const res = await recommendApi.home({ limit: 60 })
+    const res = await recommendApi.home({ limit: 300 })
     const data = res.data || {}
     recs.value = {
       items: Array.isArray(data.items) ? data.items : [],
