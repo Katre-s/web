@@ -39,6 +39,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus/es/components/message/index'
 import { productApi, cartApi, conversationApi, favoriteApi, recommendApi } from '@/api'
+import { openAuthDialog } from '@/stores/authDialog'
 import { useUserStore } from '@/stores/user'
 import { resolveImg, imgFallback, thumb } from '@/utils/image'
 import { categoryKey } from '@/constants/categories'
@@ -83,7 +84,7 @@ async function loadProduct() {
 
 async function toggleFavorite() {
   if (!userStore.isLoggedIn) {
-    router.push({ name: 'Login', query: { redirect: route.fullPath } })
+    openAuthDialog('login', route.fullPath)
     return
   }
   if (!product.value?.id) return
@@ -96,7 +97,7 @@ async function toggleFavorite() {
 
 async function addToCart() {
   if (!userStore.isLoggedIn) {
-    router.push({ name: 'Login', query: { redirect: route.fullPath } })
+    openAuthDialog('login', route.fullPath)
     return
   }
   if (!product.value?.id) {
@@ -112,7 +113,7 @@ async function addToCart() {
 // 联系卖家：走「会话」接口建会话，并带 conv 参数跳到对话页自动打开该对话框
 async function contactSeller() {
   if (!userStore.isLoggedIn) {
-    router.push({ name: 'Login', query: { redirect: route.fullPath } })
+    openAuthDialog('login', route.fullPath)
     return
   }
   const sellerId = product.value?.userId || product.value?.seller?.id

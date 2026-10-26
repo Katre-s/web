@@ -81,6 +81,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus/es/components/message/index'
 import { Notebook, Location } from '@element-plus/icons-vue'
 import { booksApi, conversationApi, cartApi, bookFavoriteApi, recommendApi } from '@/api'
+import { openAuthDialog } from '@/stores/authDialog'
 import { useUserStore } from '@/stores/user'
 import { resolveImg, thumb } from '@/utils/image'
 
@@ -182,7 +183,7 @@ function formatTime(time) {
 
 async function contactSeller(seller) {
   if (!userStore.isLoggedIn) {
-    router.push({ name: 'Login', query: { redirect: route.fullPath } })
+    openAuthDialog('login', route.fullPath)
     return
   }
   if (!seller?.sellerId) {

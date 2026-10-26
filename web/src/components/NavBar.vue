@@ -5,7 +5,7 @@
         <BrandLogo :size="30" />
         <span class="brand-name">小咸鱼</span>
       </router-link>
-      <div class="nav-left">
+      <div class="nav-left" v-if="userStore.isLoggedIn">
         <div class="avatar-box">
           <img :src="thumb(userStore.userInfo?.avatar, 96) || defaultAvatar" class="avatar" />
         </div>
@@ -70,7 +70,7 @@
           <el-icon :size="20"><Setting /></el-icon>
         </router-link>
 
-        <el-popover placement="bottom-end" :width="320" trigger="click" @show="loadNotifications">
+        <el-popover v-if="userStore.isLoggedIn" placement="bottom-end" :width="320" trigger="click" @show="loadNotifications">
           <template #reference>
             <div class="bell-box">
               <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99">
@@ -101,7 +101,9 @@
           </div>
         </el-popover>
 
-        <el-button text @click="handleLogout" class="logout-btn">{{ $t('nav.logout') }}</el-button>
+        <!-- 同一个位置两种身份：已登录是「退出登录」，未登录是「登录」 -->
+        <el-button v-if="userStore.isLoggedIn" text class="logout-btn" @click="handleLogout">{{ $t('nav.logoutFull') }}</el-button>
+        <el-button v-else type="primary" round size="small" class="login-btn" @click="openLogin">{{ $t('nav.login') }}</el-button>
       </div>
     </div>
   </header>
@@ -113,6 +115,7 @@ import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
 import { HomeFilled, ShoppingBag, ChatLineSquare, ChatDotRound, User, Bell, Setting, Tickets, MagicStick, CaretBottom } from '@element-plus/icons-vue'
 import { notificationApi } from '@/api'
+import { openAuthDialog } from '@/stores/authDialog'
 import { setLang, currentLang } from '@/i18n'
 import { resolveImg, thumb } from '@/utils/image'
 import BrandLogo from '@/components/BrandLogo.vue'
@@ -158,7 +161,12 @@ function formatTime(t) {
 
 function handleLogout() {
   userStore.logout()
-  router.push('/login')
+  // 退出后回到首页（首页是唯一公开页），不再跳已不存在的 /login
+  router.push('/')
+}
+
+function openLogin() {
+  openAuthDialog('login')
 }
 
 // 语言切换
@@ -172,7 +180,9 @@ function restoreFloat() {
   window.dispatchEvent(new Event('ai-float-restore'))
 }
 
-onMounted(loadNotifications)
+onMounted(() => {
+  if (userStore.isLoggedIn) loadNotifications()
+})
 </script>
 
 <style scoped>
@@ -361,6 +371,15 @@ onMounted(loadNotifications)
 }
 .logout-btn:hover {
   color: #ef5350;
+}
+/* 未登录时右上角的入口按钮 */
+.login-btn {
+  height: 34px;
+  padding: 0 18px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  box-shadow: 0 6px 16px var(--accent-soft);
 }
 
 .notif-panel {

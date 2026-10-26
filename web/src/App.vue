@@ -10,20 +10,34 @@
     </main>
     <TabBar v-if="!isAuthPage && !isAdminPage" />
     <AiFloat v-if="!isAuthPage && !isAdminPage" />
+    <!-- 登录/注册已改为全局弹窗，任何页面都能唤起 -->
+    <AuthDialog />
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 import NavBar from '@/components/NavBar.vue'
 import TabBar from '@/components/TabBar.vue'
 import AiFloat from '@/components/AiFloat.vue'
+import AuthDialog from '@/components/AuthDialog.vue'
 
 const route = useRoute()
-const isAuthPage = computed(() => route.path === '/login' || route.path === '/forgot-password')
+const userStore = useUserStore()
+// 登录已是弹窗，只剩「忘记密码」还是整页流程
+const isAuthPage = computed(() => route.path === '/forgot-password')
 // 后台管理是整屏工作区：手机上底部导航条 + 悬浮 AI 按钮会压住表格最后一行和操作按钮
 const isAdminPage = computed(() => route.path.startsWith('/admin'))
+
+// 接口返回 401 时（token 过期），把 pinia 里的登录态一起清掉，
+// 否则导航栏还显示着已登录的用户名，但请求已经在报错了
+function onAuthExpired() {
+  userStore.clearAuth()
+}
+onMounted(() => window.addEventListener('auth-expired', onAuthExpired))
+onUnmounted(() => window.removeEventListener('auth-expired', onAuthExpired))
 </script>
 
 <style scoped>

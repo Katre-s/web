@@ -12,7 +12,9 @@ export default {
     orders: 'Orders',
     profile: 'Profile',
     admin: 'Admin',
+    login: 'Sign in',
     logout: 'Logout',
+    logoutFull: 'Sign out',
     notifications: 'Notifications'
   },
   tabbar: {
@@ -296,6 +298,9 @@ export default {
     mottoEvening: 'Sunset and the aroma of books',
     mottoNight: 'It is late. Rest well',
     recommend: 'Recommended for you',
+    guestRecTitle: 'Sign in for picks made for you',
+    guestRecDesc: 'We recommend items based on your campus and browsing history',
+    guestRecBtn: 'Sign in / Sign up',
     recommendSubLlm: 'Based on your recent searches and views',
     recommendSubRule: 'Based on your browsing history',
     recommendSubRandom: 'Take a look — you might find something',

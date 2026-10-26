@@ -107,7 +107,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { setLang, currentLang } from '@/i18n'
@@ -132,12 +132,26 @@ const isAdmin = computed(() => userStore.userInfo?.role === 'admin')
 const defaultAvatar = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><circle cx="20" cy="20" r="20" fill="%2342a5f5"/><text x="50%" y="50%" fill="%23fff" text-anchor="middle" dy=".35em" font-size="16">文</text></svg>'
 
 async function loadUnread() {
+  // 游客没有会话，直接跳过请求，否则首页一打开就是 401（会被弹登录窗）
+  if (!userStore.isLoggedIn) {
+    unreadTotal.value = 0
+    return
+  }
   try {
     const res = await conversationApi.list()
     const list = res.data || res || []
     unreadTotal.value = list.reduce((sum, c) => sum + (Number(c.unreadCount) || 0), 0)
   } catch {}
 }
+
+// 登录/退出后立刻同步未读数
+watch(
+  () => userStore.isLoggedIn,
+  (v) => {
+    if (v) loadUnread()
+    else unreadTotal.value = 0
+  }
+)
 
 async function loadNotifications() {
   try {
@@ -185,7 +199,8 @@ function toggleNotif() {
 function handleLogout() {
   showPanel.value = false
   userStore.logout()
-  router.push('/login')
+  // 登录页已改成弹窗，退出后回首页
+  router.push('/')
 }
 
 onMounted(() => {

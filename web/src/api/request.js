@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus/es/components/message/index'
 import { apiBaseURL } from '@/utils/env'
+import { openAuthDialog } from '@/stores/authDialog'
 
 const request = axios.create({
   // Web: 同源 /api；原生壳: 绝对地址（见 utils/env.js）
@@ -25,12 +26,16 @@ request.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
       localStorage.removeItem('userInfo')
-      if (!isRedirecting && window.location.pathname !== '/login') {
+      if (!isRedirecting) {
         isRedirecting = true
         ElMessage.error('登录已过期，请重新登录')
+        // 不再跳 /login（已改成弹窗）：就地唤起登录窗，目标仍是当前页
+        openAuthDialog('login', window.location.pathname + window.location.search)
+        // 让 pinia 里的登录态也同步清掉（事件监听在 App.vue）
+        window.dispatchEvent(new Event('auth-expired'))
         setTimeout(() => {
-          window.location.href = '/login'
-        }, 100)
+          isRedirecting = false
+        }, 1500)
       }
     } else {
       ElMessage.error({ message: msg, duration: 2000 })

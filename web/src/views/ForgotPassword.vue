@@ -108,12 +108,14 @@ import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 
 import { ref, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus/es/components/message/index'
 import { authApi } from '@/api'
+import { openAuthDialog } from '@/stores/authDialog'
 import BrandLogo from '@/components/BrandLogo.vue'
 
 const router = useRouter()
+const route = useRoute()
 const step = ref(1)
 const email = ref('')
 const code = ref('')
@@ -135,7 +137,10 @@ function bubbleStyle(n) {
 }
 
 function goLogin() {
-  router.push('/login')
+  // 登录已是弹窗：回首页并把登录窗唤起来
+  const back = route.query.redirect
+  router.push('/')
+  openAuthDialog('login', typeof back === 'string' ? back : '')
 }
 
 async function sendCode() {

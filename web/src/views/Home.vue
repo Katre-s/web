@@ -99,6 +99,20 @@
       </div>
     </section>
 
+    <!-- ===== 未登录：推荐区换成登录引导 ===== -->
+    <section class="block guest-rec" v-if="!userStore.isLoggedIn">
+      <div class="guest-rec-card">
+        <span class="guest-rec-emoji">🐟</span>
+        <div class="guest-rec-text">
+          <h2>{{ $t('home.guestRecTitle') }}</h2>
+          <p>{{ $t('home.guestRecDesc') }}</p>
+        </div>
+        <el-button type="primary" round class="guest-rec-btn" @click="openAuthDialog('login', '/')">
+          {{ $t('home.guestRecBtn') }}
+        </el-button>
+      </div>
+    </section>
+
     <!-- ===== 推荐 ===== -->
     <section class="block" v-if="recs.items.length">
       <div class="block-head">
@@ -147,10 +161,11 @@
 <script setup>import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { booksApi, weatherApi, recommendApi } from '@/api'
+import { openAuthDialog } from '@/stores/authDialog'
 import { resolveImg, thumb } from '@/utils/image'
 import BrandLogo from '@/components/BrandLogo.vue'
 import { TRADE_CATEGORIES, categoryKey } from '@/constants/categories'
@@ -270,6 +285,12 @@ const recommendSub = computed(() => {
 })
 
 async function loadRecommend() {
+  // 推荐接口要求登录态（后端 verifyToken）。游客跳过请求，
+  // 否则首页一打开就是 401，会被弹登录窗打断浏览。
+  if (!userStore.isLoggedIn) {
+    recs.value = { items: [], source: 'random', basis: { categories: [], keywords: [] } }
+    return
+  }
   try {
     const res = await recommendApi.home({ limit: 8 })
     const data = res.data || {}
@@ -307,6 +328,14 @@ function goTrade(category) {
 function goPublish() {
   router.push('/publish')
 }
+
+// 游客登录成功后，推荐区立刻补上，不用手动刷新
+watch(
+  () => userStore.isLoggedIn,
+  (v) => {
+    if (v) loadRecommend()
+  }
+)
 
 onMounted(() => {
   loadStats()
@@ -655,6 +684,54 @@ onUnmounted(() => {
 /* ================= 通用区块 ================= */
 .block {
   margin-bottom: 30px;
+}
+/* 游客引导卡：替代需要登录的推荐区 */
+.guest-rec-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 24px;
+  border-radius: 18px;
+  background: var(--card-bg, #fff);
+  border: 1px dashed var(--accent-soft, rgba(66, 165, 245, 0.35));
+  box-shadow: 0 10px 26px -18px rgba(13, 40, 71, 0.35);
+}
+.guest-rec-emoji {
+  font-size: 34px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.guest-rec-text {
+  flex: 1;
+  min-width: 0;
+}
+.guest-rec-text h2 {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+.guest-rec-text p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-sub, #78909c);
+}
+.guest-rec-btn {
+  flex-shrink: 0;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+@media (max-width: 768px) {
+  .guest-rec-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 18px;
+  }
+  .guest-rec-btn {
+    width: 100%;
+  }
 }
 .block-head {
   display: flex;
